@@ -3,6 +3,7 @@ package com.example.audioanalyser
 import java.util.Locale
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -70,6 +72,35 @@ data class SpectrumSnapshot(
     val dominantFrequency: Float,
     val dbLevel: Float
 )
+
+private const val AUDIO_PREFS_NAME = "audio_prefs"
+private const val PREF_SELECTED_OVERLAY_ID = "selected_overlay_id"
+private const val PREF_SELECTED_TARGET_CURVE_ID = "selected_target_curve_id"
+private const val PREF_CUSTOM_TARGET_CURVE_NAME = "custom_target_curve_name"
+
+private fun customTargetCurvePointPrefKey(index: Int): String = "custom_target_curve_point_$index"
+
+private fun loadCustomTargetCurveSettings(context: Context): CustomTargetCurveSettings {
+    val prefs = context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+    val defaults = defaultCustomTargetCurveSettings()
+
+    return CustomTargetCurveSettings(
+        name = prefs.getString(PREF_CUSTOM_TARGET_CURVE_NAME, defaults.name).orEmpty().ifBlank { defaults.name },
+        points = customTargetCurveFrequencies.mapIndexed { index, _ ->
+            prefs.getFloat(customTargetCurvePointPrefKey(index), defaults.points.getOrElse(index) { 0f })
+        }
+    )
+}
+
+private fun saveCustomTargetCurveSettings(context: Context, settings: CustomTargetCurveSettings) {
+    val prefs = context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+    prefs.edit().apply {
+        putString(PREF_CUSTOM_TARGET_CURVE_NAME, settings.name)
+        customTargetCurveFrequencies.indices.forEach { index ->
+            putFloat(customTargetCurvePointPrefKey(index), settings.points.getOrElse(index) { 0f })
+        }
+    }.apply()
+}
 
 @Composable
 fun MainScreen(analyzer: AudioAnalyzer) {
@@ -158,8 +189,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     val overlayProfiles = remember { analyzerOverlayProfiles }
     var selectedOverlayId by rememberSaveable { mutableStateOf(overlayProfiles.first().id) }
     val selectedOverlay = overlayProfiles.firstOrNull { it.id == selectedOverlayId } ?: overlayProfiles.first()
-    val targetCurveProfiles = remember { analyzerTargetCurveProfiles }
-    var selectedTargetCurveId by rememberSaveable { mutableStateOf(targetCurveProfiles.first().id) }
+    var customCurveSettings by remember { mutableStateOf(defaultCustomTargetCurveSettings()) }
+    val targetCurveProfiles = remember(customCurveSettings) { buildAnalyzerTargetCurveProfiles(customCurveSettings) }
+    var selectedTargetCurveId by rememberSaveable { mutableStateOf(analyzerTargetCurveProfiles.first().id) }
     val selectedTargetCurve = targetCurveProfiles.firstOrNull { it.id == selectedTargetCurveId } ?: targetCurveProfiles.first()
 
     val configuration = LocalConfiguration.current
@@ -168,11 +200,37 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     // Load persisted calibration values (if any)
     val ctx = LocalContext.current
     LaunchedEffect(Unit) {
-        val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
         val savedOffset = prefs.getFloat("db_offset", 30f)
         val savedNoise = prefs.getFloat("noise_threshold", 25f)
         analyzer.setDbOffset(savedOffset)
         analyzer.setNoiseThreshold(savedNoise)
+        customCurveSettings = loadCustomTargetCurveSettings(ctx)
+        selectedOverlayId = prefs.getString(PREF_SELECTED_OVERLAY_ID, overlayProfiles.first().id)
+            ?.takeIf { savedId -> overlayProfiles.any { it.id == savedId } }
+            ?: overlayProfiles.first().id
+        selectedTargetCurveId = prefs.getString(PREF_SELECTED_TARGET_CURVE_ID, analyzerTargetCurveProfiles.first().id)
+            ?: analyzerTargetCurveProfiles.first().id
+    }
+
+    LaunchedEffect(targetCurveProfiles, selectedTargetCurveId) {
+        if (targetCurveProfiles.none { it.id == selectedTargetCurveId }) {
+            selectedTargetCurveId = targetCurveProfiles.first().id
+        }
+    }
+
+    LaunchedEffect(selectedOverlayId) {
+        ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(PREF_SELECTED_OVERLAY_ID, selectedOverlayId)
+            .apply()
+    }
+
+    LaunchedEffect(selectedTargetCurveId) {
+        ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(PREF_SELECTED_TARGET_CURVE_ID, selectedTargetCurveId)
+            .apply()
     }
 
     // Lifecycle-aware start/stop
@@ -236,10 +294,16 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     snapshotCompareEnabled = snapshotCompareEnabled,
                     selectedOverlay = selectedOverlay,
                     selectedTargetCurve = selectedTargetCurve,
+                    customCurveSettings = customCurveSettings,
                     overlayProfiles = overlayProfiles,
                     targetCurveProfiles = targetCurveProfiles,
                     onOverlaySelected = { selectedOverlayId = it.id },
                     onTargetCurveSelected = { selectedTargetCurveId = it.id },
+                    onSaveCustomCurveSettings = { updatedSettings ->
+                        customCurveSettings = updatedSettings
+                        saveCustomTargetCurveSettings(ctx, updatedSettings)
+                        selectedTargetCurveId = CUSTOM_TARGET_CURVE_ID
+                    },
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onCaptureSnapshot = {
                         spectrumSnapshot = SpectrumSnapshot(
@@ -273,10 +337,16 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     snapshotCompareEnabled = snapshotCompareEnabled,
                     selectedOverlay = selectedOverlay,
                     selectedTargetCurve = selectedTargetCurve,
+                    customCurveSettings = customCurveSettings,
                     overlayProfiles = overlayProfiles,
                     targetCurveProfiles = targetCurveProfiles,
                     onOverlaySelected = { selectedOverlayId = it.id },
                     onTargetCurveSelected = { selectedTargetCurveId = it.id },
+                    onSaveCustomCurveSettings = { updatedSettings ->
+                        customCurveSettings = updatedSettings
+                        saveCustomTargetCurveSettings(ctx, updatedSettings)
+                        selectedTargetCurveId = CUSTOM_TARGET_CURVE_ID
+                    },
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onCaptureSnapshot = {
                         spectrumSnapshot = SpectrumSnapshot(
@@ -339,10 +409,12 @@ fun PortraitLayout(
     snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
     selectedTargetCurve: AnalyzerTargetCurveProfile,
+    customCurveSettings: CustomTargetCurveSettings,
     overlayProfiles: List<AnalyzerOverlayProfile>,
     targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
     onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
+    onSaveCustomCurveSettings: (CustomTargetCurveSettings) -> Unit,
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
@@ -374,10 +446,12 @@ fun PortraitLayout(
             snapshotCompareEnabled = snapshotCompareEnabled,
             selectedOverlay = selectedOverlay,
             selectedTargetCurve = selectedTargetCurve,
+            customCurveSettings = customCurveSettings,
             overlayProfiles = overlayProfiles,
             targetCurveProfiles = targetCurveProfiles,
             onOverlaySelected = onOverlaySelected,
             onTargetCurveSelected = onTargetCurveSelected,
+            onSaveCustomCurveSettings = onSaveCustomCurveSettings,
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
@@ -404,10 +478,12 @@ fun LandscapeLayout(
     snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
     selectedTargetCurve: AnalyzerTargetCurveProfile,
+    customCurveSettings: CustomTargetCurveSettings,
     overlayProfiles: List<AnalyzerOverlayProfile>,
     targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
     onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
+    onSaveCustomCurveSettings: (CustomTargetCurveSettings) -> Unit,
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
@@ -441,10 +517,12 @@ fun LandscapeLayout(
             snapshotCompareEnabled = snapshotCompareEnabled,
             selectedOverlay = selectedOverlay,
             selectedTargetCurve = selectedTargetCurve,
+            customCurveSettings = customCurveSettings,
             overlayProfiles = overlayProfiles,
             targetCurveProfiles = targetCurveProfiles,
             onOverlaySelected = onOverlaySelected,
             onTargetCurveSelected = onTargetCurveSelected,
+            onSaveCustomCurveSettings = onSaveCustomCurveSettings,
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
@@ -571,6 +649,7 @@ fun HistorySparkline(history: List<Float>, modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VisualizerCard(
     dbLevel: Float,
@@ -582,26 +661,38 @@ fun VisualizerCard(
     snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
     selectedTargetCurve: AnalyzerTargetCurveProfile,
+    customCurveSettings: CustomTargetCurveSettings,
     overlayProfiles: List<AnalyzerOverlayProfile>,
     targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
     onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
+    onSaveCustomCurveSettings: (CustomTargetCurveSettings) -> Unit,
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showAnalyzerTools by remember { mutableStateOf(false) }
+    var showCustomCurveDialog by remember { mutableStateOf(false) }
     val matchedBand = selectedOverlay.bandFor(dominantFrequency)
     val primaryFeedbackPeak = feedbackPeaks.firstOrNull()
     val snapshotDeltaHz = spectrumSnapshot?.let { dominantFrequency - it.dominantFrequency }
+    val peakFocusSummary = when {
+        matchedBand != null -> "Peak focus: ${matchedBand.label} (${formatFrequencyRange(matchedBand.startHz, matchedBand.endHz)})"
+        selectedOverlay.bands.isNotEmpty() -> "Peak focus: outside ${selectedOverlay.label} guide bands"
+        else -> "No source guide selected."
+    }
+    val snapshotSummary = spectrumSnapshot?.let { snapshot ->
+        if (snapshotCompareEnabled) {
+            "Snapshot delta ${formatSignedFrequencyDelta(snapshotDeltaHz ?: 0f)} and ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}."
+        } else {
+            "Snapshot saved at ${formatFrequencyLabel(snapshot.dominantFrequency)} and ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}."
+        }
+    }
     val semanticsDesc = buildString {
         append(String.format(Locale.getDefault(), "Frequency visualizer. Dominant frequency %.0f Hz. ", dominantFrequency))
-        when {
-            matchedBand != null -> append("Current peak sits in ${matchedBand.label}.")
-            selectedOverlay.bands.isNotEmpty() -> append("Current peak is outside the selected ${selectedOverlay.label} focus bands.")
-            else -> append("No focus overlay selected.")
-        }
+        append(peakFocusSummary)
         if (selectedTargetCurve.isEnabled) {
             append(" Target curve ${selectedTargetCurve.label} selected.")
         }
@@ -612,231 +703,95 @@ fun VisualizerCard(
             append(" Snapshot compare enabled.")
         }
     }
+
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            Text(
-                text = stringResource(id = R.string.frequency_spectrum),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Text(
-                text = String.format(Locale.getDefault(), "Dominant %.0f Hz", dominantFrequency),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Text(
-                text = when {
-                    matchedBand != null -> "Peak focus: ${matchedBand.label} (${formatFrequencyRange(matchedBand.startHz, matchedBand.endHz)})"
-                    selectedOverlay.bands.isNotEmpty() -> "Peak focus: outside ${selectedOverlay.label} guide bands"
-                    else -> "Select an overlay to highlight a source's main ranges."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
-            )
-
-            Text(
-                text = stringResource(id = R.string.overlay_selector),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                overlayProfiles.forEach { profile ->
-                    FilterChip(
-                        selected = profile.id == selectedOverlay.id,
-                        onClick = { onOverlaySelected(profile) },
-                        label = { Text(profile.label) }
-                    )
-                }
-            }
-
-            Text(
-                text = "Target curve",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                targetCurveProfiles.forEach { profile ->
-                    FilterChip(
-                        selected = profile.id == selectedTargetCurve.id,
-                        onClick = { onTargetCurveSelected(profile) },
-                        label = { Text(profile.label) }
-                    )
-                }
-            }
-
-            if (selectedOverlay.bands.isNotEmpty()) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 8.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = selectedOverlay.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        selectedOverlay.bands.forEach { band ->
-                            Text(
-                                text = "${band.label}: ${formatFrequencyRange(band.startHz, band.endHz)} - ${band.note}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (selectedTargetCurve.isEnabled) {
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.26f),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "${selectedTargetCurve.label} ${selectedTargetCurve.badge}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = selectedTargetCurve.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        Text(
-                            text = "Best for: ${selectedTargetCurve.useCase}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                        Text(
-                            text = "Caution: ${selectedTargetCurve.caution}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        Text(
-                            text = "Colored line shows the selected target shape across the spectrum.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = selectedTargetCurve.color,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Feedback hunt mode",
+                        text = stringResource(id = R.string.frequency_spectrum),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Locks onto repeated narrow peaks so you can ring out a source faster.",
-                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        text = formatFrequencyLabel(dominantFrequency),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                    Text(
+                        text = peakFocusSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
-                Switch(
-                    checked = feedbackHuntEnabled,
-                    onCheckedChange = onFeedbackHuntEnabledChange
-                )
+
+                TextButton(onClick = { showAnalyzerTools = true }) {
+                    Text("Tools")
+                }
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilledTonalButton(onClick = onCaptureSnapshot) {
-                    Text(if (spectrumSnapshot == null) "Capture snapshot" else "Refresh snapshot")
+                AssistChip(
+                    onClick = onCaptureSnapshot,
+                    label = { Text(if (spectrumSnapshot == null) "Capture" else "Refresh") }
+                )
+                AssistChip(
+                    onClick = { showAnalyzerTools = true },
+                    label = { Text("Source: ${selectedOverlay.label}") }
+                )
+                AssistChip(
+                    onClick = { showAnalyzerTools = true },
+                    label = { Text("Curve: ${selectedTargetCurve.label}") }
+                )
+                if (feedbackHuntEnabled) {
+                    AssistChip(
+                        onClick = { showAnalyzerTools = true },
+                        label = { Text("Feedback on") }
+                    )
                 }
                 if (spectrumSnapshot != null) {
-                    FilterChip(
-                        selected = snapshotCompareEnabled,
-                        onClick = { onSnapshotCompareEnabledChange(!snapshotCompareEnabled) },
-                        label = { Text(if (snapshotCompareEnabled) "Compare on" else "Compare off") }
+                    AssistChip(
+                        onClick = { showAnalyzerTools = true },
+                        label = { Text(if (snapshotCompareEnabled) "Compare on" else "Snapshot saved") }
                     )
-                    TextButton(onClick = onClearSnapshot) {
-                        Text("Clear")
-                    }
                 }
             }
 
-            spectrumSnapshot?.let { snapshot ->
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.32f),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "Snapshot reference",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Captured dominant ${formatFrequencyLabel(snapshot.dominantFrequency)} at ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                        Text(
-                            text = if (snapshotCompareEnabled) {
-                                "Live delta ${formatSignedFrequencyDelta(snapshotDeltaHz ?: 0f)} and ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}. Cyan line shows the snapshot."
-                            } else {
-                                "Turn compare on to overlay the captured spectrum on the live bars."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-                }
+            if (snapshotSummary != null) {
+                Text(
+                    text = snapshotSummary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            } else if (selectedTargetCurve.isEnabled) {
+                Text(
+                    text = "${selectedTargetCurve.badge}: ${selectedTargetCurve.useCase}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
             }
 
             FrequencyVisualizer(
+                dominantFrequency = dominantFrequency,
                 frequencies = frequencies,
                 overlayBands = selectedOverlay.bands,
                 feedbackPeaks = feedbackPeaks,
@@ -846,40 +801,30 @@ fun VisualizerCard(
                 selectedTargetCurve = selectedTargetCurve,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .padding(top = 12.dp)
+                    .heightIn(min = 230.dp)
+                    .weight(1f, fill = false)
             )
 
-            if (snapshotCompareEnabled && spectrumSnapshot != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Live bars",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Live bars",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (snapshotCompareEnabled && spectrumSnapshot != null) {
                     Text(
                         text = "Snapshot line",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF00ACC1)
                     )
-                    if (selectedTargetCurve.isEnabled) {
-                        Text(
-                            text = "Target curve",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = selectedTargetCurve.color
-                        )
-                    }
                 }
-            } else if (selectedTargetCurve.isEnabled) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                ) {
+                if (selectedTargetCurve.isEnabled) {
                     Text(
                         text = "Target curve",
                         style = MaterialTheme.typography.labelSmall,
@@ -909,10 +854,294 @@ fun VisualizerCard(
             }
         }
     }
+
+    if (showAnalyzerTools) {
+        AnalyzerToolsSheet(
+            selectedOverlay = selectedOverlay,
+            selectedTargetCurve = selectedTargetCurve,
+            overlayProfiles = overlayProfiles,
+            targetCurveProfiles = targetCurveProfiles,
+            feedbackHuntEnabled = feedbackHuntEnabled,
+            spectrumSnapshot = spectrumSnapshot,
+            snapshotCompareEnabled = snapshotCompareEnabled,
+            onOverlaySelected = onOverlaySelected,
+            onTargetCurveSelected = onTargetCurveSelected,
+            onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
+            onCaptureSnapshot = onCaptureSnapshot,
+            onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
+            onClearSnapshot = onClearSnapshot,
+            onEditCustomCurve = { showCustomCurveDialog = true },
+            onDismiss = { showAnalyzerTools = false }
+        )
+    }
+
+    if (showCustomCurveDialog) {
+        CustomTargetCurveDialog(
+            currentSettings = customCurveSettings,
+            onDismiss = { showCustomCurveDialog = false },
+            onSave = { settings ->
+                onSaveCustomCurveSettings(settings)
+                showCustomCurveDialog = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AnalyzerToolsSheet(
+    selectedOverlay: AnalyzerOverlayProfile,
+    selectedTargetCurve: AnalyzerTargetCurveProfile,
+    overlayProfiles: List<AnalyzerOverlayProfile>,
+    targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
+    feedbackHuntEnabled: Boolean,
+    spectrumSnapshot: SpectrumSnapshot?,
+    snapshotCompareEnabled: Boolean,
+    onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
+    onFeedbackHuntEnabledChange: (Boolean) -> Unit,
+    onCaptureSnapshot: () -> Unit,
+    onSnapshotCompareEnabledChange: (Boolean) -> Unit,
+    onClearSnapshot: () -> Unit,
+    onEditCustomCurve: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Analyzer tools",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Less-used controls and explanations live here so the spectrum stays readable on stage or at FOH.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            )
+
+            Text(text = stringResource(id = R.string.overlay_selector), style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                overlayProfiles.forEach { profile ->
+                    FilterChip(
+                        selected = profile.id == selectedOverlay.id,
+                        onClick = { onOverlaySelected(profile) },
+                        label = { Text(profile.label) }
+                    )
+                }
+            }
+            Text(
+                text = selectedOverlay.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            if (selectedOverlay.bands.isNotEmpty()) {
+                selectedOverlay.bands.forEach { band ->
+                    Text(
+                        text = "${band.label}: ${formatFrequencyRange(band.startHz, band.endHz)} - ${band.note}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(text = "Target curve", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                targetCurveProfiles.forEach { profile ->
+                    FilterChip(
+                        selected = profile.id == selectedTargetCurve.id,
+                        onClick = { onTargetCurveSelected(profile) },
+                        label = { Text(profile.label) }
+                    )
+                }
+            }
+            if (selectedTargetCurve.isEnabled) {
+                Text(
+                    text = "${selectedTargetCurve.label} ${selectedTargetCurve.badge}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+                Text(
+                    text = selectedTargetCurve.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(
+                    text = "Best for: ${selectedTargetCurve.useCase}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Text(
+                    text = "Caution: ${selectedTargetCurve.caution}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            OutlinedButton(
+                onClick = onEditCustomCurve,
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                Text(
+                    text = if (selectedTargetCurve.id == CUSTOM_TARGET_CURVE_ID) {
+                        "Edit saved curve"
+                    } else {
+                        "Edit my room curve"
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(text = "Quick actions", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalButton(onClick = onCaptureSnapshot) {
+                    Text(if (spectrumSnapshot == null) "Capture snapshot" else "Refresh snapshot")
+                }
+                if (spectrumSnapshot != null) {
+                    FilterChip(
+                        selected = snapshotCompareEnabled,
+                        onClick = { onSnapshotCompareEnabledChange(!snapshotCompareEnabled) },
+                        label = { Text(if (snapshotCompareEnabled) "Compare on" else "Compare off") }
+                    )
+                    TextButton(onClick = onClearSnapshot) {
+                        Text("Clear")
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Feedback hunt",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Shows repeated narrow peaks and suggested cut frequencies.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = feedbackHuntEnabled,
+                    onCheckedChange = onFeedbackHuntEnabledChange
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun CustomTargetCurveDialog(
+    currentSettings: CustomTargetCurveSettings,
+    onDismiss: () -> Unit,
+    onSave: (CustomTargetCurveSettings) -> Unit
+) {
+    var curveName by remember(currentSettings) { mutableStateOf(currentSettings.name) }
+    var pointValues by remember(currentSettings) { mutableStateOf(currentSettings.points) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Saved room curve") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = curveName,
+                    onValueChange = { curveName = it },
+                    label = { Text("Curve name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "Save a house curve for a room or organisation you return to often.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+                )
+
+                customTargetCurveFrequencies.forEachIndexed { index, frequencyHz ->
+                    val value = pointValues.getOrElse(index) { defaultCustomTargetCurveSettings().points.getOrElse(index) { 0f } }
+                    Text(
+                        text = "${formatFrequencyLabel(frequencyHz)} ${formatRelativeCurveLevel(value)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = if (index == 0) 0.dp else 12.dp)
+                    )
+                    Slider(
+                        value = value,
+                        onValueChange = { updatedValue ->
+                            pointValues = pointValues.toMutableList().apply { set(index, updatedValue) }
+                        },
+                        valueRange = -12f..6f
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(id = R.string.cancel))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(
+                    CustomTargetCurveSettings(
+                        name = curveName.ifBlank { defaultCustomTargetCurveSettings().name },
+                        points = pointValues
+                    )
+                )
+            }) {
+                Text("Save")
+            }
+        }
+    )
 }
 
 @Composable
 fun FrequencyVisualizer(
+    dominantFrequency: Float,
     frequencies: FloatArray,
     overlayBands: List<AnalyzerRangeBand> = emptyList(),
     feedbackPeaks: List<FeedbackPeak> = emptyList(),
@@ -923,27 +1152,36 @@ fun FrequencyVisualizer(
     modifier: Modifier = Modifier
 ) {
     val labels = listOf(
-        60f to "60",
+        63f to "63",
+        125f to "125",
         250f to "250",
+        1000f / 2f to "500",
         1000f to "1k",
+        2000f to "2k",
         4000f to "4k",
+        8000f to "8k",
         16000f to "16k"
     )
-    
+
     val minFreq = 20f
     val maxFreq = 22050f 
     val bassColor = MaterialTheme.colorScheme.primary
     val midsColor = MaterialTheme.colorScheme.secondary
     val highsColor = MaterialTheme.colorScheme.tertiary
+    val gridLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)
+    val axisLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+    val overlayLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+    val dominantMarkerColor = MaterialTheme.colorScheme.inversePrimary
+    val axisStripColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f)
 
     Canvas(modifier = modifier) {
         if (frequencies.isEmpty()) return@Canvas
 
         val width = size.width
         val height = size.height
-        val labelArea = 24.dp.toPx()
+        val labelArea = 32.dp.toPx()
         val drawHeight = height - labelArea
-        val overlayLabelY = 14.dp.toPx()
+        val overlayLabelY = 16.dp.toPx()
         val logMin = log10(minFreq)
         val logMax = log10(maxFreq)
 
@@ -955,17 +1193,30 @@ fun FrequencyVisualizer(
 
         // Draw grid lines and labels
         val paint = android.graphics.Paint().apply {
-            color = android.graphics.Color.GRAY
-            textSize = 10.sp.toPx()
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
-
-        val overlayPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.DKGRAY
-            textSize = 9.sp.toPx()
+            color = axisLabelColor.toArgb()
+            textSize = 11.sp.toPx()
             textAlign = android.graphics.Paint.Align.CENTER
             isFakeBoldText = true
         }
+
+        val overlayPaint = android.graphics.Paint().apply {
+            color = overlayLabelColor.toArgb()
+            textSize = 10.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+
+        drawRect(
+            color = axisStripColor,
+            topLeft = Offset(0f, drawHeight),
+            size = androidx.compose.ui.geometry.Size(width, labelArea)
+        )
+        drawLine(
+            color = gridLineColor.copy(alpha = 0.38f),
+            start = Offset(0f, drawHeight),
+            end = Offset(width, drawHeight),
+            strokeWidth = 1.dp.toPx()
+        )
 
         overlayBands.forEach { band ->
             val startX = getXForFreq(band.startHz)
@@ -1004,7 +1255,7 @@ fun FrequencyVisualizer(
         labels.forEach { (freq, label) ->
             val x = getXForFreq(freq)
             drawLine(
-                color = Color.Gray.copy(alpha = 0.2f),
+                color = gridLineColor,
                 start = Offset(x, 0f),
                 end = Offset(x, drawHeight),
                 strokeWidth = 1.dp.toPx()
@@ -1071,6 +1322,21 @@ fun FrequencyVisualizer(
                     y = drawHeight - snapshotBarHeight
                 )
             }
+        }
+
+        if (dominantFrequency > 0f) {
+            val dominantX = getXForFreq(dominantFrequency)
+            drawLine(
+                color = dominantMarkerColor.copy(alpha = 0.65f),
+                start = Offset(dominantX, 0f),
+                end = Offset(dominantX, drawHeight),
+                strokeWidth = 2.dp.toPx()
+            )
+            drawCircle(
+                color = dominantMarkerColor,
+                radius = 4.dp.toPx(),
+                center = Offset(dominantX, 14.dp.toPx())
+            )
         }
 
         if (showSnapshotOverlay && snapshotPoints.size > 1) {
@@ -1141,51 +1407,47 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = "Feedback candidates",
+                text = "Feedback watch",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "Raise the source slowly. Repeated peaks are usually the first places to try a narrow cut.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
             )
 
             if (feedbackPeaks.isEmpty()) {
                 Text(
                     text = "No stable peaks yet. When a source starts to ring, the strongest repeated hotspots will show up here.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             } else {
-                feedbackPeaks.forEachIndexed { index, peak ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = if (index == 0) 0.dp else 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${index + 1}. ${formatFrequencyLabel(peak.frequencyHz)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "${feedbackPeakLabel(peak)} peak, hold ${peak.holdFrames}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    feedbackPeaks.forEach { peak ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = formatFrequencyLabel(peak.frequencyHz),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Cut ${formatFrequencyLabel(peak.suggestedCutHz)} ${feedbackPeakLabel(peak)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                        Text(
-                            text = "Cut near ${formatFrequencyLabel(peak.suggestedCutHz)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(start = 12.dp)
-                        )
                     }
                 }
             }

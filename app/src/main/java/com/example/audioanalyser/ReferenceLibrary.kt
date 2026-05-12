@@ -27,6 +27,15 @@ data class TargetCurvePoint(
     val relativeDb: Float
 )
 
+data class CustomTargetCurveSettings(
+    val name: String,
+    val points: List<Float>
+)
+
+const val CUSTOM_TARGET_CURVE_ID = "custom_room"
+
+val customTargetCurveFrequencies = listOf(31.5f, 63f, 125f, 250f, 1000f, 4000f, 8000f, 16000f)
+
 data class AnalyzerTargetCurveProfile(
     val id: String,
     val label: String,
@@ -286,6 +295,34 @@ val analyzerTargetCurveProfiles = listOf(
         )
     )
 )
+
+fun defaultCustomTargetCurveSettings(): CustomTargetCurveSettings = CustomTargetCurveSettings(
+    name = "My Room",
+    points = listOf(3.5f, 3f, 2f, 1f, 0f, -1f, -2.5f, -4f)
+)
+
+fun buildCustomTargetCurveProfile(settings: CustomTargetCurveSettings): AnalyzerTargetCurveProfile {
+    val defaultSettings = defaultCustomTargetCurveSettings()
+    val safePoints = customTargetCurveFrequencies.mapIndexed { index, _ ->
+        settings.points.getOrElse(index) { defaultSettings.points.getOrElse(index) { 0f } }
+    }
+
+    return AnalyzerTargetCurveProfile(
+        id = CUSTOM_TARGET_CURVE_ID,
+        label = settings.name.ifBlank { defaultSettings.name },
+        badge = "Saved",
+        description = "Your saved room or organisation target curve.",
+        useCase = "Useful when you regularly mix in the same room or for the same organisation and want your own repeatable reference.",
+        caution = "Use it as a recall target, then still tune by ear for the audience size, PA deployment, and stage volume that day.",
+        color = Color(0xFF8E24AA),
+        points = customTargetCurveFrequencies.zip(safePoints).map { (frequencyHz, relativeDb) ->
+            TargetCurvePoint(frequencyHz = frequencyHz, relativeDb = relativeDb)
+        }
+    )
+}
+
+fun buildAnalyzerTargetCurveProfiles(customCurveSettings: CustomTargetCurveSettings): List<AnalyzerTargetCurveProfile> =
+    analyzerTargetCurveProfiles + buildCustomTargetCurveProfile(customCurveSettings)
 
 val eqReferenceEntries = listOf(
     EqReferenceEntry(
