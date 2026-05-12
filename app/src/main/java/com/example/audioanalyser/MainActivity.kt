@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -96,7 +97,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     val avgDb by analyzer.avgDb.collectAsState()
     val dbHistory by analyzer.dbHistory.collectAsState()
     val frequencies by analyzer.frequencies.collectAsState()
+    val dbOffset by analyzer.dbOffset.collectAsState()
+    val noiseThreshold by analyzer.noiseThreshold.collectAsState()
+    
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -118,6 +123,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                 actions = {
                     IconButton(onClick = { analyzer.resetStats() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Reset Stats")
+                    }
+                    IconButton(onClick = { showSettingsDialog = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                     IconButton(onClick = { showInfoDialog = true }) {
                         Icon(Icons.Default.Info, contentDescription = "Mixing Info")
@@ -150,11 +158,77 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
         }
     }
 
+    if (showSettingsDialog) {
+        SettingsDialog(
+            currentOffset = dbOffset,
+            currentThreshold = noiseThreshold,
+            onOffsetChange = { analyzer.setDbOffset(it) },
+            onThresholdChange = { analyzer.setNoiseThreshold(it) },
+            onDismiss = { showSettingsDialog = false }
+        )
+    }
+
     if (showInfoDialog) {
         MixingInfoDialog(onDismiss = { 
             showInfoDialog = false 
         })
     }
+}
+
+@Composable
+fun SettingsDialog(
+    currentOffset: Float,
+    currentThreshold: Float,
+    onOffsetChange: (Float) -> Unit,
+    onThresholdChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mic Calibration") },
+        text = {
+            Column {
+                Text(
+                    text = String.format(Locale.getDefault(), "dB Offset: %.0f", currentOffset),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Slider(
+                    value = currentOffset,
+                    onValueChange = onOffsetChange,
+                    valueRange = 0f..100f,
+                    steps = 100
+                )
+                Text(
+                    text = "Adjust if the app reads too high or low compared to a real meter.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = String.format(Locale.getDefault(), "Noise Gate: %.0f dB", currentThreshold),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Slider(
+                    value = currentThreshold,
+                    onValueChange = onThresholdChange,
+                    valueRange = 0f..60f,
+                    steps = 60
+                )
+                Text(
+                    text = "Increse this to cut out background static/hiss in quiet rooms.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
 }
 
 @Composable

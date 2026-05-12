@@ -24,6 +24,12 @@ class AudioAnalyzer {
     private val _dbLevel = MutableStateFlow(0f)
     val dbLevel: StateFlow<Float> = _dbLevel
 
+    private val _dbOffset = MutableStateFlow(30f) // Default lowered to 30
+    val dbOffset: StateFlow<Float> = _dbOffset
+
+    private val _noiseThreshold = MutableStateFlow(25f) // Default noise gate
+    val noiseThreshold: StateFlow<Float> = _noiseThreshold
+
     private val _minDb = MutableStateFlow(Float.MAX_VALUE)
     val minDb: StateFlow<Float> = _minDb
 
@@ -45,13 +51,17 @@ class AudioAnalyzer {
 
     private var isRecording = false
     
-    // Calibration offset - phone mics vary, 40-50 is a common offset to reach real-world dB
-    private val dbOffset = 50f 
-    private val noiseFloor = 10f // Ignore anything below 10dB after offset
-    
     // For smoothing the visualizer
     private var smoothedFrequencies = FloatArray(fftSize / 2)
     private val smoothingFactor = 0.2f 
+
+    fun setDbOffset(value: Float) {
+        _dbOffset.value = value
+    }
+
+    fun setNoiseThreshold(value: Float) {
+        _noiseThreshold.value = value
+    }
 
     fun resetStats() {
         _minDb.value = Float.MAX_VALUE
@@ -84,11 +94,13 @@ class AudioAnalyzer {
                 // 1. Calculate dB with calibration
                 val rms = calculateRMS(buffer, read)
                 val rawDb = if (rms > 1e-9) 20 * log10(rms.toDouble()).toFloat() else 0f
-                val calibratedDb = (rawDb + dbOffset).coerceAtLeast(0f)
-                val currentDb = if (calibratedDb > noiseFloor) calibratedDb else 0f
+                val calibratedDb = (rawDb + _dbOffset.value).coerceAtLeast(0f)
+                
+                // Apply Noise Gate
+                val currentDb = if (calibratedDb > _noiseThreshold.value) calibratedDb else 0f
                 _dbLevel.value = currentDb
 
-                // Update Stats
+                // Update Stats (only if above noise gate)
                 if (currentDb > 0) {
                     _maxDb.value = maxOf(_maxDb.value, currentDb)
                     _minDb.value = minOf(_minDb.value, currentDb)
@@ -104,6 +116,14 @@ class AudioAnalyzer {
                         currentHistory.removeAt(0)
                     }
                     _dbHistory.value = currentHistory
+                } else if (_dbLevel.value == 0f && _dbHistory.value.isNotEmpty()) {
+                    // Still add 0 to history if it's dead quiet
+                    val currentHistory = _dbHistory.value.toMutableList()
+                    currentHistory.add(0f)
+                    if (currentHistory.size > historyLimit) {
+                        currentHistory.removeAt(0)
+                    }
+                    _dbHistory.value = currentHistory
                 }
 
                 // 2. Apply Hanning Window to reduce "static" leakage
@@ -114,7 +134,9 @@ class AudioAnalyzer {
                 
                 // 4. Smooth the frequencies for a cleaner look
                 for (i in currentFft.indices) {
-                    smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + currentFft[i] * smoothingFactor
+                    // Apply sensitivity gate to individual frequencies too
+                    val mag = if (currentDb > 0) currentFft[i] else 0f
+                    smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + mag * smoothingFactor
                 }
                 _frequencies.value = smoothedFrequencies.copyOf()
             }
