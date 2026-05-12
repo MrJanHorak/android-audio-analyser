@@ -15,6 +15,28 @@ Interpreting the UI
 - History Sparkline: recent dB values (historyLimit ≈ 100 samples).
 - Frequency Spectrum: log-scaled bands split into bass / mids / highs. Labels on the visualizer show representative frequencies (60, 250, 1k, 4k, 16k).
 
+Signal generator
+
+- Open Tools → Signal generator to play test tones and noise. Modes available:
+  - `SINE`: selectable frequency (20 Hz–20 kHz).
+  - `WHITE`: white noise useful for broadband testing.
+  - `PINK`: pink noise for perceived-equal-energy testing.
+  - `PULSE`: short pulses for delay/impulse tests (experimental).
+- Always stop playback before moving microphones or making system changes.
+
+Waterfall (spectrogram)
+
+- Enable the waterfall from Tools → Waterfall (switch). The waterfall shows recent spectrum history top→bottom (old→new).
+- Use the Waterfall settings sliders to adjust `Min percentile`, `Max percentile`, and `Gamma` to change the dynamic scaling:
+  - `Min/Max percentile`: control which percentile of recent dB values map to the colormap range (helps ignore outliers).
+  - `Gamma`: alters mid-range contrast (values <1 boost mid-tones).
+- If the waterfall is too dark, increase `Max percentile` or reduce `Gamma`.
+
+Weighted SPLs and calibration
+
+- The meter shows calibrated dB and also displays dB(A), dB(C), and dB(Z) derived from the spectrum. Use `Settings` → `Open calibration` to set `dbOffset` and `noiseThreshold` to align readings against a reference SPL meter.
+
+
 Mixing & Feedback Guide
 
 - The app includes a short "Mixing & Feedback" dialog accessed from the top-right info icon. It contains tips such as:

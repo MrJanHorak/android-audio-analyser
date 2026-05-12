@@ -54,6 +54,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.log10
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private val audioAnalyzer = AudioAnalyzer()
@@ -129,6 +130,10 @@ private const val PREF_SELECTED_TARGET_CURVE_ID = "selected_target_curve_id"
 private const val PREF_SAVED_TARGET_CURVES_JSON = "saved_target_curves_json"
 private const val PREF_FEEDBACK_HUNT_ENABLED = "feedback_hunt_enabled"
 private const val PREF_BIG_GRAPH_MODE = "big_graph_mode"
+private const val PREF_WATERFALL_MIN_PERCENTILE = "waterfall_min_percentile"
+private const val PREF_WATERFALL_MAX_PERCENTILE = "waterfall_max_percentile"
+private const val PREF_WATERFALL_GAMMA = "waterfall_gamma"
+private const val PREF_WATERFALL_COLORMAP = "waterfall_colormap"
 private const val ANALYZER_BACKUP_FILE_NAME = "audio-analyser-backup.json"
 private const val ANALYZER_BACKUP_VERSION = 1
 
@@ -1091,6 +1096,75 @@ fun VisualizerCard(
     generator: SignalGenerator,
     spectrogram: List<FloatArray>
 ) {
+    val ctx = LocalContext.current
+    // Waterfall settings (persisted in shared prefs)
+    var waterfallMinPercentile by rememberSaveable { mutableStateOf(0.05f) }
+    var waterfallMaxPercentile by rememberSaveable { mutableStateOf(0.95f) }
+    var waterfallGamma by rememberSaveable { mutableStateOf(0.6f) }
+
+    LaunchedEffect(Unit) {
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        waterfallMinPercentile = prefs.getFloat(PREF_WATERFALL_MIN_PERCENTILE, 0.05f)
+        waterfallMaxPercentile = prefs.getFloat(PREF_WATERFALL_MAX_PERCENTILE, 0.95f)
+        waterfallGamma = prefs.getFloat(PREF_WATERFALL_GAMMA, 0.6f)
+    }
+
+    LaunchedEffect(waterfallMinPercentile) {
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putFloat(PREF_WATERFALL_MIN_PERCENTILE, waterfallMinPercentile).apply()
+    }
+    LaunchedEffect(waterfallMaxPercentile) {
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putFloat(PREF_WATERFALL_MAX_PERCENTILE, waterfallMaxPercentile).apply()
+    }
+    LaunchedEffect(waterfallGamma) {
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putFloat(PREF_WATERFALL_GAMMA, waterfallGamma).apply()
+    }
+    var waterfallColormap by rememberSaveable { mutableStateOf("inferno") }
+    LaunchedEffect(Unit) {
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        waterfallColormap = prefs.getString(PREF_WATERFALL_COLORMAP, "inferno") ?: "inferno"
+    }
+    LaunchedEffect(waterfallColormap) {
+        val prefs = ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(PREF_WATERFALL_COLORMAP, waterfallColormap).apply()
+    }
+
+    // Export waterfall sample (JSON) launcher
+    val exportSampleJson = remember { mutableStateOf<String?>(null) }
+    val exportMessage = remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) {
+            exportMessage.value = "Export cancelled"
+            exportSampleJson.value = null
+        } else {
+            val json = exportSampleJson.value ?: "{}"
+            val success = writeTextToUri(ctx, uri, json)
+            exportMessage.value = if (success) "Waterfall sample exported." else "Export failed."
+            exportSampleJson.value = null
+        }
+    }
+
+    fun exportCurrentWaterfall() {
+        // Build JSON from spectrogram
+        val root = JSONObject()
+        root.put("formatVersion", 1)
+        root.put("timestamp", System.currentTimeMillis())
+        root.put("rows", spectrogram.size)
+        root.put("cols", if (spectrogram.isNotEmpty()) spectrogram[0].size else 0)
+        val frames = JSONArray()
+        spectrogram.forEach { frame ->
+            val arr = JSONArray()
+            frame.forEach { f -> arr.put(f.toDouble()) }
+            frames.put(arr)
+        }
+        root.put("frames", frames)
+        exportSampleJson.value = root.toString(2)
+        exportLauncher.launch("spectrogram-sample-${System.currentTimeMillis()}.json")
+    }
     var showAnalyzerTools by remember { mutableStateOf(false) }
     var showSavedCurvesDialog by remember { mutableStateOf(false) }
     var showWaterfall by rememberSaveable { mutableStateOf(false) }
@@ -1173,7 +1247,11 @@ fun VisualizerCard(
                             .fillMaxWidth()
                             .padding(top = 12.dp)
                             .heightIn(min = 320.dp)
-                            .weight(1f)
+                            .weight(1f),
+                        minPercentile = waterfallMinPercentile,
+                        maxPercentile = waterfallMaxPercentile,
+                                gamma = waterfallGamma,
+                                colormapName = waterfallColormap
                     )
                 } else {
                     FrequencyVisualizer(
@@ -1286,7 +1364,11 @@ fun VisualizerCard(
                             .fillMaxWidth()
                             .padding(top = 12.dp)
                             .heightIn(min = 230.dp)
-                            .weight(1f, fill = false)
+                            .weight(1f, fill = false),
+                        minPercentile = waterfallMinPercentile,
+                        maxPercentile = waterfallMaxPercentile,
+                        gamma = waterfallGamma,
+                        colormapName = waterfallColormap
                     )
                 } else {
                     FrequencyVisualizer(
@@ -1378,6 +1460,15 @@ fun VisualizerCard(
             onDismiss = { showAnalyzerTools = false },
             showWaterfall = showWaterfall,
             onShowWaterfallChange = { showWaterfall = it },
+            waterfallMinPercentile = waterfallMinPercentile,
+            onWaterfallMinPercentileChange = { waterfallMinPercentile = it },
+            waterfallMaxPercentile = waterfallMaxPercentile,
+            onWaterfallMaxPercentileChange = { waterfallMaxPercentile = it },
+            waterfallGamma = waterfallGamma,
+            onWaterfallGammaChange = { waterfallGamma = it },
+            waterfallColormap = waterfallColormap,
+            onWaterfallColormapChange = { waterfallColormap = it },
+            onExportWaterfallSample = { exportCurrentWaterfall() },
             generator = generator
         )
     }
@@ -1395,6 +1486,18 @@ fun VisualizerCard(
                 onDeleteSavedTargetCurve(presetId)
                 showSavedCurvesDialog = false
             }
+        )
+    }
+    if (exportMessage.value != null) {
+        AlertDialog(
+            onDismissRequest = { exportMessage.value = null },
+            confirmButton = {
+                TextButton(onClick = { exportMessage.value = null }) {
+                    Text("OK")
+                }
+            },
+            title = { Text(stringResource(id = R.string.app_name)) },
+            text = { Text(exportMessage.value ?: "") }
         )
     }
 }
@@ -1422,6 +1525,15 @@ fun AnalyzerToolsSheet(
     onDismiss: () -> Unit,
     showWaterfall: Boolean,
     onShowWaterfallChange: (Boolean) -> Unit,
+    waterfallMinPercentile: Float,
+    onWaterfallMinPercentileChange: (Float) -> Unit,
+    waterfallMaxPercentile: Float,
+    onWaterfallMaxPercentileChange: (Float) -> Unit,
+    waterfallGamma: Float,
+    onWaterfallGammaChange: (Float) -> Unit,
+    waterfallColormap: String,
+    onWaterfallColormapChange: (String) -> Unit,
+    onExportWaterfallSample: () -> Unit,
     generator: SignalGenerator
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -1545,6 +1657,58 @@ fun AnalyzerToolsSheet(
                                 checked = showWaterfall,
                                 onCheckedChange = onShowWaterfallChange
                             )
+                        }
+
+                        // Waterfall settings: percentiles and gamma
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                            Text(text = "Waterfall settings", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(text = "Min percentile: ${ (waterfallMinPercentile * 100).roundToInt() }%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Slider(
+                                value = waterfallMinPercentile,
+                                onValueChange = { v ->
+                                    val nv = v.coerceIn(0f, (waterfallMaxPercentile - 0.01f).coerceAtLeast(0f))
+                                    onWaterfallMinPercentileChange(nv)
+                                },
+                                valueRange = 0f..0.49f
+                            )
+
+                            Text(text = "Max percentile: ${ (waterfallMaxPercentile * 100).roundToInt() }%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Slider(
+                                value = waterfallMaxPercentile,
+                                onValueChange = { v ->
+                                    val nv = v.coerceIn((waterfallMinPercentile + 0.01f).coerceAtLeast(0f), 1f)
+                                    onWaterfallMaxPercentileChange(nv)
+                                },
+                                valueRange = 0.51f..1f
+                            )
+
+                            Text(text = "Gamma: ${"%.2f".format(Locale.getDefault(), waterfallGamma)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Slider(
+                                value = waterfallGamma,
+                                onValueChange = { v -> onWaterfallGammaChange(v.coerceIn(0.25f, 2.0f)) },
+                                valueRange = 0.25f..2.0f
+                            )
+                        }
+
+                        // Colormap selection
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                            Text(text = "Colormap", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val palettes = listOf("inferno" to "Inferno", "viridis" to "Viridis", "plasma" to "Plasma", "magma" to "Magma")
+                                palettes.forEach { (id, label) ->
+                                    FilterChip(
+                                        selected = waterfallColormap == id,
+                                        onClick = { onWaterfallColormapChange(id) },
+                                        label = { Text(label) }
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(onClick = { onExportWaterfallSample() }) {
+                                Text(text = "Export waterfall sample (JSON)")
+                            }
                         }
 
                         Row(
@@ -2401,7 +2565,7 @@ fun SettingsDialog(
 @Composable
 fun MixingInfoDialog(onDismiss: () -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Guide", "EQ Starting Points")
+    val tabs = listOf("Guide", "EQ Starting Points", "Features")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2435,49 +2599,147 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                         .heightIn(max = 420.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    if (selectedTab == 0) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                            shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp)
-                        ) {
-                            Text(
-                                text = "Quick live-sound reminders for ringing out monitors, shaping sources, and using the analyzer as a reference instead of a hard rule.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(12.dp)
+                    when (selectedTab) {
+                        0 -> {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                Text(
+                                    text = "Quick live-sound reminders for ringing out monitors, shaping sources, and using the analyzer as a reference instead of a hard rule.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                            GuideTipCard(
+                                title = "Ring Out Feedback Faster",
+                                action = "Raise the source until it starts to ring, watch the tallest peak, then make a small targeted cut.",
+                                whyItHelps = "Feedback usually shows up as a narrow, stubborn hotspot. Small cuts keep more tone than broad subtraction."
+                            )
+                            GuideTipCard(
+                                title = "Use Overlays on Purpose",
+                                action = "Select the source you are shaping before you start chasing the graph.",
+                                whyItHelps = "The overlay narrows your attention to the zones that usually matter for that source instead of the whole spectrum."
+                            )
+                            GuideTipCard(
+                                title = "Clear Mud Before You Boost",
+                                action = "If a channel feels cloudy, work 200-400 Hz before reaching for top-end boosts.",
+                                whyItHelps = "Small low-mid cuts often create more clarity and more gain before feedback than adding highs."
+                            )
+                            GuideTipCard(
+                                title = "Calibrate Expectations",
+                                action = "Treat the phone as a reference tool and calibrate it against a known meter when accuracy matters.",
+                                whyItHelps = "That keeps the app useful for trends and recall without mistaking it for a lab-grade SPL meter."
+                            )
+                            GuideTipCard(
+                                title = "Watch Listener Fatigue",
+                                action = "If the room feels tiring, check both overall level and energy in the 2-5 kHz region.",
+                                whyItHelps = "Listener fatigue usually comes from loudness plus aggressive upper mids, not only one or the other."
                             )
                         }
-                        GuideTipCard(
-                            title = "Ring Out Feedback Faster",
-                            action = "Raise the source until it starts to ring, watch the tallest peak, then make a small targeted cut.",
-                            whyItHelps = "Feedback usually shows up as a narrow, stubborn hotspot. Small cuts keep more tone than broad subtraction."
-                        )
-                        GuideTipCard(
-                            title = "Use Overlays on Purpose",
-                            action = "Select the source you are shaping before you start chasing the graph.",
-                            whyItHelps = "The overlay narrows your attention to the zones that usually matter for that source instead of the whole spectrum."
-                        )
-                        GuideTipCard(
-                            title = "Clear Mud Before You Boost",
-                            action = "If a channel feels cloudy, work 200-400 Hz before reaching for top-end boosts.",
-                            whyItHelps = "Small low-mid cuts often create more clarity and more gain before feedback than adding highs."
-                        )
-                        GuideTipCard(
-                            title = "Calibrate Expectations",
-                            action = "Treat the phone as a reference tool and calibrate it against a known meter when accuracy matters.",
-                            whyItHelps = "That keeps the app useful for trends and recall without mistaking it for a lab-grade SPL meter."
-                        )
-                        GuideTipCard(
-                            title = "Watch Listener Fatigue",
-                            action = "If the room feels tiring, check both overall level and energy in the 2-5 kHz region.",
-                            whyItHelps = "Listener fatigue usually comes from loudness plus aggressive upper mids, not only one or the other."
-                        )
-                    } else {
-                        eqReferenceEntries.forEach { entry ->
-                            EqReferenceCard(entry = entry)
+                        1 -> {
+                            eqReferenceEntries.forEach { entry ->
+                                EqReferenceCard(entry = entry)
+                            }
+                        }
+                        2 -> {
+                            // Features and help for new functionality
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        text = "Signal Generator",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Play test signals for tuning and calibration. Modes: SINE, WHITE (white noise), PINK (pink noise), and PULSE.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                    Text(
+                                        text = "Use the generator from Tools → Signal generator. For safety stop playback before moving microphones or making system changes.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 6.dp)
+                                    )
+                                }
+                            }
+
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        text = "Weighted SPL (dB(A), dB(C), dB(Z))",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "The main meter shows calibrated dB and the app computes A-, C-, and Z-weighted values from the spectrum. Use calibration to align the phone to a reference meter when accuracy is required.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                            }
+
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        text = "Waterfall (Spectrogram)",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "The waterfall shows recent spectrum frames over time. Enable it from Tools → Waterfall. Use the sliders to adjust the percentile autoscaling and gamma to make mid-level content more visible.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                    Text(
+                                        text = "If the waterfall looks too dark or washed out, increase the Max percentile or lower Gamma. For performance the waterfall uses a bitmap-backed renderer — reduce history or bin count if you see slowdowns.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 6.dp)
+                                    )
+                                }
+                            }
+
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        text = "Planned features",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Phase correlation meter and Delay calculator are planned; they require stereo input or special routing and will appear in a future update.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
