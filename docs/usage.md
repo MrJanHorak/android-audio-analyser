@@ -36,7 +36,6 @@ Weighted SPLs and calibration
 
 - The meter shows calibrated dB and also displays dB(A), dB(C), and dB(Z) derived from the spectrum. Use `Settings` → `Open calibration` to set `dbOffset` and `noiseThreshold` to align readings against a reference SPL meter.
 
-
 Mixing & Feedback Guide
 
 - The app includes a short "Mixing & Feedback" dialog accessed from the top-right info icon. It contains tips such as:
