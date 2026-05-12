@@ -57,17 +57,65 @@ import kotlin.math.pow
 
 class MainActivity : ComponentActivity() {
     private val audioAnalyzer = AudioAnalyzer()
+    private val signalGenerator = SignalGenerator()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             AudioAnalyserTheme {
-                MainScreen(audioAnalyzer)
+                MainScreen(audioAnalyzer, signalGenerator)
             }
         }
     }
 }
+
+@Composable
+fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
+    val modes = SignalGenerator.Mode.values()
+    var selectedModeIndex by rememberSaveable { mutableStateOf(0) }
+    var freq by rememberSaveable { mutableStateOf(1000f) }
+    var level by rememberSaveable { mutableStateOf(0.25f) }
+    val isRunning by generator.isRunning.collectAsState()
+
+    Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Text(text = "Signal generator", style = MaterialTheme.typography.labelLarge)
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            modes.forEachIndexed { idx, m ->
+                FilterChip(
+                    selected = selectedModeIndex == idx,
+                    onClick = { selectedModeIndex = idx },
+                    label = { Text(m.name) }
+                )
+            }
+        }
+
+        if (modes[selectedModeIndex] == SignalGenerator.Mode.SINE) {
+            Text(text = "Frequency: ${freq.toInt()} Hz", modifier = Modifier.padding(top = 8.dp))
+            Slider(value = freq, onValueChange = { freq = it }, valueRange = 20f..20000f)
+        }
+
+        Text(text = "Level", modifier = Modifier.padding(top = 8.dp))
+        Slider(value = level, onValueChange = { level = it }, valueRange = 0f..1f)
+
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { generator.start(modes[selectedModeIndex], freq, level) }, enabled = !isRunning) {
+                Text("Start")
+            }
+            Button(onClick = { generator.stop() }, enabled = isRunning) {
+                Text("Stop")
+            }
+        }
+    }
+}
+
 
 data class SpectrumSnapshot(
     val frequencies: FloatArray,
@@ -284,7 +332,7 @@ private fun writeTextToUri(context: Context, uri: Uri, contents: String): Boolea
 }
 
 @Composable
-fun MainScreen(analyzer: AudioAnalyzer) {
+fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val context = LocalContext.current
     val activity = LocalContext.current as? Activity
     var hasPermission by remember {
@@ -316,7 +364,7 @@ fun MainScreen(analyzer: AudioAnalyzer) {
     }
 
     if (hasPermission) {
-        AudioAnalyserContent(analyzer)
+        AudioAnalyserContent(analyzer, generator)
     } else {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -348,7 +396,7 @@ fun MainScreen(analyzer: AudioAnalyzer) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
+fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val dbLevel by analyzer.dbLevel.collectAsState()
     val minDb by analyzer.minDb.collectAsState()
     val maxDb by analyzer.maxDb.collectAsState()
@@ -615,7 +663,8 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(16.dp),
+                    generator = generator
                 )
             } else {
                 PortraitLayout(
@@ -670,7 +719,8 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     },
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(16.dp),
+                    generator = generator
                 )
             }
         }
@@ -732,7 +782,8 @@ fun PortraitLayout(
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    generator: SignalGenerator
 ) {
     Column(
         modifier = modifier,
@@ -772,6 +823,7 @@ fun PortraitLayout(
             onCaptureSnapshot = onCaptureSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
+            generator = generator,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -807,7 +859,8 @@ fun LandscapeLayout(
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    generator: SignalGenerator
 ) {
     Row(
         modifier = modifier,
@@ -849,6 +902,7 @@ fun LandscapeLayout(
             onCaptureSnapshot = onCaptureSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
+            generator = generator,
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
@@ -996,7 +1050,8 @@ fun VisualizerCard(
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    generator: SignalGenerator
 ) {
     var showAnalyzerTools by remember { mutableStateOf(false) }
     var showSavedCurvesDialog by remember { mutableStateOf(false) }
@@ -1259,7 +1314,8 @@ fun VisualizerCard(
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             onManageSavedCurves = { showSavedCurvesDialog = true },
-            onDismiss = { showAnalyzerTools = false }
+            onDismiss = { showAnalyzerTools = false },
+            generator = generator
         )
     }
 
@@ -1300,7 +1356,8 @@ fun AnalyzerToolsSheet(
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     onManageSavedCurves: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    generator: SignalGenerator
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("Source", "Room", "Snapshot")
@@ -1371,6 +1428,9 @@ fun AnalyzerToolsSheet(
                                 )
                             }
                         }
+
+                        // Signal generator controls
+                        GeneratorPanel(generator = generator)
 
                         Row(
                             modifier = Modifier
