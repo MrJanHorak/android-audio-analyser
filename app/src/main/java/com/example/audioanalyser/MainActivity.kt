@@ -176,62 +176,6 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
 }
 
 @Composable
-fun SettingsDialog(
-    currentOffset: Float,
-    currentThreshold: Float,
-    onOffsetChange: (Float) -> Unit,
-    onThresholdChange: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Mic Calibration") },
-        text = {
-            Column {
-                Text(
-                    text = String.format(Locale.getDefault(), "dB Offset: %.0f", currentOffset),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Slider(
-                    value = currentOffset,
-                    onValueChange = onOffsetChange,
-                    valueRange = 0f..100f,
-                    steps = 100
-                )
-                Text(
-                    text = "Adjust if the app reads too high or low compared to a real meter.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = String.format(Locale.getDefault(), "Noise Gate: %.0f dB", currentThreshold),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Slider(
-                    value = currentThreshold,
-                    onValueChange = onThresholdChange,
-                    valueRange = 0f..60f,
-                    steps = 60
-                )
-                Text(
-                    text = "Increse this to cut out background static/hiss in quiet rooms.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
-        }
-    )
-}
-
-@Composable
 fun PortraitLayout(
     dbLevel: Float,
     minDb: Float,
@@ -464,6 +408,7 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
         16000f to "16k"
     )
     
+    val minFreq = 20f
     val maxFreq = 22050f 
 
     Canvas(modifier = modifier) {
@@ -472,18 +417,26 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
         val width = size.width
         val height = size.height
         
+        // Helper to map frequency to X coordinate
+        fun getXForFreq(freq: Float): Float {
+            val logMin = log10(minFreq)
+            val logMax = log10(maxFreq)
+            val logFreq = log10(freq.coerceIn(minFreq, maxFreq))
+            return ((logFreq - logMin) / (logMax - logMin)) * width
+        }
+
         // Draw grid lines
         labels.forEach { (freq, label) ->
-            val x = (log10(freq) / log10(maxFreq)) * width
+            val x = getXForFreq(freq)
             drawLine(
                 color = Color.Gray.copy(alpha = 0.2f),
-                start = Offset(x.toFloat(), 0f),
-                end = Offset(x.toFloat(), height),
+                start = Offset(x, 0f),
+                end = Offset(x, height),
                 strokeWidth = 1.dp.toPx()
             )
             drawContext.canvas.nativeCanvas.drawText(
                 label,
-                x.toFloat(),
+                x,
                 height + 30f,
                 android.graphics.Paint().apply {
                     color = android.graphics.Color.GRAY
@@ -497,11 +450,26 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
         val barWidth = width / numBars
         
         for (i in 0 until numBars) {
-            val logStart = i.toDouble() / numBars
-            val logEnd = (i + 1).toDouble() / numBars
+            // Map bar index to frequency range
+            val xStart = i * barWidth
+            val xEnd = (i + 1) * barWidth
             
-            val startIndex = (frequencies.size.toDouble().pow(logStart)).toInt().coerceIn(0, frequencies.size - 1)
-            val endIndex = (frequencies.size.toDouble().pow(logEnd)).toInt().coerceIn(0, frequencies.size - 1)
+            // Reverse mapping from X to Frequency
+            fun getFreqForX(x: Float): Float {
+                val logMin = log10(minFreq)
+                val logMax = log10(maxFreq)
+                val normalizedX = x / width
+                val logFreq = normalizedX * (logMax - logMin) + logMin
+                return 10.0.pow(logFreq.toDouble()).toFloat()
+            }
+
+            val freqStart = getFreqForX(xStart)
+            val freqEnd = getFreqForX(xEnd)
+            
+            // Map frequency to FFT index
+            val binSize = maxFreq / frequencies.size
+            val startIndex = (freqStart / binSize).toInt().coerceIn(0, frequencies.size - 1)
+            val endIndex = (freqEnd / binSize).toInt().coerceIn(0, frequencies.size - 1)
             
             var maxMagnitude = 0f
             for (j in startIndex..endIndex) {
@@ -512,8 +480,8 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
             val barHeight = (dbScale * height).coerceIn(2.dp.toPx(), height)
             
             val color = when {
-                i < numBars * 0.2 -> Color(0xFF2196F3) // Bass
-                i < numBars * 0.7 -> Color(0xFF4CAF50) // Mids
+                freqStart < 250 -> Color(0xFF2196F3) // Bass
+                freqStart < 4000 -> Color(0xFF4CAF50) // Mids
                 else -> Color(0xFFFFC107) // Highs
             }
 
@@ -524,6 +492,62 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
             )
         }
     }
+}
+
+@Composable
+fun SettingsDialog(
+    currentOffset: Float,
+    currentThreshold: Float,
+    onOffsetChange: (Float) -> Unit,
+    onThresholdChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mic Calibration") },
+        text = {
+            Column {
+                Text(
+                    text = String.format(Locale.getDefault(), "dB Offset: %.0f", currentOffset),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Slider(
+                    value = currentOffset,
+                    onValueChange = onOffsetChange,
+                    valueRange = 0f..100f,
+                    steps = 100
+                )
+                Text(
+                    text = "Adjust if the app reads too high or low compared to a real meter.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = String.format(Locale.getDefault(), "Noise Gate: %.0f dB", currentThreshold),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Slider(
+                    value = currentThreshold,
+                    onValueChange = onThresholdChange,
+                    valueRange = 0f..60f,
+                    steps = 60
+                )
+                Text(
+                    text = "Increse this to cut out background static/hiss in quiet rooms.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
 }
 
 @Composable
