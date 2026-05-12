@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -64,6 +64,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+data class SpectrumSnapshot(
+    val frequencies: FloatArray,
+    val dominantFrequency: Float,
+    val dbLevel: Float
+)
 
 @Composable
 fun MainScreen(analyzer: AudioAnalyzer) {
@@ -140,11 +146,15 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     val dbOffset by analyzer.dbOffset.collectAsState()
     val noiseThreshold by analyzer.noiseThreshold.collectAsState()
     val dominantFrequency by analyzer.dominantFrequency.collectAsState()
+    val feedbackPeaks by analyzer.feedbackPeaks.collectAsState()
     val error by analyzer.error.collectAsState()
 
     var showInfoDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCalibrationScreen by remember { mutableStateOf(false) }
+    var feedbackHuntEnabled by rememberSaveable { mutableStateOf(false) }
+    var spectrumSnapshot by remember { mutableStateOf<SpectrumSnapshot?>(null) }
+    var snapshotCompareEnabled by rememberSaveable { mutableStateOf(false) }
     val overlayProfiles = remember { analyzerOverlayProfiles }
     var selectedOverlayId by rememberSaveable { mutableStateOf(overlayProfiles.first().id) }
     val selectedOverlay = overlayProfiles.firstOrNull { it.id == selectedOverlayId } ?: overlayProfiles.first()
@@ -217,9 +227,27 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     dbHistory = dbHistory,
                     frequencies = frequencies,
                     dominantFrequency = dominantFrequency,
+                    feedbackPeaks = feedbackPeaks,
+                    feedbackHuntEnabled = feedbackHuntEnabled,
+                    spectrumSnapshot = spectrumSnapshot,
+                    snapshotCompareEnabled = snapshotCompareEnabled,
                     selectedOverlay = selectedOverlay,
                     overlayProfiles = overlayProfiles,
                     onOverlaySelected = { selectedOverlayId = it.id },
+                    onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
+                    onCaptureSnapshot = {
+                        spectrumSnapshot = SpectrumSnapshot(
+                            frequencies = frequencies.copyOf(),
+                            dominantFrequency = dominantFrequency,
+                            dbLevel = dbLevel
+                        )
+                        snapshotCompareEnabled = true
+                    },
+                    onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
+                    onClearSnapshot = {
+                        spectrumSnapshot = null
+                        snapshotCompareEnabled = false
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
@@ -233,9 +261,27 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     dbHistory = dbHistory,
                     frequencies = frequencies,
                     dominantFrequency = dominantFrequency,
+                    feedbackPeaks = feedbackPeaks,
+                    feedbackHuntEnabled = feedbackHuntEnabled,
+                    spectrumSnapshot = spectrumSnapshot,
+                    snapshotCompareEnabled = snapshotCompareEnabled,
                     selectedOverlay = selectedOverlay,
                     overlayProfiles = overlayProfiles,
                     onOverlaySelected = { selectedOverlayId = it.id },
+                    onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
+                    onCaptureSnapshot = {
+                        spectrumSnapshot = SpectrumSnapshot(
+                            frequencies = frequencies.copyOf(),
+                            dominantFrequency = dominantFrequency,
+                            dbLevel = dbLevel
+                        )
+                        snapshotCompareEnabled = true
+                    },
+                    onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
+                    onClearSnapshot = {
+                        spectrumSnapshot = null
+                        snapshotCompareEnabled = false
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
@@ -278,9 +324,17 @@ fun PortraitLayout(
     dbHistory: List<Float>,
     frequencies: FloatArray,
     dominantFrequency: Float,
+    feedbackPeaks: List<FeedbackPeak>,
+    feedbackHuntEnabled: Boolean,
+    spectrumSnapshot: SpectrumSnapshot?,
+    snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
     overlayProfiles: List<AnalyzerOverlayProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onFeedbackHuntEnabledChange: (Boolean) -> Unit,
+    onCaptureSnapshot: () -> Unit,
+    onSnapshotCompareEnabledChange: (Boolean) -> Unit,
+    onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -299,11 +353,20 @@ fun PortraitLayout(
         Spacer(modifier = Modifier.height(24.dp))
 
         VisualizerCard(
+            dbLevel = dbLevel,
             frequencies = frequencies,
             dominantFrequency = dominantFrequency,
+            feedbackPeaks = feedbackPeaks,
+            feedbackHuntEnabled = feedbackHuntEnabled,
+            spectrumSnapshot = spectrumSnapshot,
+            snapshotCompareEnabled = snapshotCompareEnabled,
             selectedOverlay = selectedOverlay,
             overlayProfiles = overlayProfiles,
             onOverlaySelected = onOverlaySelected,
+            onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
+            onCaptureSnapshot = onCaptureSnapshot,
+            onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
+            onClearSnapshot = onClearSnapshot,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -320,9 +383,17 @@ fun LandscapeLayout(
     dbHistory: List<Float>,
     frequencies: FloatArray,
     dominantFrequency: Float,
+    feedbackPeaks: List<FeedbackPeak>,
+    feedbackHuntEnabled: Boolean,
+    spectrumSnapshot: SpectrumSnapshot?,
+    snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
     overlayProfiles: List<AnalyzerOverlayProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onFeedbackHuntEnabledChange: (Boolean) -> Unit,
+    onCaptureSnapshot: () -> Unit,
+    onSnapshotCompareEnabledChange: (Boolean) -> Unit,
+    onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -343,11 +414,20 @@ fun LandscapeLayout(
         Spacer(modifier = Modifier.width(16.dp))
 
         VisualizerCard(
+            dbLevel = dbLevel,
             frequencies = frequencies,
             dominantFrequency = dominantFrequency,
+            feedbackPeaks = feedbackPeaks,
+            feedbackHuntEnabled = feedbackHuntEnabled,
+            spectrumSnapshot = spectrumSnapshot,
+            snapshotCompareEnabled = snapshotCompareEnabled,
             selectedOverlay = selectedOverlay,
             overlayProfiles = overlayProfiles,
             onOverlaySelected = onOverlaySelected,
+            onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
+            onCaptureSnapshot = onCaptureSnapshot,
+            onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
+            onClearSnapshot = onClearSnapshot,
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
@@ -472,20 +552,37 @@ fun HistorySparkline(history: List<Float>, modifier: Modifier = Modifier) {
 
 @Composable
 fun VisualizerCard(
+    dbLevel: Float,
     frequencies: FloatArray,
     dominantFrequency: Float,
+    feedbackPeaks: List<FeedbackPeak>,
+    feedbackHuntEnabled: Boolean,
+    spectrumSnapshot: SpectrumSnapshot?,
+    snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
     overlayProfiles: List<AnalyzerOverlayProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onFeedbackHuntEnabledChange: (Boolean) -> Unit,
+    onCaptureSnapshot: () -> Unit,
+    onSnapshotCompareEnabledChange: (Boolean) -> Unit,
+    onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val matchedBand = selectedOverlay.bandFor(dominantFrequency)
+    val primaryFeedbackPeak = feedbackPeaks.firstOrNull()
+    val snapshotDeltaHz = spectrumSnapshot?.let { dominantFrequency - it.dominantFrequency }
     val semanticsDesc = buildString {
         append(String.format(Locale.getDefault(), "Frequency visualizer. Dominant frequency %.0f Hz. ", dominantFrequency))
         when {
             matchedBand != null -> append("Current peak sits in ${matchedBand.label}.")
             selectedOverlay.bands.isNotEmpty() -> append("Current peak is outside the selected ${selectedOverlay.label} focus bands.")
             else -> append("No focus overlay selected.")
+        }
+        if (feedbackHuntEnabled && primaryFeedbackPeak != null) {
+            append(" Feedback hunt suggests ${formatFrequencyLabel(primaryFeedbackPeak.suggestedCutHz)}.")
+        }
+        if (snapshotCompareEnabled && spectrumSnapshot != null) {
+            append(" Snapshot compare enabled.")
         }
     }
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
@@ -567,13 +664,127 @@ fun VisualizerCard(
                 }
             }
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Feedback hunt mode",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Locks onto repeated narrow peaks so you can ring out a source faster.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = feedbackHuntEnabled,
+                    onCheckedChange = onFeedbackHuntEnabledChange
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalButton(onClick = onCaptureSnapshot) {
+                    Text(if (spectrumSnapshot == null) "Capture snapshot" else "Refresh snapshot")
+                }
+                if (spectrumSnapshot != null) {
+                    FilterChip(
+                        selected = snapshotCompareEnabled,
+                        onClick = { onSnapshotCompareEnabledChange(!snapshotCompareEnabled) },
+                        label = { Text(if (snapshotCompareEnabled) "Compare on" else "Compare off") }
+                    )
+                    TextButton(onClick = onClearSnapshot) {
+                        Text("Clear")
+                    }
+                }
+            }
+
+            spectrumSnapshot?.let { snapshot ->
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.32f),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Snapshot reference",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Captured dominant ${formatFrequencyLabel(snapshot.dominantFrequency)} at ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                        Text(
+                            text = if (snapshotCompareEnabled) {
+                                "Live delta ${formatSignedFrequencyDelta(snapshotDeltaHz ?: 0f)} and ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}. Cyan line shows the snapshot."
+                            } else {
+                                "Turn compare on to overlay the captured spectrum on the live bars."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+
             FrequencyVisualizer(
                 frequencies = frequencies,
                 overlayBands = selectedOverlay.bands,
+                feedbackPeaks = feedbackPeaks,
+                showFeedbackMarkers = feedbackHuntEnabled,
+                snapshotFrequencies = spectrumSnapshot?.frequencies,
+                showSnapshotOverlay = snapshotCompareEnabled,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             )
+
+            if (snapshotCompareEnabled && spectrumSnapshot != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Live bars",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Snapshot line",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF00ACC1)
+                    )
+                }
+            }
+
+            if (feedbackHuntEnabled) {
+                FeedbackHuntSection(
+                    feedbackPeaks = feedbackPeaks,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                )
+            }
 
             Row(
                 modifier = Modifier
@@ -593,6 +804,10 @@ fun VisualizerCard(
 fun FrequencyVisualizer(
     frequencies: FloatArray,
     overlayBands: List<AnalyzerRangeBand> = emptyList(),
+    feedbackPeaks: List<FeedbackPeak> = emptyList(),
+    showFeedbackMarkers: Boolean = false,
+    snapshotFrequencies: FloatArray? = null,
+    showSnapshotOverlay: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val labels = listOf(
@@ -687,7 +902,10 @@ fun FrequencyVisualizer(
 
         val numBars = 64
         val barWidth = width / numBars
-        val globalMax = frequencies.maxOrNull() ?: 1f
+        val snapshotSource = snapshotFrequencies?.takeIf { showSnapshotOverlay && it.isNotEmpty() }
+        val snapshotMax = snapshotSource?.maxOrNull() ?: 0f
+        val globalMax = maxOf(frequencies.maxOrNull() ?: 1f, snapshotMax).coerceAtLeast(1f)
+        val snapshotPoints = mutableListOf<Offset>()
 
         for (i in 0 until numBars) {
             val xStart = i * barWidth
@@ -726,9 +944,129 @@ fun FrequencyVisualizer(
                 topLeft = Offset(i * barWidth, drawHeight - barHeight),
                 size = androidx.compose.ui.geometry.Size(barWidth - 2f, barHeight)
             )
+
+            if (snapshotSource != null) {
+                val snapshotBinSize = maxFreq / snapshotSource.size
+                val snapshotStartIndex = (freqStart / snapshotBinSize).toInt().coerceIn(0, snapshotSource.size - 1)
+                val snapshotEndIndex = (freqEnd / snapshotBinSize).toInt().coerceIn(0, snapshotSource.size - 1)
+                var snapshotMagnitude = 0f
+                for (j in snapshotStartIndex..snapshotEndIndex) {
+                    if (snapshotSource[j] > snapshotMagnitude) snapshotMagnitude = snapshotSource[j]
+                }
+                val snapshotBarHeight = (snapshotMagnitude / globalMax) * drawHeight
+                snapshotPoints += Offset(
+                    x = xStart + (barWidth / 2f),
+                    y = drawHeight - snapshotBarHeight
+                )
+            }
+        }
+
+        if (showSnapshotOverlay && snapshotPoints.size > 1) {
+            for (index in 0 until snapshotPoints.lastIndex) {
+                drawLine(
+                    color = Color(0xFF00ACC1).copy(alpha = 0.95f),
+                    start = snapshotPoints[index],
+                    end = snapshotPoints[index + 1],
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+
+        if (showFeedbackMarkers) {
+            val markerColors = listOf(Color(0xFFD32F2F), Color(0xFFF57C00), Color(0xFFFBC02D))
+            feedbackPeaks.take(3).forEachIndexed { index, peak ->
+                val x = getXForFreq(peak.frequencyHz)
+                val markerColor = markerColors.getOrElse(index) { Color.Red }
+                drawLine(
+                    color = markerColor.copy(alpha = 0.9f),
+                    start = Offset(x, 0f),
+                    end = Offset(x, drawHeight),
+                    strokeWidth = 2.dp.toPx()
+                )
+                drawCircle(
+                    color = markerColor,
+                    radius = 4.dp.toPx(),
+                    center = Offset(x, 10.dp.toPx())
+                )
+            }
         }
     }
 }
+
+@Composable
+fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.22f),
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "Feedback candidates",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Raise the source slowly. Repeated peaks are usually the first places to try a narrow cut.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+            )
+
+            if (feedbackPeaks.isEmpty()) {
+                Text(
+                    text = "No stable peaks yet. When a source starts to ring, the strongest repeated hotspots will show up here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            } else {
+                feedbackPeaks.forEachIndexed { index, peak ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = if (index == 0) 0.dp else 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${index + 1}. ${formatFrequencyLabel(peak.frequencyHz)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${feedbackPeakLabel(peak)} peak, hold ${peak.holdFrames}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "Cut near ${formatFrequencyLabel(peak.suggestedCutHz)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun feedbackPeakLabel(peak: FeedbackPeak): String = when {
+    peak.stability >= 0.8f -> "Stable"
+    peak.stability >= 0.45f -> "Building"
+    else -> "Watch"
+}
+
+fun formatSignedFrequencyDelta(deltaHz: Float): String = when {
+    kotlin.math.abs(deltaHz) >= 1000f -> String.format(Locale.getDefault(), "%+.1f kHz", deltaHz / 1000f)
+    else -> String.format(Locale.getDefault(), "%+.0f Hz", deltaHz)
+}
+
+fun formatSignedDbDelta(deltaDb: Float): String =
+    String.format(Locale.getDefault(), "%+.1f dB", deltaDb)
 
 @Composable
 fun SettingsDialog(
@@ -944,7 +1282,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                 title = { Text(stringResource(id = R.string.calibration_title)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.cancel))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.cancel))
                     }
                 }
             )
