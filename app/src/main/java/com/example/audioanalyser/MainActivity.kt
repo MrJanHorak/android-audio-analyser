@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -32,7 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -143,6 +145,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     var showInfoDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCalibrationScreen by remember { mutableStateOf(false) }
+    val overlayProfiles = remember { analyzerOverlayProfiles }
+    var selectedOverlayId by rememberSaveable { mutableStateOf(overlayProfiles.first().id) }
+    val selectedOverlay = overlayProfiles.firstOrNull { it.id == selectedOverlayId } ?: overlayProfiles.first()
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -212,6 +217,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     dbHistory = dbHistory,
                     frequencies = frequencies,
                     dominantFrequency = dominantFrequency,
+                    selectedOverlay = selectedOverlay,
+                    overlayProfiles = overlayProfiles,
+                    onOverlaySelected = { selectedOverlayId = it.id },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
@@ -225,6 +233,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     dbHistory = dbHistory,
                     frequencies = frequencies,
                     dominantFrequency = dominantFrequency,
+                    selectedOverlay = selectedOverlay,
+                    overlayProfiles = overlayProfiles,
+                    onOverlaySelected = { selectedOverlayId = it.id },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
@@ -267,6 +278,9 @@ fun PortraitLayout(
     dbHistory: List<Float>,
     frequencies: FloatArray,
     dominantFrequency: Float,
+    selectedOverlay: AnalyzerOverlayProfile,
+    overlayProfiles: List<AnalyzerOverlayProfile>,
+    onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -287,6 +301,9 @@ fun PortraitLayout(
         VisualizerCard(
             frequencies = frequencies,
             dominantFrequency = dominantFrequency,
+            selectedOverlay = selectedOverlay,
+            overlayProfiles = overlayProfiles,
+            onOverlaySelected = onOverlaySelected,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -303,6 +320,9 @@ fun LandscapeLayout(
     dbHistory: List<Float>,
     frequencies: FloatArray,
     dominantFrequency: Float,
+    selectedOverlay: AnalyzerOverlayProfile,
+    overlayProfiles: List<AnalyzerOverlayProfile>,
+    onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -325,6 +345,9 @@ fun LandscapeLayout(
         VisualizerCard(
             frequencies = frequencies,
             dominantFrequency = dominantFrequency,
+            selectedOverlay = selectedOverlay,
+            overlayProfiles = overlayProfiles,
+            onOverlaySelected = onOverlaySelected,
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
@@ -448,8 +471,23 @@ fun HistorySparkline(history: List<Float>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun VisualizerCard(frequencies: FloatArray, dominantFrequency: Float, modifier: Modifier = Modifier) {
-    val semanticsDesc = stringResource(id = R.string.freq_visualizer_semantics, dominantFrequency)
+fun VisualizerCard(
+    frequencies: FloatArray,
+    dominantFrequency: Float,
+    selectedOverlay: AnalyzerOverlayProfile,
+    overlayProfiles: List<AnalyzerOverlayProfile>,
+    onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val matchedBand = selectedOverlay.bandFor(dominantFrequency)
+    val semanticsDesc = buildString {
+        append(String.format(Locale.getDefault(), "Frequency visualizer. Dominant frequency %.0f Hz. ", dominantFrequency))
+        when {
+            matchedBand != null -> append("Current peak sits in ${matchedBand.label}.")
+            selectedOverlay.bands.isNotEmpty() -> append("Current peak is outside the selected ${selectedOverlay.label} focus bands.")
+            else -> append("No focus overlay selected.")
+        }
+    }
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
@@ -460,11 +498,78 @@ fun VisualizerCard(frequencies: FloatArray, dominantFrequency: Float, modifier: 
                 text = stringResource(id = R.string.frequency_spectrum),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            Text(
+                text = String.format(Locale.getDefault(), "Dominant %.0f Hz", dominantFrequency),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                text = when {
+                    matchedBand != null -> "Peak focus: ${matchedBand.label} (${formatFrequencyRange(matchedBand.startHz, matchedBand.endHz)})"
+                    selectedOverlay.bands.isNotEmpty() -> "Peak focus: outside ${selectedOverlay.label} guide bands"
+                    else -> "Select an overlay to highlight a source's main ranges."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+            )
+
+            Text(
+                text = stringResource(id = R.string.overlay_selector),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                overlayProfiles.forEach { profile ->
+                    FilterChip(
+                        selected = profile.id == selectedOverlay.id,
+                        onClick = { onOverlaySelected(profile) },
+                        label = { Text(profile.label) }
+                    )
+                }
+            }
+
+            if (selectedOverlay.bands.isNotEmpty()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = selectedOverlay.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        selectedOverlay.bands.forEach { band ->
+                            Text(
+                                text = "${band.label}: ${formatFrequencyRange(band.startHz, band.endHz)} - ${band.note}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
             FrequencyVisualizer(
                 frequencies = frequencies,
+                overlayBands = selectedOverlay.bands,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -485,7 +590,11 @@ fun VisualizerCard(frequencies: FloatArray, dominantFrequency: Float, modifier: 
 }
 
 @Composable
-fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) {
+fun FrequencyVisualizer(
+    frequencies: FloatArray,
+    overlayBands: List<AnalyzerRangeBand> = emptyList(),
+    modifier: Modifier = Modifier
+) {
     val labels = listOf(
         60f to "60",
         250f to "250",
@@ -507,11 +616,12 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
         val height = size.height
         val labelArea = 24.dp.toPx()
         val drawHeight = height - labelArea
+        val overlayLabelY = 14.dp.toPx()
+        val logMin = log10(minFreq)
+        val logMax = log10(maxFreq)
 
         // Helper to map frequency to X coordinate (log scale)
         fun getXForFreq(freq: Float): Float {
-            val logMin = log10(minFreq)
-            val logMax = log10(maxFreq)
             val logFreq = log10(freq.coerceIn(minFreq, maxFreq))
             return ((logFreq - logMin) / (logMax - logMin)) * width
         }
@@ -521,6 +631,47 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
             color = android.graphics.Color.GRAY
             textSize = 10.sp.toPx()
             textAlign = android.graphics.Paint.Align.CENTER
+        }
+
+        val overlayPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.DKGRAY
+            textSize = 9.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+
+        overlayBands.forEach { band ->
+            val startX = getXForFreq(band.startHz)
+            val endX = getXForFreq(band.endHz)
+            val bandWidth = endX - startX
+            if (bandWidth <= 0f) return@forEach
+
+            drawRect(
+                color = band.color.copy(alpha = 0.12f),
+                topLeft = Offset(startX, 0f),
+                size = androidx.compose.ui.geometry.Size(bandWidth, drawHeight)
+            )
+            drawLine(
+                color = band.color.copy(alpha = 0.35f),
+                start = Offset(startX, 0f),
+                end = Offset(startX, drawHeight),
+                strokeWidth = 1.dp.toPx()
+            )
+            drawLine(
+                color = band.color.copy(alpha = 0.35f),
+                start = Offset(endX, 0f),
+                end = Offset(endX, drawHeight),
+                strokeWidth = 1.dp.toPx()
+            )
+
+            if (bandWidth > 36.dp.toPx()) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    band.label,
+                    startX + (bandWidth / 2f),
+                    overlayLabelY,
+                    overlayPaint
+                )
+            }
         }
 
         labels.forEach { (freq, label) ->
@@ -659,36 +810,73 @@ fun SettingsDialog(
 
 @Composable
 fun MixingInfoDialog(onDismiss: () -> Unit) {
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("Guide", "EQ Starting Points")
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Mixing & Feedback Guide") },
+        title = {
+            Column {
+                Text("Mixing & EQ Reference")
+                Text(
+                    text = "Use this as a starting point, then trust the room, the source, and your ears.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
         text = {
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                InfoSection(
-                    title = "Eliminating Feedback",
-                    body = "Feedback usually appears as a single, tall, sharp spike in the 'Highs' or 'Upper Mids'. If you hear ringing, check the visualizer. Find the spike's frequency (e.g., 4k) and slightly lower that band on your soundboard."
-                )
-                InfoSection(
-                    title = "Fixing 'Muddy' Sound",
-                    body = "If vocals or instruments sound 'boomy' or unclear, check the 'Bass' and low-mid section (60-250Hz). If those bars are consistently high, apply a High-Pass Filter (HPF) to those channels on the mixer."
-                )
-                InfoSection(
-                    title = "Vocal Presence",
-                    body = "Vocals typically sit in the 1kHz to 4kHz range. If a singer is getting lost, look for a dip in the 'Mids' section. Boosting this range slightly can help them cut through the mix."
-                )
-                InfoSection(
-                    title = "Safe Volume Levels",
-                    body = "Church services should ideally stay between 75dB and 85dB. If the meter turns Red (>90dB), you are likely causing listener fatigue and should lower the master volume."
-                )
+                PrimaryTabRow(selectedTabIndex = selectedTab) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (selectedTab == 0) {
+                        InfoSection(
+                            title = "Ring Out Feedback Faster",
+                            body = "Feedback usually shows up as a narrow, stubborn peak. Raise the source until it starts to ring, watch for the tallest bar or dominant frequency, then make a small cut on that band instead of taking out broad tone."
+                        )
+                        InfoSection(
+                            title = "Use Overlays on Purpose",
+                            body = "Choose the source you are actively shaping before you EQ. The overlay makes the common problem and target zones visible so you can look at the analyzer with intent instead of scanning the whole spectrum blindly."
+                        )
+                        InfoSection(
+                            title = "Clear Mud Before You Boost",
+                            body = "If a channel feels cloudy, work the low mids first. Cutting a little 200-400 Hz often creates more clarity than boosting top end, and it usually gives you more gain before feedback too."
+                        )
+                        InfoSection(
+                            title = "Calibrate Expectations",
+                            body = "A phone mic is a reference tool, not a lab-grade SPL meter. Use the calibration screen and compare against a known meter when accuracy matters, especially for volume policy or hearing safety decisions."
+                        )
+                        InfoSection(
+                            title = "Watch Listener Fatigue",
+                            body = "If the room sounds harsh or tiring, check both level and energy buildup around the upper mids. Loudness and an aggressive 2-5 kHz range together usually wear listeners out fastest."
+                        )
+                    } else {
+                        eqReferenceEntries.forEach { entry ->
+                            EqReferenceCard(entry = entry)
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Got it")
+                Text("Close")
             }
         }
     )
@@ -710,6 +898,34 @@ fun InfoSection(title: String, body: String) {
     }
 }
 
+@Composable
+fun EqReferenceCard(entry: EqReferenceEntry) {
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = entry.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = entry.role,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+            )
+            Text(text = "HPF: ${entry.highPass}", style = MaterialTheme.typography.bodySmall)
+            Text(text = "Body: ${entry.body}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            Text(text = "Clarity: ${entry.presence}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            Text(text = "Watch: ${entry.watchOut}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            Text(text = "Start: ${entry.startingMove}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
@@ -728,7 +944,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                 title = { Text(stringResource(id = R.string.calibration_title)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(id = R.string.cancel))
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.cancel))
                     }
                 }
             )

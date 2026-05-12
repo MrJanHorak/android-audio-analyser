@@ -22,6 +22,7 @@
     <string name="mids_label">Mids</string>
     <string name="highs_label">Highs</string>
     <string name="freq_visualizer_semantics">Frequency visualizer. Dominant frequency %1$.0f Hz</string>
+    <string name="overlay_selector">Focus overlay</string>
 
     <string name="mic_calibration">Mic Calibration</string>
     <string name="db_offset_label">dB Offset: %.0f</string>
