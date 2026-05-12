@@ -158,6 +158,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     val overlayProfiles = remember { analyzerOverlayProfiles }
     var selectedOverlayId by rememberSaveable { mutableStateOf(overlayProfiles.first().id) }
     val selectedOverlay = overlayProfiles.firstOrNull { it.id == selectedOverlayId } ?: overlayProfiles.first()
+    val targetCurveProfiles = remember { analyzerTargetCurveProfiles }
+    var selectedTargetCurveId by rememberSaveable { mutableStateOf(targetCurveProfiles.first().id) }
+    val selectedTargetCurve = targetCurveProfiles.firstOrNull { it.id == selectedTargetCurveId } ?: targetCurveProfiles.first()
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -232,8 +235,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     spectrumSnapshot = spectrumSnapshot,
                     snapshotCompareEnabled = snapshotCompareEnabled,
                     selectedOverlay = selectedOverlay,
+                    selectedTargetCurve = selectedTargetCurve,
                     overlayProfiles = overlayProfiles,
+                    targetCurveProfiles = targetCurveProfiles,
                     onOverlaySelected = { selectedOverlayId = it.id },
+                    onTargetCurveSelected = { selectedTargetCurveId = it.id },
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onCaptureSnapshot = {
                         spectrumSnapshot = SpectrumSnapshot(
@@ -266,8 +272,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
                     spectrumSnapshot = spectrumSnapshot,
                     snapshotCompareEnabled = snapshotCompareEnabled,
                     selectedOverlay = selectedOverlay,
+                    selectedTargetCurve = selectedTargetCurve,
                     overlayProfiles = overlayProfiles,
+                    targetCurveProfiles = targetCurveProfiles,
                     onOverlaySelected = { selectedOverlayId = it.id },
+                    onTargetCurveSelected = { selectedTargetCurveId = it.id },
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onCaptureSnapshot = {
                         spectrumSnapshot = SpectrumSnapshot(
@@ -329,8 +338,11 @@ fun PortraitLayout(
     spectrumSnapshot: SpectrumSnapshot?,
     snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
+    selectedTargetCurve: AnalyzerTargetCurveProfile,
     overlayProfiles: List<AnalyzerOverlayProfile>,
+    targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
@@ -361,8 +373,11 @@ fun PortraitLayout(
             spectrumSnapshot = spectrumSnapshot,
             snapshotCompareEnabled = snapshotCompareEnabled,
             selectedOverlay = selectedOverlay,
+            selectedTargetCurve = selectedTargetCurve,
             overlayProfiles = overlayProfiles,
+            targetCurveProfiles = targetCurveProfiles,
             onOverlaySelected = onOverlaySelected,
+            onTargetCurveSelected = onTargetCurveSelected,
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
@@ -388,8 +403,11 @@ fun LandscapeLayout(
     spectrumSnapshot: SpectrumSnapshot?,
     snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
+    selectedTargetCurve: AnalyzerTargetCurveProfile,
     overlayProfiles: List<AnalyzerOverlayProfile>,
+    targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
@@ -422,8 +440,11 @@ fun LandscapeLayout(
             spectrumSnapshot = spectrumSnapshot,
             snapshotCompareEnabled = snapshotCompareEnabled,
             selectedOverlay = selectedOverlay,
+            selectedTargetCurve = selectedTargetCurve,
             overlayProfiles = overlayProfiles,
+            targetCurveProfiles = targetCurveProfiles,
             onOverlaySelected = onOverlaySelected,
+            onTargetCurveSelected = onTargetCurveSelected,
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
@@ -560,8 +581,11 @@ fun VisualizerCard(
     spectrumSnapshot: SpectrumSnapshot?,
     snapshotCompareEnabled: Boolean,
     selectedOverlay: AnalyzerOverlayProfile,
+    selectedTargetCurve: AnalyzerTargetCurveProfile,
     overlayProfiles: List<AnalyzerOverlayProfile>,
+    targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
     onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
@@ -577,6 +601,9 @@ fun VisualizerCard(
             matchedBand != null -> append("Current peak sits in ${matchedBand.label}.")
             selectedOverlay.bands.isNotEmpty() -> append("Current peak is outside the selected ${selectedOverlay.label} focus bands.")
             else -> append("No focus overlay selected.")
+        }
+        if (selectedTargetCurve.isEnabled) {
+            append(" Target curve ${selectedTargetCurve.label} selected.")
         }
         if (feedbackHuntEnabled && primaryFeedbackPeak != null) {
             append(" Feedback hunt suggests ${formatFrequencyLabel(primaryFeedbackPeak.suggestedCutHz)}.")
@@ -638,6 +665,28 @@ fun VisualizerCard(
                 }
             }
 
+            Text(
+                text = "Target curve",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                targetCurveProfiles.forEach { profile ->
+                    FilterChip(
+                        selected = profile.id == selectedTargetCurve.id,
+                        onClick = { onTargetCurveSelected(profile) },
+                        label = { Text(profile.label) }
+                    )
+                }
+            }
+
             if (selectedOverlay.bands.isNotEmpty()) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -664,10 +713,52 @@ fun VisualizerCard(
                 }
             }
 
+            if (selectedTargetCurve.isEnabled) {
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.26f),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "${selectedTargetCurve.label} ${selectedTargetCurve.badge}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = selectedTargetCurve.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                        Text(
+                            text = "Best for: ${selectedTargetCurve.useCase}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                        Text(
+                            text = "Caution: ${selectedTargetCurve.caution}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                        Text(
+                            text = "Colored line shows the selected target shape across the spectrum.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = selectedTargetCurve.color,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -752,6 +843,7 @@ fun VisualizerCard(
                 showFeedbackMarkers = feedbackHuntEnabled,
                 snapshotFrequencies = spectrumSnapshot?.frequencies,
                 showSnapshotOverlay = snapshotCompareEnabled,
+                selectedTargetCurve = selectedTargetCurve,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -773,6 +865,25 @@ fun VisualizerCard(
                         text = "Snapshot line",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF00ACC1)
+                    )
+                    if (selectedTargetCurve.isEnabled) {
+                        Text(
+                            text = "Target curve",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = selectedTargetCurve.color
+                        )
+                    }
+                }
+            } else if (selectedTargetCurve.isEnabled) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "Target curve",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = selectedTargetCurve.color
                     )
                 }
             }
@@ -808,6 +919,7 @@ fun FrequencyVisualizer(
     showFeedbackMarkers: Boolean = false,
     snapshotFrequencies: FloatArray? = null,
     showSnapshotOverlay: Boolean = false,
+    selectedTargetCurve: AnalyzerTargetCurveProfile = analyzerTargetCurveProfiles.first(),
     modifier: Modifier = Modifier
 ) {
     val labels = listOf(
@@ -968,6 +1080,33 @@ fun FrequencyVisualizer(
                     start = snapshotPoints[index],
                     end = snapshotPoints[index + 1],
                     strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+
+        if (selectedTargetCurve.isEnabled) {
+            val curveMinDb = -12f
+            val curveMaxDb = 6f
+            val curvePoints = selectedTargetCurve.points.map { point ->
+                val normalizedLevel = ((point.relativeDb - curveMinDb) / (curveMaxDb - curveMinDb)).coerceIn(0f, 1f)
+                Offset(
+                    x = getXForFreq(point.frequencyHz),
+                    y = drawHeight - normalizedLevel * drawHeight
+                )
+            }
+            for (index in 0 until curvePoints.lastIndex) {
+                drawLine(
+                    color = selectedTargetCurve.color.copy(alpha = 0.92f),
+                    start = curvePoints[index],
+                    end = curvePoints[index + 1],
+                    strokeWidth = 3.dp.toPx()
+                )
+            }
+            curvePoints.forEachIndexed { index, point ->
+                drawCircle(
+                    color = selectedTargetCurve.color,
+                    radius = if (index == curvePoints.lastIndex) 4.dp.toPx() else 3.dp.toPx(),
+                    center = point
                 )
             }
         }

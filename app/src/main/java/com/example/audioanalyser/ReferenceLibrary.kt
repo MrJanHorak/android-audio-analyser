@@ -22,6 +22,24 @@ data class AnalyzerOverlayProfile(
     fun bandFor(frequencyHz: Float): AnalyzerRangeBand? = bands.firstOrNull { it.contains(frequencyHz) }
 }
 
+data class TargetCurvePoint(
+    val frequencyHz: Float,
+    val relativeDb: Float
+)
+
+data class AnalyzerTargetCurveProfile(
+    val id: String,
+    val label: String,
+    val badge: String,
+    val description: String,
+    val useCase: String,
+    val caution: String,
+    val color: Color,
+    val points: List<TargetCurvePoint>
+) {
+    val isEnabled: Boolean = points.isNotEmpty()
+}
+
 data class EqReferenceEntry(
     val title: String,
     val role: String,
@@ -37,6 +55,9 @@ private val bodyBandColor = Color(0xFFD17B0F)
 private val cautionBandColor = Color(0xFFC62828)
 private val presenceBandColor = Color(0xFF1976D2)
 private val airBandColor = Color(0xFF00897B)
+private val targetRoomColor = Color(0xFF2E7D32)
+private val targetGuideColor = Color(0xFF1565C0)
+private val targetCinemaColor = Color(0xFFAD1457)
 
 val analyzerOverlayProfiles = listOf(
     AnalyzerOverlayProfile(
@@ -125,6 +146,143 @@ val analyzerOverlayProfiles = listOf(
             AnalyzerRangeBand("Weight", 80f, 200f, "Can swallow the mix if overdone.", lowBandColor),
             AnalyzerRangeBand("Boxy", 250f, 500f, "Trim here if keys feel crowded.", cautionBandColor),
             AnalyzerRangeBand("Presence", 2000f, 5000f, "Adds articulation.", presenceBandColor)
+        )
+    )
+)
+
+val analyzerTargetCurveProfiles = listOf(
+    AnalyzerTargetCurveProfile(
+        id = "off",
+        label = "Off",
+        badge = "None",
+        description = "No target curve selected.",
+        useCase = "Use only the live spectrum and source focus bands.",
+        caution = "",
+        color = targetRoomColor,
+        points = emptyList()
+    ),
+    AnalyzerTargetCurveProfile(
+        id = "harman_room",
+        label = "Harman",
+        badge = "Room",
+        description = "Bass-forward room target based on listener preference studies, with a gentle downward tilt into the highs.",
+        useCase = "Useful as a room-mix reference when you want a modern, full-range balance instead of a flat analyzer trace.",
+        caution = "Treat this as a room target, not a vocal or instrument EQ preset.",
+        color = targetRoomColor,
+        points = listOf(
+            TargetCurvePoint(20f, 5.5f),
+            TargetCurvePoint(40f, 5f),
+            TargetCurvePoint(80f, 4f),
+            TargetCurvePoint(100f, 3.5f),
+            TargetCurvePoint(250f, 1.5f),
+            TargetCurvePoint(1000f, 0f),
+            TargetCurvePoint(4000f, -1.5f),
+            TargetCurvePoint(10000f, -3.5f),
+            TargetCurvePoint(16000f, -5f)
+        )
+    ),
+    AnalyzerTargetCurveProfile(
+        id = "bk_room",
+        label = "B&K",
+        badge = "Room",
+        description = "Classic Bruel and Kjaer style house curve with a smooth downward slope from lows to highs.",
+        useCase = "Good for natural-sounding room tuning and conservative live-system balance.",
+        caution = "This is broader and gentler than an instrument target; use it on the system, not the channel strip.",
+        color = Color(0xFF33691E),
+        points = listOf(
+            TargetCurvePoint(20f, 3.5f),
+            TargetCurvePoint(40f, 3f),
+            TargetCurvePoint(80f, 2.5f),
+            TargetCurvePoint(160f, 2f),
+            TargetCurvePoint(315f, 1.4f),
+            TargetCurvePoint(630f, 0.8f),
+            TargetCurvePoint(1250f, 0f),
+            TargetCurvePoint(2500f, -1f),
+            TargetCurvePoint(5000f, -2.3f),
+            TargetCurvePoint(10000f, -3.8f),
+            TargetCurvePoint(16000f, -5f)
+        )
+    ),
+    AnalyzerTargetCurveProfile(
+        id = "cinema_x",
+        label = "Cinema X",
+        badge = "Cinema",
+        description = "ISO 2969 style cinema X-curve with a much stronger treble roll-off above roughly 2 kHz.",
+        useCase = "Relevant for large cinema or dubbing-style playback environments.",
+        caution = "Usually too dark for small rooms, worship spaces, speech reinforcement, and music mixing on a compact PA.",
+        color = targetCinemaColor,
+        points = listOf(
+            TargetCurvePoint(31.5f, 2f),
+            TargetCurvePoint(63f, 1.5f),
+            TargetCurvePoint(125f, 1f),
+            TargetCurvePoint(250f, 0.5f),
+            TargetCurvePoint(500f, 0f),
+            TargetCurvePoint(1000f, 0f),
+            TargetCurvePoint(2000f, -1.5f),
+            TargetCurvePoint(4000f, -4.5f),
+            TargetCurvePoint(8000f, -8f),
+            TargetCurvePoint(16000f, -12f)
+        )
+    ),
+    AnalyzerTargetCurveProfile(
+        id = "atmos_music",
+        label = "Atmos Music",
+        badge = "Room",
+        description = "A gentle immersive-music style room target: slightly supported lows, steady mids, and a smoother top than a flat trace.",
+        useCase = "Useful as a modern room playback reference when you want clarity without a hyped top end.",
+        caution = "This is a practical live-reference approximation, not a certification tool for Dolby alignment.",
+        color = Color(0xFF00695C),
+        points = listOf(
+            TargetCurvePoint(20f, 4f),
+            TargetCurvePoint(40f, 3.5f),
+            TargetCurvePoint(80f, 2.8f),
+            TargetCurvePoint(160f, 1.6f),
+            TargetCurvePoint(315f, 0.8f),
+            TargetCurvePoint(1000f, 0f),
+            TargetCurvePoint(4000f, -1f),
+            TargetCurvePoint(8000f, -2.5f),
+            TargetCurvePoint(16000f, -4f)
+        )
+    ),
+    AnalyzerTargetCurveProfile(
+        id = "speech_guide",
+        label = "Speech",
+        badge = "Guide",
+        description = "A speech-intelligibility guide curve that de-emphasizes sub energy and biases the upper mids where consonants live.",
+        useCase = "Helpful when tuning spoken word channels or a speech-heavy room mix.",
+        caution = "This is a live-sound guide shape, not a formal industry standard curve.",
+        color = targetGuideColor,
+        points = listOf(
+            TargetCurvePoint(50f, -10f),
+            TargetCurvePoint(80f, -7f),
+            TargetCurvePoint(125f, -4f),
+            TargetCurvePoint(250f, -1.5f),
+            TargetCurvePoint(500f, -0.5f),
+            TargetCurvePoint(1500f, 1.5f),
+            TargetCurvePoint(2500f, 2f),
+            TargetCurvePoint(4000f, 1f),
+            TargetCurvePoint(8000f, -1.5f)
+        )
+    ),
+    AnalyzerTargetCurveProfile(
+        id = "lead_vocal_guide",
+        label = "Lead Vox",
+        badge = "Guide",
+        description = "A source guide for lead vocal channels with filtered lows, controlled mud, and a presence lift through the intelligibility band.",
+        useCase = "Helpful when comparing a live vocal against a common modern worship or pop vocal shape.",
+        caution = "This is a vocal shaping guide only; room acoustics, mic choice, and singer tone should override it.",
+        color = Color(0xFF283593),
+        points = listOf(
+            TargetCurvePoint(60f, -12f),
+            TargetCurvePoint(100f, -8f),
+            TargetCurvePoint(160f, -3f),
+            TargetCurvePoint(250f, -1f),
+            TargetCurvePoint(400f, -2f),
+            TargetCurvePoint(1000f, 0f),
+            TargetCurvePoint(2500f, 2.2f),
+            TargetCurvePoint(4000f, 1.4f),
+            TargetCurvePoint(8000f, 0.4f),
+            TargetCurvePoint(12000f, -1.5f)
         )
     )
 )
@@ -229,3 +387,6 @@ fun formatFrequencyLabel(frequencyHz: Float): String = when {
 
 fun formatFrequencyRange(startHz: Float, endHz: Float): String =
     "${formatFrequencyLabel(startHz)} - ${formatFrequencyLabel(endHz)}"
+
+fun formatRelativeCurveLevel(relativeDb: Float): String =
+    String.format(Locale.getDefault(), "%+.1f dB", relativeDb)
