@@ -13,6 +13,7 @@ import kotlin.math.cos
 import kotlin.math.log10
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlin.math.pow
 import kotlin.math.PI
 
 data class FeedbackPeak(
@@ -56,6 +57,16 @@ class AudioAnalyzer {
     private val _dbLevel = MutableStateFlow(0f)
     val dbLevel: StateFlow<Float> = _dbLevel
 
+    // Weighted SPL readings
+    private val _dbLevelA = MutableStateFlow(0f)
+    val dbLevelA: StateFlow<Float> = _dbLevelA
+
+    private val _dbLevelC = MutableStateFlow(0f)
+    val dbLevelC: StateFlow<Float> = _dbLevelC
+
+    private val _dbLevelZ = MutableStateFlow(0f)
+    val dbLevelZ: StateFlow<Float> = _dbLevelZ
+
     private val _dbOffset = MutableStateFlow(30f)
     val dbOffset: StateFlow<Float> = _dbOffset
 
@@ -83,6 +94,10 @@ class AudioAnalyzer {
     private val smoothingFactor = 0.2f
     private val _frequencies = MutableStateFlow(FloatArray(fftSize / 2))
     val frequencies: StateFlow<FloatArray> = _frequencies
+
+    // Spectrogram (waterfall) buffer
+    private val spectrogramBuffer = SpectrogramBuffer(128, fftSize / 2)
+    val spectrogram: StateFlow<List<FloatArray>> = spectrogramBuffer.spectrogramFlow
 
     // Dominant frequency (Hz) for accessibility and quick-read
     private val _dominantFrequency = MutableStateFlow(0f)
@@ -200,14 +215,46 @@ class AudioAnalyzer {
                     }
                 }
 
+                // Compute weighted SPLs (A, C, Z) by applying frequency weighting to the spectrum
+                var spectralPower = 0.0
+                var weightedPowerA = 0.0
+                var weightedPowerC = 0.0
+                for (i in 1 until magnitudes.size) {
+                    val mag = magnitudes[i].toDouble()
+                    val freq = i * binSize.toDouble()
+                    val wA = aWeightingLinear(freq)
+                    val wC = cWeightingLinear(freq)
+                    val power = mag * mag
+                    spectralPower += power
+                    weightedPowerA += power * (wA * wA)
+                    weightedPowerC += power * (wC * wC)
+                }
+
+                val weightAdjA = if (spectralPower > 0.0) 10.0 * kotlin.math.log10(weightedPowerA / spectralPower) else 0.0
+                val weightAdjC = if (spectralPower > 0.0) 10.0 * kotlin.math.log10(weightedPowerC / spectralPower) else 0.0
+
+
                 for (i in magnitudes.indices) {
                     val mag = if (currentDb > 0) magnitudes[i] else 0f
                     smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + mag * smoothingFactor
                 }
                 _frequencies.value = smoothedFrequencies.copyOf()
+                // push the current smoothed spectrum into the spectrogram buffer
+                try {
+                    spectrogramBuffer.addFrame(smoothedFrequencies.copyOf())
+                } catch (_: Exception) {
+                }
 
                 // Dominant frequency in Hz
                 _dominantFrequency.value = maxIndex * binSize
+                // Publish weighted SPLs (apply dbOffset and noise threshold similar to unweighted meter)
+                val dbAvalue = ((calibratedDb + weightAdjA).toFloat()).let { if (it > _noiseThreshold.value) it.coerceAtLeast(0f) else 0f }
+                val dbCvalue = ((calibratedDb + weightAdjC).toFloat()).let { if (it > _noiseThreshold.value) it.coerceAtLeast(0f) else 0f }
+                val dbZvalue = ((calibratedDb).toFloat()).let { if (it > _noiseThreshold.value) it.coerceAtLeast(0f) else 0f }
+
+                _dbLevelA.value = dbAvalue
+                _dbLevelC.value = dbCvalue
+                _dbLevelZ.value = dbZvalue
                 updateFeedbackPeaks(currentDb)
             }
         } catch (e: Exception) {
@@ -421,5 +468,34 @@ class AudioAnalyzer {
             }
             len = len shl 1
         }
+    }
+
+    // A-weighting (approx) linear scale factor for a given frequency (Hz)
+    private fun aWeightingLinear(freqHz: Double): Double {
+        val f = freqHz.coerceAtLeast(1.0)
+        val f2 = f * f
+        val raNum = 12194.217 * 12194.217
+        val raNumPow = raNum * raNum * f2 * f2 / (raNum * raNum) // kept for clarity
+
+        // Use the standard analog A-weighting approximation in dB, normalized at 1 kHz
+        val term1 = (f2 + 20.598997 * 20.598997)
+        val term2 = (f2 + 107.65265 * 107.65265)
+        val term3 = (f2 + 737.86223 * 737.86223)
+        val term4 = (f2 + 12194.217 * 12194.217)
+
+        val ra = (12194.217 * 12194.217 * f2 * f2) / (term1 * kotlin.math.sqrt(term2 * term3) * term4)
+        val aDb = 20.0 * kotlin.math.log10(ra) + 2.0
+        return 10.0.pow(aDb / 20.0)
+    }
+
+    // C-weighting (approx) linear scale factor for a given frequency (Hz)
+    private fun cWeightingLinear(freqHz: Double): Double {
+        val f = freqHz.coerceAtLeast(1.0)
+        val f2 = f * f
+        val term1 = (f2 + 20.598997 * 20.598997)
+        val term2 = (f2 + 12194.217 * 12194.217)
+        val rc = (12194.217 * 12194.217 * f2) / (term1 * term2)
+        val cDb = 20.0 * kotlin.math.log10(rc) + 0.06
+        return 10.0.pow(cDb / 20.0)
     }
 }

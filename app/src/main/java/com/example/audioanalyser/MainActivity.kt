@@ -398,11 +398,15 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 @Composable
 fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val dbLevel by analyzer.dbLevel.collectAsState()
+    val dbLevelA by analyzer.dbLevelA.collectAsState()
+    val dbLevelC by analyzer.dbLevelC.collectAsState()
+    val dbLevelZ by analyzer.dbLevelZ.collectAsState()
     val minDb by analyzer.minDb.collectAsState()
     val maxDb by analyzer.maxDb.collectAsState()
     val avgDb by analyzer.avgDb.collectAsState()
     val dbHistory by analyzer.dbHistory.collectAsState()
     val frequencies by analyzer.frequencies.collectAsState()
+    val spectrogram by analyzer.spectrogram.collectAsState(initial = emptyList())
     val dbOffset by analyzer.dbOffset.collectAsState()
     val noiseThreshold by analyzer.noiseThreshold.collectAsState()
     val dominantFrequency by analyzer.dominantFrequency.collectAsState()
@@ -613,6 +617,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             if (isLandscape) {
                 LandscapeLayout(
                     dbLevel = dbLevel,
+                    dbLevelA = dbLevelA,
+                    dbLevelC = dbLevelC,
+                    dbLevelZ = dbLevelZ,
+                    spectrogram = spectrogram,
                     minDb = minDb,
                     maxDb = maxDb,
                     avgDb = avgDb,
@@ -669,6 +677,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             } else {
                 PortraitLayout(
                     dbLevel = dbLevel,
+                    dbLevelA = dbLevelA,
+                    dbLevelC = dbLevelC,
+                    dbLevelZ = dbLevelZ,
+                    spectrogram = spectrogram,
                     minDb = minDb,
                     maxDb = maxDb,
                     avgDb = avgDb,
@@ -757,6 +769,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 @Composable
 fun PortraitLayout(
     dbLevel: Float,
+    dbLevelA: Float,
+    dbLevelC: Float,
+    dbLevelZ: Float,
+    spectrogram: List<FloatArray>,
     minDb: Float,
     maxDb: Float,
     avgDb: Float,
@@ -791,6 +807,9 @@ fun PortraitLayout(
     ) {
         DbMeterCard(
             dbLevel = dbLevel,
+            dbLevelA = dbLevelA,
+            dbLevelC = dbLevelC,
+            dbLevelZ = dbLevelZ,
             minDb = minDb,
             maxDb = maxDb,
             avgDb = avgDb,
@@ -824,6 +843,7 @@ fun PortraitLayout(
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             generator = generator,
+            spectrogram = spectrogram,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -834,6 +854,10 @@ fun PortraitLayout(
 @Composable
 fun LandscapeLayout(
     dbLevel: Float,
+    dbLevelA: Float,
+    dbLevelC: Float,
+    dbLevelZ: Float,
+    spectrogram: List<FloatArray>,
     minDb: Float,
     maxDb: Float,
     avgDb: Float,
@@ -868,6 +892,9 @@ fun LandscapeLayout(
     ) {
         DbMeterCard(
             dbLevel = dbLevel,
+            dbLevelA = dbLevelA,
+            dbLevelC = dbLevelC,
+            dbLevelZ = dbLevelZ,
             minDb = minDb,
             maxDb = maxDb,
             avgDb = avgDb,
@@ -903,6 +930,7 @@ fun LandscapeLayout(
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             generator = generator,
+            spectrogram = spectrogram,
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
@@ -913,6 +941,9 @@ fun LandscapeLayout(
 @Composable
 fun DbMeterCard(
     dbLevel: Float,
+    dbLevelA: Float = 0f,
+    dbLevelC: Float = 0f,
+    dbLevelZ: Float = 0f,
     minDb: Float,
     maxDb: Float,
     avgDb: Float,
@@ -946,6 +977,12 @@ fun DbMeterCard(
                 fontWeight = FontWeight.Bold,
                 color = dbColor
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Text(text = String.format(Locale.getDefault(), "dB(A): %.1f", dbLevelA), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = String.format(Locale.getDefault(), "dB(C): %.1f", dbLevelC), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = String.format(Locale.getDefault(), "dB(Z): %.1f", dbLevelZ), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Surface(
                 color = dbColor.copy(alpha = 0.1f),
                 shape = MaterialTheme.shapes.small,
@@ -1051,10 +1088,12 @@ fun VisualizerCard(
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
-    generator: SignalGenerator
+    generator: SignalGenerator,
+    spectrogram: List<FloatArray>
 ) {
     var showAnalyzerTools by remember { mutableStateOf(false) }
     var showSavedCurvesDialog by remember { mutableStateOf(false) }
+    var showWaterfall by rememberSaveable { mutableStateOf(false) }
     val matchedBand = selectedOverlay.bandFor(dominantFrequency)
     val primaryFeedbackPeak = feedbackPeaks.firstOrNull()
     val snapshotDeltaHz = spectrumSnapshot?.let { dominantFrequency - it.dominantFrequency }
@@ -1127,21 +1166,32 @@ fun VisualizerCard(
                     }
                 }
 
-                FrequencyVisualizer(
-                    dominantFrequency = dominantFrequency,
-                    frequencies = frequencies,
-                    overlayBands = selectedOverlay.bands,
-                    feedbackPeaks = feedbackPeaks,
-                    showFeedbackMarkers = feedbackHuntEnabled,
-                    snapshotFrequencies = spectrumSnapshot?.frequencies,
-                    showSnapshotOverlay = snapshotCompareEnabled,
-                    selectedTargetCurve = selectedTargetCurve,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .heightIn(min = 320.dp)
-                        .weight(1f)
-                )
+                if (showWaterfall) {
+                    WaterfallVisualizer(
+                        spectrogram = spectrogram,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .heightIn(min = 320.dp)
+                            .weight(1f)
+                    )
+                } else {
+                    FrequencyVisualizer(
+                        dominantFrequency = dominantFrequency,
+                        frequencies = frequencies,
+                        overlayBands = selectedOverlay.bands,
+                        feedbackPeaks = feedbackPeaks,
+                        showFeedbackMarkers = feedbackHuntEnabled,
+                        snapshotFrequencies = spectrumSnapshot?.frequencies,
+                        showSnapshotOverlay = snapshotCompareEnabled,
+                        selectedTargetCurve = selectedTargetCurve,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .heightIn(min = 320.dp)
+                            .weight(1f)
+                    )
+                }
             }
         } else {
             Column(
@@ -1229,21 +1279,32 @@ fun VisualizerCard(
                     )
                 }
 
-                FrequencyVisualizer(
-                    dominantFrequency = dominantFrequency,
-                    frequencies = frequencies,
-                    overlayBands = selectedOverlay.bands,
-                    feedbackPeaks = feedbackPeaks,
-                    showFeedbackMarkers = feedbackHuntEnabled,
-                    snapshotFrequencies = spectrumSnapshot?.frequencies,
-                    showSnapshotOverlay = snapshotCompareEnabled,
-                    selectedTargetCurve = selectedTargetCurve,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .heightIn(min = 230.dp)
-                        .weight(1f, fill = false)
-                )
+                if (showWaterfall) {
+                    WaterfallVisualizer(
+                        spectrogram = spectrogram,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .heightIn(min = 230.dp)
+                            .weight(1f, fill = false)
+                    )
+                } else {
+                    FrequencyVisualizer(
+                        dominantFrequency = dominantFrequency,
+                        frequencies = frequencies,
+                        overlayBands = selectedOverlay.bands,
+                        feedbackPeaks = feedbackPeaks,
+                        showFeedbackMarkers = feedbackHuntEnabled,
+                        snapshotFrequencies = spectrumSnapshot?.frequencies,
+                        showSnapshotOverlay = snapshotCompareEnabled,
+                        selectedTargetCurve = selectedTargetCurve,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .heightIn(min = 230.dp)
+                            .weight(1f, fill = false)
+                    )
+                }
 
                 Row(
                     modifier = Modifier
@@ -1315,6 +1376,8 @@ fun VisualizerCard(
             onClearSnapshot = onClearSnapshot,
             onManageSavedCurves = { showSavedCurvesDialog = true },
             onDismiss = { showAnalyzerTools = false },
+            showWaterfall = showWaterfall,
+            onShowWaterfallChange = { showWaterfall = it },
             generator = generator
         )
     }
@@ -1357,6 +1420,8 @@ fun AnalyzerToolsSheet(
     onClearSnapshot: () -> Unit,
     onManageSavedCurves: () -> Unit,
     onDismiss: () -> Unit,
+    showWaterfall: Boolean,
+    onShowWaterfallChange: (Boolean) -> Unit,
     generator: SignalGenerator
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -1454,6 +1519,31 @@ fun AnalyzerToolsSheet(
                             Switch(
                                 checked = feedbackHuntEnabled,
                                 onCheckedChange = onFeedbackHuntEnabledChange
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Waterfall (spectrogram)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Show time-based waterfall view of the spectrum.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = showWaterfall,
+                                onCheckedChange = onShowWaterfallChange
                             )
                         }
 
