@@ -2,9 +2,13 @@ package com.example.audioanalyser
 
 import java.util.Locale
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -16,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -27,10 +32,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.example.audioanalyser.ui.theme.AudioAnalyserTheme
 import kotlin.math.log10
 import kotlin.math.pow
@@ -52,6 +66,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(analyzer: AudioAnalyzer) {
     val context = LocalContext.current
+    val activity = LocalContext.current as? Activity
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -59,6 +74,12 @@ fun MainScreen(analyzer: AudioAnalyzer) {
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    var permissionRequested by remember { mutableStateOf(false) }
+
+    val shouldShowRationale = remember(activity) {
+        activity?.let { ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.RECORD_AUDIO) } ?: false
     }
 
     val launcher = rememberLauncherForActivityResult(
@@ -69,6 +90,7 @@ fun MainScreen(analyzer: AudioAnalyzer) {
 
     LaunchedEffect(Unit) {
         if (!hasPermission) {
+            permissionRequested = true
             launcher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
@@ -78,10 +100,26 @@ fun MainScreen(analyzer: AudioAnalyzer) {
     } else {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Microphone access is required for analysis")
+                Text(stringResource(id = R.string.mic_access_required))
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = { launcher.launch(Manifest.permission.RECORD_AUDIO) }) {
-                    Text("Allow Microphone Access")
+                Row {
+                    Button(onClick = {
+                        permissionRequested = true
+                        launcher.launch(Manifest.permission.RECORD_AUDIO)
+                    }) {
+                        Text(stringResource(id = R.string.allow_mic))
+                    }
+                    if (permissionRequested && !shouldShowRationale) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
+                            context.startActivity(intent)
+                        }) {
+                            Text(stringResource(id = R.string.open_settings))
+                        }
+                    }
                 }
             }
         }
@@ -99,19 +137,40 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     val frequencies by analyzer.frequencies.collectAsState()
     val dbOffset by analyzer.dbOffset.collectAsState()
     val noiseThreshold by analyzer.noiseThreshold.collectAsState()
-    
+    val dominantFrequency by analyzer.dominantFrequency.collectAsState()
+    val error by analyzer.error.collectAsState()
+
     var showInfoDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-    
+    var showCalibrationScreen by remember { mutableStateOf(false) }
+
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    // Load persisted calibration values (if any)
+    val ctx = LocalContext.current
     LaunchedEffect(Unit) {
-        analyzer.startAnalyzing()
+        val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+        val savedOffset = prefs.getFloat("db_offset", 30f)
+        val savedNoise = prefs.getFloat("noise_threshold", 25f)
+        analyzer.setDbOffset(savedOffset)
+        analyzer.setNoiseThreshold(savedNoise)
     }
 
-    DisposableEffect(Unit) {
+    // Lifecycle-aware start/stop
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> scope.launch { analyzer.startAnalyzing() }
+                Lifecycle.Event.ON_PAUSE -> analyzer.stop()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             analyzer.stop()
         }
     }
@@ -119,42 +178,58 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Audio Analyser", style = MaterialTheme.typography.titleLarge) },
+                title = { Text(stringResource(id = R.string.app_name), style = MaterialTheme.typography.titleLarge) },
                 actions = {
                     IconButton(onClick = { analyzer.resetStats() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Reset Stats")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(id = R.string.reset_stats))
                     }
                     IconButton(onClick = { showSettingsDialog = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(id = R.string.settings))
                     }
                     IconButton(onClick = { showInfoDialog = true }) {
-                        Icon(Icons.Default.Info, contentDescription = "Mixing Info")
+                        Icon(Icons.Default.Info, contentDescription = stringResource(id = R.string.info))
                     }
                 }
             )
         },
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        if (isLandscape) {
-            LandscapeLayout(
-                dbLevel = dbLevel,
-                minDb = minDb,
-                maxDb = maxDb,
-                avgDb = avgDb,
-                dbHistory = dbHistory,
-                frequencies = frequencies,
-                modifier = Modifier.padding(innerPadding)
-            )
-        } else {
-            PortraitLayout(
-                dbLevel = dbLevel,
-                minDb = minDb,
-                maxDb = maxDb,
-                avgDb = avgDb,
-                dbHistory = dbHistory,
-                frequencies = frequencies,
-                modifier = Modifier.padding(innerPadding)
-            )
+        Column(modifier = Modifier.padding(innerPadding)) {
+            if (!error.isNullOrEmpty()) {
+                ElevatedCard(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)) {
+                    Text(text = error ?: "", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(8.dp))
+                }
+            }
+
+            if (isLandscape) {
+                LandscapeLayout(
+                    dbLevel = dbLevel,
+                    minDb = minDb,
+                    maxDb = maxDb,
+                    avgDb = avgDb,
+                    dbHistory = dbHistory,
+                    frequencies = frequencies,
+                    dominantFrequency = dominantFrequency,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                )
+            } else {
+                PortraitLayout(
+                    dbLevel = dbLevel,
+                    minDb = minDb,
+                    maxDb = maxDb,
+                    avgDb = avgDb,
+                    dbHistory = dbHistory,
+                    frequencies = frequencies,
+                    dominantFrequency = dominantFrequency,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                )
+            }
         }
     }
 
@@ -164,14 +239,22 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer) {
             currentThreshold = noiseThreshold,
             onOffsetChange = { analyzer.setDbOffset(it) },
             onThresholdChange = { analyzer.setNoiseThreshold(it) },
-            onDismiss = { showSettingsDialog = false }
+            onDismiss = { showSettingsDialog = false },
+            onOpenCalibration = {
+                showSettingsDialog = false
+                showCalibrationScreen = true
+            }
         )
     }
 
     if (showInfoDialog) {
-        MixingInfoDialog(onDismiss = { 
-            showInfoDialog = false 
+        MixingInfoDialog(onDismiss = {
+            showInfoDialog = false
         })
+    }
+
+    if (showCalibrationScreen) {
+        CalibrationScreen(analyzer = analyzer, onClose = { showCalibrationScreen = false })
     }
 }
 
@@ -183,12 +266,11 @@ fun PortraitLayout(
     avgDb: Float,
     dbHistory: List<Float>,
     frequencies: FloatArray,
+    dominantFrequency: Float,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         DbMeterCard(
@@ -199,11 +281,12 @@ fun PortraitLayout(
             dbHistory = dbHistory,
             modifier = Modifier.fillMaxWidth()
         )
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         VisualizerCard(
             frequencies = frequencies,
+            dominantFrequency = dominantFrequency,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -219,16 +302,15 @@ fun LandscapeLayout(
     avgDb: Float,
     dbHistory: List<Float>,
     frequencies: FloatArray,
+    dominantFrequency: Float,
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
         DbMeterCard(
-            dbLevel = dbLevel, 
+            dbLevel = dbLevel,
             minDb = minDb,
             maxDb = maxDb,
             avgDb = avgDb,
@@ -237,11 +319,12 @@ fun LandscapeLayout(
                 .weight(0.4f)
                 .fillMaxHeight()
         )
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         VisualizerCard(
             frequencies = frequencies,
+            dominantFrequency = dominantFrequency,
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
@@ -264,7 +347,9 @@ fun DbMeterCard(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    ElevatedCard(modifier = modifier) {
+    val semanticsDesc = stringResource(id = R.string.db_meter_semantics, dbLevel, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
+
+    ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
                 .padding(24.dp)
@@ -273,7 +358,7 @@ fun DbMeterCard(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Sound Level",
+                text = stringResource(id = R.string.sound_level),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -289,7 +374,7 @@ fun DbMeterCard(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    text = if (dbLevel > 85) "TOO LOUD" else "SAFE LEVEL",
+                    text = if (dbLevel > 85) stringResource(id = R.string.too_loud) else stringResource(id = R.string.safe_level),
                     style = MaterialTheme.typography.labelMedium,
                     color = dbColor,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -303,9 +388,9 @@ fun DbMeterCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem("Min", if (minDb == Float.MAX_VALUE) 0f else minDb)
-                StatItem("Avg", avgDb)
-                StatItem("Max", maxDb)
+                StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
+                StatItem(stringResource(id = R.string.avg_label), avgDb)
+                StatItem(stringResource(id = R.string.max_label), maxDb)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -341,7 +426,7 @@ fun HistorySparkline(history: List<Float>, modifier: Modifier = Modifier) {
 
         val width = size.width
         val height = size.height
-        val maxVal = 100f // Scale sparkline to 100dB max
+        val maxVal = (history.maxOrNull() ?: 100f).coerceAtLeast(1f)
         val stepX = width / (history.size - 1)
 
         val points = history.mapIndexed { index, value ->
@@ -363,36 +448,37 @@ fun HistorySparkline(history: List<Float>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun VisualizerCard(frequencies: FloatArray, modifier: Modifier = Modifier) {
-    ElevatedCard(modifier = modifier) {
+fun VisualizerCard(frequencies: FloatArray, dominantFrequency: Float, modifier: Modifier = Modifier) {
+    val semanticsDesc = stringResource(id = R.string.freq_visualizer_semantics, dominantFrequency)
+    ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
             Text(
-                text = "Frequency Spectrum",
+                text = stringResource(id = R.string.frequency_spectrum),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             FrequencyVisualizer(
                 frequencies = frequencies,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             )
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Bass", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2196F3))
-                Text("Mids", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
-                Text("Highs", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFFC107))
+                Text(stringResource(id = R.string.bass_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(id = R.string.mids_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                Text(stringResource(id = R.string.highs_label), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
             }
         }
     }
@@ -410,14 +496,19 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
     
     val minFreq = 20f
     val maxFreq = 22050f 
+    val bassColor = MaterialTheme.colorScheme.primary
+    val midsColor = MaterialTheme.colorScheme.secondary
+    val highsColor = MaterialTheme.colorScheme.tertiary
 
     Canvas(modifier = modifier) {
         if (frequencies.isEmpty()) return@Canvas
 
         val width = size.width
         val height = size.height
-        
-        // Helper to map frequency to X coordinate
+        val labelArea = 24.dp.toPx()
+        val drawHeight = height - labelArea
+
+        // Helper to map frequency to X coordinate (log scale)
         fun getXForFreq(freq: Float): Float {
             val logMin = log10(minFreq)
             val logMax = log10(maxFreq)
@@ -425,69 +516,63 @@ fun FrequencyVisualizer(frequencies: FloatArray, modifier: Modifier = Modifier) 
             return ((logFreq - logMin) / (logMax - logMin)) * width
         }
 
-        // Draw grid lines
+        // Draw grid lines and labels
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 10.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+
         labels.forEach { (freq, label) ->
             val x = getXForFreq(freq)
             drawLine(
                 color = Color.Gray.copy(alpha = 0.2f),
                 start = Offset(x, 0f),
-                end = Offset(x, height),
+                end = Offset(x, drawHeight),
                 strokeWidth = 1.dp.toPx()
             )
-            drawContext.canvas.nativeCanvas.drawText(
-                label,
-                x,
-                height + 30f,
-                android.graphics.Paint().apply {
-                    color = android.graphics.Color.GRAY
-                    textSize = 10.sp.toPx()
-                    textAlign = android.graphics.Paint.Align.CENTER
-                }
-            )
+            drawContext.canvas.nativeCanvas.drawText(label, x, drawHeight + labelArea - 4f, paint)
         }
 
         val numBars = 64
         val barWidth = width / numBars
-        
+        val globalMax = frequencies.maxOrNull() ?: 1f
+
         for (i in 0 until numBars) {
-            // Map bar index to frequency range
             val xStart = i * barWidth
             val xEnd = (i + 1) * barWidth
-            
-            // Reverse mapping from X to Frequency
+
             fun getFreqForX(x: Float): Float {
                 val logMin = log10(minFreq)
                 val logMax = log10(maxFreq)
-                val normalizedX = x / width
+                val normalizedX = (x / width).coerceIn(0f, 1f)
                 val logFreq = normalizedX * (logMax - logMin) + logMin
                 return 10.0.pow(logFreq.toDouble()).toFloat()
             }
 
             val freqStart = getFreqForX(xStart)
             val freqEnd = getFreqForX(xEnd)
-            
-            // Map frequency to FFT index
+
             val binSize = maxFreq / frequencies.size
             val startIndex = (freqStart / binSize).toInt().coerceIn(0, frequencies.size - 1)
             val endIndex = (freqEnd / binSize).toInt().coerceIn(0, frequencies.size - 1)
-            
+
             var maxMagnitude = 0f
             for (j in startIndex..endIndex) {
                 if (frequencies[j] > maxMagnitude) maxMagnitude = frequencies[j]
             }
 
-            val dbScale = (20 * log10(maxMagnitude.toDouble() + 1.0) / 100.0).toFloat()
-            val barHeight = (dbScale * height).coerceIn(2.dp.toPx(), height)
-            
-            val color = when {
-                freqStart < 250 -> Color(0xFF2196F3) // Bass
-                freqStart < 4000 -> Color(0xFF4CAF50) // Mids
-                else -> Color(0xFFFFC107) // Highs
+            val barHeight = if (globalMax <= 0f) 0f else (maxMagnitude / globalMax) * drawHeight
+
+            val freqColor = when {
+                freqStart < 250 -> bassColor
+                freqStart < 4000 -> midsColor
+                else -> highsColor
             }
 
             drawRect(
-                color = color,
-                topLeft = Offset(i * barWidth, height - barHeight),
+                color = freqColor,
+                topLeft = Offset(i * barWidth, drawHeight - barHeight),
                 size = androidx.compose.ui.geometry.Size(barWidth - 2f, barHeight)
             )
         }
@@ -500,51 +585,73 @@ fun SettingsDialog(
     currentThreshold: Float,
     onOffsetChange: (Float) -> Unit,
     onThresholdChange: (Float) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenCalibration: (() -> Unit)? = null
 ) {
+    val ctx = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Mic Calibration") },
+        title = { Text(stringResource(id = R.string.mic_calibration)) },
         text = {
             Column {
                 Text(
-                    text = String.format(Locale.getDefault(), "dB Offset: %.0f", currentOffset),
+                    text = String.format(Locale.getDefault(), stringResource(id = R.string.db_offset_label), currentOffset),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Slider(
                     value = currentOffset,
                     onValueChange = onOffsetChange,
-                    valueRange = 0f..100f,
-                    steps = 100
+                    valueRange = 0f..100f
                 )
                 Text(
-                    text = "Adjust if the app reads too high or low compared to a real meter.",
+                    text = stringResource(id = R.string.db_offset_help),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Text(
-                    text = String.format(Locale.getDefault(), "Noise Gate: %.0f dB", currentThreshold),
+                    text = String.format(Locale.getDefault(), stringResource(id = R.string.noise_gate_label), currentThreshold),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Slider(
                     value = currentThreshold,
                     onValueChange = onThresholdChange,
-                    valueRange = 0f..60f,
-                    steps = 60
+                    valueRange = 0f..60f
                 )
                 Text(
-                    text = "Increse this to cut out background static/hiss in quiet rooms.",
+                    text = stringResource(id = R.string.noise_gate_help),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
+        dismissButton = {
+            if (onOpenCalibration != null) {
+                TextButton(onClick = {
+                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .putFloat("db_offset", currentOffset)
+                        .putFloat("noise_threshold", currentThreshold)
+                        .apply()
+                    onDismiss()
+                    onOpenCalibration()
+                }) {
+                    Text(stringResource(id = R.string.open_calibration))
+                }
+            }
+        },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
+            TextButton(onClick = {
+                val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putFloat("db_offset", currentOffset)
+                    .putFloat("noise_threshold", currentThreshold)
+                    .apply()
+                onDismiss()
+            }) {
+                Text(stringResource(id = R.string.done))
             }
         }
     )
@@ -600,5 +707,95 @@ fun InfoSection(title: String, body: String) {
             text = body,
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val currentOffset by analyzer.dbOffset.collectAsState()
+    val dbLevel by analyzer.dbLevel.collectAsState()
+    val dominant by analyzer.dominantFrequency.collectAsState()
+    var targetDb by remember { mutableStateOf(85f) }
+    var measuring by remember { mutableStateOf(false) }
+    var measuredAvg by remember { mutableStateOf<Float?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(id = R.string.calibration_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(id = R.string.cancel))
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(modifier = Modifier
+            .padding(innerPadding)
+            .padding(16.dp)) {
+            Text(text = String.format(Locale.getDefault(), "%.1f dB", dbLevel), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+            Text(text = stringResource(id = R.string.freq_visualizer_semantics, dominant), style = MaterialTheme.typography.bodyMedium)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = String.format(Locale.getDefault(), stringResource(id = R.string.target_db_label), targetDb))
+            Slider(value = targetDb, onValueChange = { targetDb = it }, valueRange = 0f..120f)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row {
+                Button(onClick = {
+                    if (!measuring) {
+                        measuring = true
+                        measuredAvg = null
+                        scope.launch {
+                            val samples = mutableListOf<Float>()
+                            val start = System.currentTimeMillis()
+                            while (System.currentTimeMillis() - start < 3000L) {
+                                samples.add(analyzer.dbLevel.value)
+                                kotlinx.coroutines.delay(100L)
+                            }
+                            val avg = if (samples.isNotEmpty()) samples.average().toFloat() else 0f
+                            measuredAvg = avg
+                            measuring = false
+                        }
+                    }
+                }) {
+                    Text(stringResource(id = R.string.measure_button))
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(onClick = {
+                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+                    val base = measuredAvg ?: dbLevel
+                    val newOffset = currentOffset + (targetDb - base)
+                    analyzer.setDbOffset(newOffset)
+                    prefs.edit().putFloat("db_offset", newOffset).apply()
+                }) {
+                    Text(stringResource(id = R.string.set_offset_button))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            measuredAvg?.let { Text(String.format(Locale.getDefault(), stringResource(id = R.string.measured_avg_label), it)) }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row {
+                Button(onClick = {
+                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putFloat("db_offset", analyzer.dbOffset.value).apply()
+                    onClose()
+                }) {
+                    Text(stringResource(id = R.string.done))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = onClose) { Text(stringResource(id = R.string.cancel)) }
+            }
+        }
     }
 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.cos
 import kotlin.math.log10
 import kotlin.math.sqrt
+import kotlin.math.PI
 
 class AudioAnalyzer {
     private val sampleRate = 44100
@@ -21,13 +22,22 @@ class AudioAnalyzer {
         AudioFormat.ENCODING_PCM_16BIT
     ).coerceAtLeast(fftSize * 2)
 
+    // Reusable buffers to reduce GC pressure
+    private val audioBuffer = ShortArray(fftSize)
+    private val window = DoubleArray(fftSize).apply {
+        for (i in indices) this[i] = 0.5 * (1.0 - cos(2.0 * PI * i / (fftSize - 1)))
+    }
+    private val real = DoubleArray(fftSize)
+    private val imag = DoubleArray(fftSize)
+    private val magnitudes = FloatArray(fftSize / 2)
+
     private val _dbLevel = MutableStateFlow(0f)
     val dbLevel: StateFlow<Float> = _dbLevel
 
-    private val _dbOffset = MutableStateFlow(30f) // Default lowered to 30
+    private val _dbOffset = MutableStateFlow(30f)
     val dbOffset: StateFlow<Float> = _dbOffset
 
-    private val _noiseThreshold = MutableStateFlow(25f) // Default noise gate
+    private val _noiseThreshold = MutableStateFlow(25f)
     val noiseThreshold: StateFlow<Float> = _noiseThreshold
 
     private val _minDb = MutableStateFlow(Float.MAX_VALUE)
@@ -46,14 +56,23 @@ class AudioAnalyzer {
     private var dbCount = 0
     private val historyLimit = 100
 
+    // Expose a smoothed frequency array for the visualizer
+    private val smoothedFrequencies = FloatArray(fftSize / 2)
+    private val smoothingFactor = 0.2f
     private val _frequencies = MutableStateFlow(FloatArray(fftSize / 2))
     val frequencies: StateFlow<FloatArray> = _frequencies
 
+    // Dominant frequency (Hz) for accessibility and quick-read
+    private val _dominantFrequency = MutableStateFlow(0f)
+    val dominantFrequency: StateFlow<Float> = _dominantFrequency
+
+    // Error reporting
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     private var isRecording = false
-    
-    // For smoothing the visualizer
-    private var smoothedFrequencies = FloatArray(fftSize / 2)
-    private val smoothingFactor = 0.2f 
+
+    private val binSize = sampleRate.toFloat() / fftSize
 
     fun setDbOffset(value: Float) {
         _dbOffset.value = value
@@ -74,6 +93,10 @@ class AudioAnalyzer {
 
     @SuppressLint("MissingPermission")
     suspend fun startAnalyzing() = withContext(Dispatchers.IO) {
+        if (isRecording) return@withContext
+
+        _error.value = null
+
         val audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
             sampleRate,
@@ -82,68 +105,87 @@ class AudioAnalyzer {
             bufferSize
         )
 
-        if (audioRecord.state != AudioRecord.STATE_INITIALIZED) return@withContext
+        if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
+            _error.value = "AudioRecord initialization failed"
+            return@withContext
+        }
 
-        audioRecord.startRecording()
-        isRecording = true
+        try {
+            audioRecord.startRecording()
+            isRecording = true
 
-        val buffer = ShortArray(fftSize)
-        while (isRecording) {
-            val read = audioRecord.read(buffer, 0, fftSize)
-            if (read == fftSize) {
-                // 1. Calculate dB with calibration
-                val rms = calculateRMS(buffer, read)
-                val rawDb = if (rms > 1e-9) 20 * log10(rms.toDouble()).toFloat() else 0f
+            while (isRecording) {
+                val read = audioRecord.read(audioBuffer, 0, fftSize)
+                if (read <= 0) continue
+
+                // dB calculation (RMS)
+                val rms = calculateRMS(audioBuffer, read)
+                val rawDb = if (rms > 1e-9) 20 * log10(rms.toDouble()).toFloat() else -120f
                 val calibratedDb = (rawDb + _dbOffset.value).coerceAtLeast(0f)
-                
-                // Apply Noise Gate
                 val currentDb = if (calibratedDb > _noiseThreshold.value) calibratedDb else 0f
                 _dbLevel.value = currentDb
 
-                // Update Stats (only if above noise gate)
+                // Update stats
                 if (currentDb > 0) {
                     _maxDb.value = maxOf(_maxDb.value, currentDb)
                     _minDb.value = minOf(_minDb.value, currentDb)
-                    
+
                     dbSum += currentDb
                     dbCount++
                     _avgDb.value = (dbSum / dbCount).toFloat()
 
-                    // Update History
                     val currentHistory = _dbHistory.value.toMutableList()
                     currentHistory.add(currentDb)
-                    if (currentHistory.size > historyLimit) {
-                        currentHistory.removeAt(0)
-                    }
+                    if (currentHistory.size > historyLimit) currentHistory.removeAt(0)
                     _dbHistory.value = currentHistory
-                } else if (_dbLevel.value == 0f && _dbHistory.value.isNotEmpty()) {
-                    // Still add 0 to history if it's dead quiet
+                } else if (_dbLevel.value == 0f) {
                     val currentHistory = _dbHistory.value.toMutableList()
                     currentHistory.add(0f)
-                    if (currentHistory.size > historyLimit) {
-                        currentHistory.removeAt(0)
-                    }
+                    if (currentHistory.size > historyLimit) currentHistory.removeAt(0)
                     _dbHistory.value = currentHistory
                 }
 
-                // 2. Apply Hanning Window to reduce "static" leakage
-                val windowedBuffer = applyHanningWindow(buffer)
+                // Apply window and populate real/imag arrays
+                for (i in 0 until fftSize) {
+                    val sample = if (i < read) audioBuffer[i].toDouble() else 0.0
+                    real[i] = sample * window[i]
+                    imag[i] = 0.0
+                }
 
-                // 3. Calculate FFT
-                val currentFft = calculateFFT(windowedBuffer)
-                
-                // 4. Smooth the frequencies for a cleaner look
-                for (i in currentFft.indices) {
-                    // Apply sensitivity gate to individual frequencies too
-                    val mag = if (currentDb > 0) currentFft[i] else 0f
+                // In-place iterative FFT
+                fftInPlace(real, imag)
+
+                // Magnitudes and smoothing
+                var maxMag = 1e-12f
+                var maxIndex = 0
+                for (i in magnitudes.indices) {
+                    val mag = sqrt(real[i] * real[i] + imag[i] * imag[i]).toFloat()
+                    magnitudes[i] = mag
+                    if (mag > maxMag) {
+                        maxMag = mag
+                        maxIndex = i
+                    }
+                }
+
+                for (i in magnitudes.indices) {
+                    val mag = if (currentDb > 0) magnitudes[i] else 0f
                     smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + mag * smoothingFactor
                 }
                 _frequencies.value = smoothedFrequencies.copyOf()
-            }
-        }
 
-        audioRecord.stop()
-        audioRecord.release()
+                // Dominant frequency in Hz
+                _dominantFrequency.value = maxIndex * binSize
+            }
+        } catch (e: Exception) {
+            _error.value = e.message ?: "Audio processing error"
+        } finally {
+            try {
+                if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) audioRecord.stop()
+            } catch (ignored: Exception) {
+            }
+            audioRecord.release()
+            isRecording = false
+        }
     }
 
     fun stop() {
@@ -153,66 +195,75 @@ class AudioAnalyzer {
     private fun calculateRMS(buffer: ShortArray, read: Int): Float {
         var sum = 0.0
         for (i in 0 until read) {
-            sum += buffer[i] * buffer[i]
+            val v = buffer[i].toDouble()
+            sum += v * v
         }
         return sqrt(sum / read).toFloat()
     }
 
-    private fun applyHanningWindow(buffer: ShortArray): DoubleArray {
-        val n = buffer.size
-        val windowed = DoubleArray(n)
-        for (i in 0 until n) {
-            val multiplier = 0.5 * (1.0 - cos(2.0 * Math.PI * i / (n - 1)))
-            windowed[i] = buffer[i] * multiplier
-        }
-        return windowed
-    }
-
-    private fun calculateFFT(windowedBuffer: DoubleArray): FloatArray {
-        val n = windowedBuffer.size
-        val real = windowedBuffer.copyOf()
-        val imag = DoubleArray(n) { 0.0 }
-        
-        fft(real, imag)
-        
-        val magnitudes = FloatArray(n / 2)
-        for (i in 0 until n / 2) {
-            // Convert to a pseudo-dB scale for better visualization of harmonics
-            val mag = sqrt(real[i] * real[i] + imag[i] * imag[i])
-            magnitudes[i] = mag.toFloat()
-        }
-        return magnitudes
-    }
-
-    private fun fft(real: DoubleArray, imag: DoubleArray) {
+    // Iterative in-place radix-2 FFT
+    private fun fftInPlace(real: DoubleArray, imag: DoubleArray) {
         val n = real.size
-        if (n <= 1) return
 
-        val realEven = DoubleArray(n / 2)
-        val imagEven = DoubleArray(n / 2)
-        val realOdd = DoubleArray(n / 2)
-        val imagOdd = DoubleArray(n / 2)
-
-        for (i in 0 until n / 2) {
-            realEven[i] = real[2 * i]
-            imagEven[i] = imag[2 * i]
-            realOdd[i] = real[2 * i + 1]
-            imagOdd[i] = imag[2 * i + 1]
+        // If a native FFT is available, prefer it for performance.
+        if (NativeFFT.available) {
+            try {
+                NativeFFT.nativeFft(real, imag, n)
+                return
+            } catch (t: Throwable) {
+                // If native call fails for any reason, fall back to managed implementation.
+            }
         }
 
-        fft(realEven, imagEven)
-        fft(realOdd, imagOdd)
+        var j = 0
+        for (i in 1 until n) {
+            var bit = n shr 1
+            while (j >= bit) {
+                j -= bit
+                bit = bit shr 1
+            }
+            j += bit
+            if (i < j) {
+                val tr = real[i]
+                real[i] = real[j]
+                real[j] = tr
+                val ti = imag[i]
+                imag[i] = imag[j]
+                imag[j] = ti
+            }
+        }
 
-        for (k in 0 until n / 2) {
-            val angle = -2.0 * Math.PI * k / n
-            val cosVal = cos(angle)
-            val sinVal = kotlin.math.sin(angle)
-            val tReal = cosVal * realOdd[k] - sinVal * imagOdd[k]
-            val tImag = sinVal * realOdd[k] + cosVal * imagOdd[k]
-            real[k] = realEven[k] + tReal
-            imag[k] = imagEven[k] + tImag
-            real[k + n / 2] = realEven[k] - tReal
-            imag[k + n / 2] = imagEven[k] - tImag
+        var len = 2
+        while (len <= n) {
+            val half = len / 2
+            val theta = -2.0 * PI / len
+            val wlenR = kotlin.math.cos(theta)
+            val wlenI = kotlin.math.sin(theta)
+            var i = 0
+            while (i < n) {
+                var wr = 1.0
+                var wi = 0.0
+                var k = 0
+                while (k < half) {
+                    val idx = i + k
+                    val idy = idx + half
+                    val ur = real[idx]
+                    val ui = imag[idx]
+                    val vr = real[idy] * wr - imag[idy] * wi
+                    val vi = real[idy] * wi + imag[idy] * wr
+                    real[idx] = ur + vr
+                    imag[idx] = ui + vi
+                    real[idy] = ur - vr
+                    imag[idy] = ui - vi
+                    val nextWr = wr * wlenR - wi * wlenI
+                    val nextWi = wr * wlenI + wi * wlenR
+                    wr = nextWr
+                    wi = nextWi
+                    k++
+                }
+                i += len
+            }
+            len = len shl 1
         }
     }
 }

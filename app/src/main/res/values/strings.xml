@@ -1,3 +1,39 @@
 <resources>
     <string name="app_name">Audio Analyser</string>
+    <string name="mic_access_required">Microphone access is required for analysis</string>
+    <string name="allow_mic">Allow Microphone Access</string>
+    <string name="open_settings">Open App Settings</string>
+
+    <string name="reset_stats">Reset stats</string>
+    <string name="settings">Settings</string>
+    <string name="info">Info</string>
+
+    <string name="db_meter_semantics">Sound level %1$.1f dB, min %2$.1f, avg %3$.1f, max %4$.1f</string>
+    <string name="sound_level">Sound Level</string>
+    <string name="too_loud">TOO LOUD</string>
+    <string name="safe_level">SAFE LEVEL</string>
+
+    <string name="min_label">Min</string>
+    <string name="avg_label">Avg</string>
+    <string name="max_label">Max</string>
+
+    <string name="frequency_spectrum">Frequency Spectrum</string>
+    <string name="bass_label">Bass</string>
+    <string name="mids_label">Mids</string>
+    <string name="highs_label">Highs</string>
+    <string name="freq_visualizer_semantics">Frequency visualizer. Dominant frequency %1$.0f Hz</string>
+
+    <string name="mic_calibration">Mic Calibration</string>
+    <string name="db_offset_label">dB Offset: %.0f</string>
+    <string name="db_offset_help">Adjust if the app reads too high or low compared to a real meter.</string>
+    <string name="noise_gate_label">Noise Gate: %.0f dB</string>
+    <string name="noise_gate_help">Increase this to cut out background static/hiss in quiet rooms.</string>
+    <string name="done">Done</string>
+    <string name="open_calibration">Open Calibration</string>
+    <string name="calibration_title">Calibration</string>
+    <string name="measure_button">Measure 3s</string>
+    <string name="measured_avg_label">Measured avg: %.1f dB</string>
+    <string name="set_offset_button">Set offset to measured</string>
+    <string name="target_db_label">Target dB: %.0f</string>
+    <string name="cancel">Cancel</string>
 </resources>
