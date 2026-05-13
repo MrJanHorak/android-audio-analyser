@@ -2,4 +2,9 @@
 <resources>
 
     <style name="Theme.AudioAnalyser" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Lightweight splash theme that uses a drawable as window background -->
+    <style name="Theme.AudioAnalyser.Splash" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_screen</item>
+    </style>
 </resources>

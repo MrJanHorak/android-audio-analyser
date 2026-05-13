@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- background color (black) -->
+    <item android:drawable="@android:color/black" />
+    <!-- center the provided splash image (place your vertical splash image at
+         res/drawable-nodpi/splash_image.png) -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_image" />
+    </item>
+</layer-list>

@@ -15,6 +15,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -63,6 +66,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // If the activity theme was set to the splash theme in the manifest,
+        // switch back to the app's normal theme before setting Compose content.
+        setTheme(R.style.Theme_AudioAnalyser)
         setContent {
             AudioAnalyserTheme {
                 MainScreen(audioAnalyzer, signalGenerator)
@@ -591,7 +597,19 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(id = R.string.app_name), style = MaterialTheme.typography.titleLarge) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.header_banner),
+                            contentDescription = stringResource(id = R.string.app_name),
+                            modifier = Modifier
+                                .height(40.dp)
+                                .padding(end = 8.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                        Text(stringResource(id = R.string.app_name), style = MaterialTheme.typography.titleLarge)
+                    }
+                },
                 actions = {
                     IconButton(onClick = { analyzer.resetStats() }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(id = R.string.reset_stats))
