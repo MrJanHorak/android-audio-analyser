@@ -117,9 +117,9 @@ class AudioAnalyzer {
     val isLogging: StateFlow<Boolean> = _isLogging
     private val loggedData = mutableListOf<String>()
 
-    private var transientCallback: ((Long) -> Unit)? = null
+    private var transientCallback: ((Long, Boolean) -> Unit)? = null
 
-    fun awaitNextTransient(onDetected: (Long) -> Unit) {
+    fun awaitNextTransient(onDetected: (Long, Boolean) -> Unit) {
         transientCallback = onDetected
     }
 
@@ -198,7 +198,17 @@ class AudioAnalyzer {
                 
                 // Transient detection
                 if (transientCallback != null && currentDb > _noiseThreshold.value + 15f) {
-                    transientCallback?.invoke(System.nanoTime())
+                    var maxAbs = 0
+                    var isPositive = true
+                    for (i in 0 until read) {
+                        val v = audioBuffer[i].toInt()
+                        val absV = kotlin.math.abs(v)
+                        if (absV > maxAbs) {
+                            maxAbs = absV
+                            isPositive = v > 0
+                        }
+                    }
+                    transientCallback?.invoke(System.nanoTime(), isPositive)
                     transientCallback = null // only fire once
                 }
 

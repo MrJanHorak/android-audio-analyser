@@ -142,12 +142,14 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
         
         Spacer(modifier = Modifier.height(16.dp))
         var isMeasuring by remember { mutableStateOf(false) }
+        var detectedPolarity by rememberSaveable { mutableStateOf<Boolean?>(null) }
         
         Button(
             onClick = {
                 isMeasuring = true
+                detectedPolarity = null
                 val txTime = generator.emitSinglePing()
-                analyzer.awaitNextTransient { rxTime ->
+                analyzer.awaitNextTransient { rxTime, isPositive ->
                     val diffNanos = rxTime - txTime
                     // Subtract roughly 40ms for OS audio routing latency (buffer inherent limits)
                     val rawMs = diffNanos / 1_000_000.0
@@ -162,6 +164,7 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
                     } else {
                         (newDistanceMeters * 3.28084).toFloat()
                     }
+                    detectedPolarity = isPositive
                     isMeasuring = false
                 }
             },
@@ -169,6 +172,23 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
             modifier = Modifier.fillMaxWidth()
         ) {
             AutoSizeText(if (isMeasuring) "Listening for ping..." else "Auto-Measure with Ping")
+        }
+        
+        if (detectedPolarity != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = if (detectedPolarity == true) Color(0xFF006400) else Color(0xFF8B0000),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (detectedPolarity == true) "Polarity: IN PHASE (+)" else "Polarity: INVERTED (-)",
+                    modifier = Modifier.padding(12.dp),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -1184,13 +1204,20 @@ fun DbMeterCard(
     dbHistory: List<Float>,
     modifier: Modifier = Modifier
 ) {
+    var selectedWeighting by rememberSaveable { mutableStateOf("Z") }
+    val displayDb = when(selectedWeighting) {
+        "A" -> dbLevelA
+        "C" -> dbLevelC
+        else -> dbLevelZ
+    }
+
     val dbColor = when {
-        dbLevel > 90 -> Color.Red
-        dbLevel > 80 -> Color(0xFFFFC107) // Amber
+        displayDb > 90 -> Color.Red
+        displayDb > 80 -> Color(0xFFFFC107) // Amber
         else -> MaterialTheme.colorScheme.primary
     }
 
-    val semanticsDesc = stringResource(id = R.string.db_meter_semantics, dbLevel, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
+    val semanticsDesc = stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
 
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
@@ -1205,17 +1232,29 @@ fun DbMeterCard(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
-                text = String.format(Locale.getDefault(), "%.1f dB", dbLevel),
+            AutoSizeText(
+                text = String.format(Locale.getDefault(), "%.1f dB(%s)", displayDb, selectedWeighting),
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = dbColor
             )
             Spacer(modifier = Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Text(text = String.format(Locale.getDefault(), "dB(A): %.1f", dbLevelA), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = String.format(Locale.getDefault(), "dB(C): %.1f", dbLevelC), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = String.format(Locale.getDefault(), "dB(Z): %.1f", dbLevelZ), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FilterChip(
+                    selected = selectedWeighting == "A",
+                    onClick = { selectedWeighting = "A" },
+                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(A): %.1f", dbLevelA), style = MaterialTheme.typography.labelSmall) }
+                )
+                FilterChip(
+                    selected = selectedWeighting == "C",
+                    onClick = { selectedWeighting = "C" },
+                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(C): %.1f", dbLevelC), style = MaterialTheme.typography.labelSmall) }
+                )
+                FilterChip(
+                    selected = selectedWeighting == "Z",
+                    onClick = { selectedWeighting = "Z" },
+                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(Z): %.1f", dbLevelZ), style = MaterialTheme.typography.labelSmall) }
+                )
             }
             Surface(
                 color = dbColor.copy(alpha = 0.1f),
@@ -1223,7 +1262,7 @@ fun DbMeterCard(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    text = if (dbLevel > 85) stringResource(id = R.string.too_loud) else stringResource(id = R.string.safe_level),
+                    text = if (displayDb > 85) stringResource(id = R.string.too_loud) else stringResource(id = R.string.safe_level),
                     style = MaterialTheme.typography.labelMedium,
                     color = dbColor,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
