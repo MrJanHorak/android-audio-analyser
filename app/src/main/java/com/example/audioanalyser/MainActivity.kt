@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,12 +62,14 @@ import org.json.JSONObject
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     private val audioAnalyzer = AudioAnalyzer()
     private val signalGenerator = SignalGenerator()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
@@ -415,7 +418,7 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
     var permissionRequested by remember { mutableStateOf(false) }
 
-    val shouldShowRationale = remember(activity) {
+    val shouldShowRationale = remember(activity, permissionRequested) {
         activity?.let { ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.RECORD_AUDIO) } ?: false
     }
 
@@ -423,38 +426,69 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasPermission = isGranted
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasPermission) {
-            permissionRequested = true
-            launcher.launch(Manifest.permission.RECORD_AUDIO)
-        }
+        permissionRequested = true
     }
 
     if (hasPermission) {
         AudioAnalyserContent(analyzer, generator)
     } else {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(stringResource(id = R.string.mic_access_required))
-                Spacer(modifier = Modifier.height(16.dp))
-                Row {
-                    Button(onClick = {
-                        permissionRequested = true
-                        launcher.launch(Manifest.permission.RECORD_AUDIO)
-                    }) {
-                        Text(stringResource(id = R.string.allow_mic))
+        Box(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp).fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = "Microphone",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Microphone Required",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Audio Analyser needs microphone access to measure the sound in your room and display frequency data.\n\nWe do not record, store, or transmit any raw audio.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            permissionRequested = true
+                            launcher.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                    ) {
+                        Text("Grant Access")
                     }
+                    
                     if (permissionRequested && !shouldShowRationale) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
-                        }) {
-                            Text(stringResource(id = R.string.open_settings))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Text("Open App Settings")
                         }
                     }
                 }

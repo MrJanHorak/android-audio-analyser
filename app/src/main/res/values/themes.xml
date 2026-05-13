@@ -3,8 +3,12 @@
 
     <style name="Theme.AudioAnalyser" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <!-- Lightweight splash theme that uses a drawable as window background -->
-    <style name="Theme.AudioAnalyser.Splash" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@drawable/splash_screen</item>
+    <style name="Theme.AudioAnalyser.Splash" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background -->
+        <item name="windowSplashScreenBackground">@color/black</item>
+        <!-- Use windowSplashScreenAnimatedIcon to add a drawable -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_image</item>
+        <!-- Set the theme of the Activity that follows your splash screen -->
+        <item name="postSplashScreenTheme">@style/Theme.AudioAnalyser</item>
     </style>
 </resources>

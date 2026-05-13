@@ -520,6 +520,51 @@ val eqReferenceEntries = listOf(
         presence = "Articulation and attack often sit around 2-5 kHz.",
         watchOut = "Watch 250-500 Hz boxiness when keys stack with guitars and vocals.",
         startingMove = "Decide whether the patch is supporting or featured, then trim low mids aggressively enough to leave room."
+    ),
+    EqReferenceEntry(
+        title = "Orchestral Strings (Violin/Cello)",
+        role = "Solo or section strings in a contemporary or church mix",
+        highPass = "Violins: HPF 150-200 Hz. Celli: HPF 60-80 Hz depending on the mix.",
+        body = "Resonance and warmth sit around 200-400 Hz for violins, 100-250 Hz for celli.",
+        presence = "Bow texture and rosin noise often sit around 2-5 kHz.",
+        watchOut = "Watch 1-3 kHz harshness heavily on close-mic'd violins. They can sound very scratchy un-EQ'd.",
+        startingMove = "Cut harshness around 2 kHz before boosting highs to keep the natural acoustic tone."
+    ),
+    EqReferenceEntry(
+        title = "Brass (Trumpet/Trombone)",
+        role = "Live horn section or solo brass",
+        highPass = "HPF around 150-200 Hz for trumpets; 80-100 Hz for trombones.",
+        body = "Fundamentals often sit around: Trumpet 200-400 Hz, Trombone 100-250 Hz.",
+        presence = "Bite and projection naturally push around 2-5 kHz.",
+        watchOut = "Horns can easily pierce the mix around 2.5-4 kHz. Keep an eye on harsh buildups.",
+        startingMove = "Tame the piercing upper mids first, let the natural acoustic body shine through."
+    ),
+    EqReferenceEntry(
+        title = "Woodwinds (Flute/Clarinet)",
+        role = "Live woodwind section",
+        highPass = "HPF around 200-250 Hz for flute to avoid stage rumble.",
+        body = "Warmth sits around 300-600 Hz.",
+        presence = "Breath and air sit highly around 4-6 kHz and above.",
+        watchOut = "Watch 4-6 kHz whistle or sibilance, and avoid boosting too much air unless it sounds dull.",
+        startingMove = "A gentle cut in the harsh upper frequencies helps it blend smoothly with strings or vocals."
+    ),
+    EqReferenceEntry(
+        title = "Upright Bass",
+        role = "Acoustic pizzicato or bowed bass",
+        highPass = "HPF around 40 Hz to remove subsonic bowing noise.",
+        body = "Fundamentals sit around 40-100 Hz. Pluck/Finger sound around 700-900 Hz.",
+        presence = "Fingerboard snap and slap sit around 2-4 kHz.",
+        watchOut = "Watch 150-300 Hz boominess which can easily run away into feedback on stage.",
+        startingMove = "Find the resonant feedback frequencies and notch them out, then shape the low-end weight."
+    ),
+    EqReferenceEntry(
+        title = "General Gain Staging & Tuning",
+        role = "Overall best practices for Live Sound",
+        highPass = "Use high-pass filters on almost everything except Kick, Bass, and Synth subs to clean up stage rumble.",
+        body = "Mud builds up across an entire mix at 200-400 Hz. If the whole mix feels cloudy, check this range.",
+        presence = "Clash and pain usually live in 2-4 kHz. If it hurts, start looking there.",
+        watchOut = "When using an RTA or Analyzer, trust your ears first. A perfectly flat line often sounds harsh or unnatural.",
+        startingMove = "Cut frequencies to fix problems. Boost frequencies to change character."
     )
 )
 
