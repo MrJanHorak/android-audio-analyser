@@ -113,6 +113,10 @@ class AudioAnalyzer {
     private var isRecording = false
     private val trackedFeedbackPeaks = mutableListOf<TrackedFeedbackPeak>()
 
+    private val _isLogging = MutableStateFlow(false)
+    val isLogging: StateFlow<Boolean> = _isLogging
+    private val loggedData = mutableListOf<String>()
+
     private val binSize = sampleRate.toFloat() / fftSize
     private val feedbackCandidateLimit = 6
     private val feedbackPeakLimit = 3
@@ -137,6 +141,19 @@ class AudioAnalyzer {
         dbCount = 0
         _dbHistory.value = emptyList()
         clearFeedbackPeaks()
+    }
+
+    fun startLogging() {
+        loggedData.clear()
+        loggedData.add("Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)")
+        _isLogging.value = true
+    }
+
+    fun stopLogging(): String {
+        _isLogging.value = false
+        val csvContent = loggedData.joinToString("\n")
+        loggedData.clear()
+        return csvContent
     }
 
     @SuppressLint("MissingPermission")
@@ -256,8 +273,14 @@ class AudioAnalyzer {
                 _dbLevelC.value = dbCvalue
                 _dbLevelZ.value = dbZvalue
                 updateFeedbackPeaks(currentDb)
+
+                if (_isLogging.value) {
+                    val timestamp = System.currentTimeMillis()
+                    loggedData.add("$timestamp,$dbZvalue,$dbAvalue,$dbCvalue,${_dominantFrequency.value}")
+                }
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             _error.value = e.message ?: "Audio processing error"
         } finally {
             try {

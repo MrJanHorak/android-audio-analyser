@@ -16,7 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
+// Removed unused painterResource import to avoid loading unsupported XML drawables
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
@@ -28,6 +28,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +43,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +68,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
         // If the activity theme was set to the splash theme in the manifest,
         // switch back to the app's normal theme before setting Compose content.
@@ -72,6 +76,60 @@ class MainActivity : ComponentActivity() {
         setContent {
             AudioAnalyserTheme {
                 MainScreen(audioAnalyzer, signalGenerator)
+            }
+        }
+    }
+}
+
+@Composable
+fun DelayCalculatorPanel(modifier: Modifier = Modifier) {
+    var distanceValue by rememberSaveable { mutableStateOf(10f) }
+    var temperatureC by rememberSaveable { mutableStateOf(20f) }
+    var isMeters by rememberSaveable { mutableStateOf(true) }
+
+    // Convert to meters if in feet
+    val distMeters = if (isMeters) distanceValue else distanceValue * 0.3048f
+    val speedOfSound = 331.3f + (0.606f * temperatureC)
+    // Delay in ms
+    val delayMs = (distMeters / speedOfSound) * 1000f
+
+    Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Text(text = "Delay Calculator", style = MaterialTheme.typography.labelLarge)
+        Text(text = "Calculate speaker alignment times based on distance.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Unit: ", modifier = Modifier.weight(0.3f))
+            Row(modifier = Modifier.weight(0.7f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = isMeters, onClick = { isMeters = true }, label = { Text("Meters") })
+                FilterChip(selected = !isMeters, onClick = { isMeters = false }, label = { Text("Feet") })
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(text = "Distance: ${"%.1f".format(Locale.getDefault(), distanceValue)} ${if (isMeters) "m" else "ft"}")
+        Slider(value = distanceValue, onValueChange = { distanceValue = it }, valueRange = 0.5f..100f)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(text = "Temperature: ${"%.1f".format(Locale.getDefault(), temperatureC)} °C")
+        Slider(value = temperatureC, onValueChange = { temperatureC = it }, valueRange = -10f..45f)
+
+        Surface(
+            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Alignment Delay", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = "${"%.1f".format(Locale.getDefault(), delayMs)} ms",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
             }
         }
     }
@@ -423,6 +481,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val dominantFrequency by analyzer.dominantFrequency.collectAsState()
     val feedbackPeaks by analyzer.feedbackPeaks.collectAsState()
     val error by analyzer.error.collectAsState()
+    val isLogging by analyzer.isLogging.collectAsState()
+
+    var isPaused by rememberSaveable { mutableStateOf(false) }
 
     var showInfoDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -582,7 +643,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> scope.launch { analyzer.startAnalyzing() }
+                Lifecycle.Event.ON_RESUME -> if (!isPaused) scope.launch { analyzer.startAnalyzing() }
                 Lifecycle.Event.ON_PAUSE -> analyzer.stop()
                 else -> {}
             }
@@ -596,35 +657,62 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.header_banner),
-                            contentDescription = stringResource(id = R.string.app_name),
-                            modifier = Modifier
-                                .height(40.dp)
-                                .padding(end = 8.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                        Text(stringResource(id = R.string.app_name), style = MaterialTheme.typography.titleLarge)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { analyzer.resetStats() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(id = R.string.reset_stats))
-                    }
-                    IconButton(onClick = {
-                        settingsBackupMessage = null
-                        showSettingsDialog = true
-                    }) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(id = R.string.settings))
-                    }
-                    IconButton(onClick = { showInfoDialog = true }) {
-                        Icon(Icons.Default.Info, contentDescription = stringResource(id = R.string.info))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val _ctx = LocalContext.current
+                val _drawable: android.graphics.drawable.Drawable? = remember { ContextCompat.getDrawable(_ctx, R.drawable.app_header) }
+                val _imageBitmap: androidx.compose.ui.graphics.ImageBitmap? = remember(_drawable) {
+                    _drawable?.let { d ->
+                        val w = (d.intrinsicWidth).coerceAtLeast(1)
+                        val h = (d.intrinsicHeight).coerceAtLeast(1)
+                        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(bmp)
+                        d.setBounds(0, 0, canvas.width, canvas.height)
+                        d.draw(canvas)
+                        bmp.asImageBitmap()
                     }
                 }
-            )
+                if (_imageBitmap != null) {
+                    Image(
+                        bitmap = _imageBitmap,
+                        contentDescription = stringResource(id = R.string.app_name),
+                        modifier = Modifier
+                            .height(36.dp)
+                            .widthIn(max = 180.dp)
+                            .padding(start = 4.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = { 
+                    isPaused = !isPaused
+                    if (isPaused) {
+                        analyzer.stop()
+                    } else {
+                        scope.launch { analyzer.startAnalyzing() }
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        contentDescription = if (isPaused) "Resume" else "Pause"
+                    )
+                }
+                IconButton(onClick = { showInfoDialog = true }) {
+                    Icon(Icons.Filled.Info, contentDescription = stringResource(id = R.string.info))
+                }
+                IconButton(onClick = { analyzer.resetStats() }) {
+                    Icon(Icons.Filled.Refresh, contentDescription = stringResource(id = R.string.reset_stats))
+                }
+                IconButton(onClick = { showSettingsDialog = true }) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(id = R.string.settings))
+                }
+            }
         },
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
@@ -695,7 +783,25 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
-                    generator = generator
+                    generator = generator,
+                    isLogging = isLogging,
+                    onStartLogging = { analyzer.startLogging() },
+                    onStopLogging = {
+                        val csvData = analyzer.stopLogging()
+                        try {
+                            val file = java.io.File(ctx.cacheDir, "decibel_log_${System.currentTimeMillis()}.csv")
+                            file.writeText(csvData)
+                            val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/csv"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            ctx.startActivity(Intent.createChooser(intent, "Export Decibel Log"))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 )
             } else {
                 PortraitLayout(
@@ -755,7 +861,25 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
-                    generator = generator
+                    generator = generator,
+                    isLogging = isLogging,
+                    onStartLogging = { analyzer.startLogging() },
+                    onStopLogging = {
+                        val csvData = analyzer.stopLogging()
+                        try {
+                            val file = java.io.File(ctx.cacheDir, "decibel_log_${System.currentTimeMillis()}.csv")
+                            file.writeText(csvData)
+                            val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/csv"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            ctx.startActivity(Intent.createChooser(intent, "Export Decibel Log"))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 )
             }
         }
@@ -822,7 +946,10 @@ fun PortraitLayout(
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
-    generator: SignalGenerator
+    generator: SignalGenerator,
+    isLogging: Boolean,
+    onStartLogging: () -> Unit,
+    onStopLogging: () -> Unit
 ) {
     Column(
         modifier = modifier,
@@ -867,6 +994,9 @@ fun PortraitLayout(
             onClearSnapshot = onClearSnapshot,
             generator = generator,
             spectrogram = spectrogram,
+            isLogging = isLogging,
+            onStartLogging = onStartLogging,
+            onStopLogging = onStopLogging,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -907,7 +1037,10 @@ fun LandscapeLayout(
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
-    generator: SignalGenerator
+    generator: SignalGenerator,
+    isLogging: Boolean,
+    onStartLogging: () -> Unit,
+    onStopLogging: () -> Unit
 ) {
     Row(
         modifier = modifier,
@@ -954,6 +1087,9 @@ fun LandscapeLayout(
             onClearSnapshot = onClearSnapshot,
             generator = generator,
             spectrogram = spectrogram,
+            isLogging = isLogging,
+            onStartLogging = onStartLogging,
+            onStopLogging = onStopLogging,
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
@@ -1112,7 +1248,10 @@ fun VisualizerCard(
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
     generator: SignalGenerator,
-    spectrogram: List<FloatArray>
+    spectrogram: List<FloatArray>,
+    isLogging: Boolean,
+    onStartLogging: () -> Unit,
+    onStopLogging: () -> Unit
 ) {
     val ctx = LocalContext.current
     // Waterfall settings (persisted in shared prefs)
@@ -1487,7 +1626,10 @@ fun VisualizerCard(
             waterfallColormap = waterfallColormap,
             onWaterfallColormapChange = { waterfallColormap = it },
             onExportWaterfallSample = { exportCurrentWaterfall() },
-            generator = generator
+            generator = generator,
+            isLogging = isLogging,
+            onStartLogging = onStartLogging,
+            onStopLogging = onStopLogging
         )
     }
 
@@ -1552,10 +1694,13 @@ fun AnalyzerToolsSheet(
     waterfallColormap: String,
     onWaterfallColormapChange: (String) -> Unit,
     onExportWaterfallSample: () -> Unit,
-    generator: SignalGenerator
+    generator: SignalGenerator,
+    isLogging: Boolean,
+    onStartLogging: () -> Unit,
+    onStopLogging: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabs = listOf("Source", "Room", "Snapshot")
+    val tabs = listOf("Source", "Room", "Snapshot", "Delay", "Log")
     val selectedSavedTargetCurve = savedTargetCurves.firstOrNull { it.id == selectedTargetCurve.id }
     val selectedSavedTargetCurveDetails = selectedSavedTargetCurve?.venueDetailRows().orEmpty()
 
@@ -1829,7 +1974,7 @@ fun AnalyzerToolsSheet(
                         }
                     }
 
-                    else -> {
+                    2 -> {
                         Text(text = "Snapshots", style = MaterialTheme.typography.labelLarge)
                         Row(
                             modifier = Modifier
@@ -1864,6 +2009,44 @@ fun AnalyzerToolsSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 12.dp)
                         )
+                    }
+
+                    3 -> {
+                        DelayCalculatorPanel()
+                    }
+                    else -> {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                "Decibel Logger",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Continuously logs timestamp, dB(Z), dB(A), dB(C), and the dominant frequency to memory over a long session, which you can export as a CSV later.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Continuous Decibel Logging")
+                                Switch(
+                                    checked = isLogging,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            onStartLogging()
+                                        } else {
+                                            onStopLogging()
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

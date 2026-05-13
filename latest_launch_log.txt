@@ -1,0 +1,1206 @@
+--------- beginning of main
+05-12 20:46:28.852  1216  2808 D SemWifiUsabilityStatsMonitor: onWifiUsabilityStats - seqNum 22446, isSameBssidAndFreq true
+05-12 20:46:28.853  1216  1787 I SemWifiLinkQualityMonitor: Link Qos Query: 0.148 ms / 54.000 Mbps (72 / 0.000 / 1.333)
+05-12 20:46:28.878  1216  1807 D WifiConnectivityMonitor.NetworkStatsAnalyzer: Backhaul result - RSSI:-67, CE:12, PE:12, TI:22, PTI:22, TW:2, PTW:1, Tx:16, Rx:50, TxS:10, RxS:8, RESULT:true, IC:0, ICT:5, WC:0, WCT:5, R:0, RC:0, IE:0, EC:0
+05-12 20:46:28.948  1216  1801 D SemWifiSwitchForIndividualAppsService: isSkipNetworkCondition - result:2
+05-12 20:46:28.975  1216  1259 I SemDvfsHyPerManager: acquire hyper - APP_LAUNCH/1216@357, type = -999
+05-12 20:46:28.975   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 1238308  [1216 / 357]    HINT : APP_LAUNCH    list : 
+05-12 20:46:28.977  3549  3549 I SemDvfsHyPerManager: acquire hyper - APP_START_SHORT/3549@12, type = -999
+05-12 20:46:28.978   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 6342153  [3549 / 12]    HINT : APP_START    list : [TIMEOUT / 1500] 
+05-12 20:46:28.989  1216  1250 I ChimeraSystemEventListener: appLaunchIntent package name is: com.example.audioanalyser
+--------- beginning of system
+05-12 20:46:28.989  1216  1465 D CompatibilityChangeReporter: Compat change id reported: 161252188; UID 10551; state: DISABLED
+05-12 20:46:28.990  1216  1465 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.example.audioanalyser/.MainActivity} from uid 2000
+05-12 20:46:28.990  1216  1465 D ActivityTaskManager: TaskLaunchParamsModifier:task=null activity=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} display-id=0 display-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea@41843040
+05-12 20:46:28.991  1216  1465 D [secipm]: mSecIpmManager Preload com.example.audioanalyser dex files
+05-12 20:46:28.991  1216  1465 D ActivityTaskManager: TaskLaunchParamsModifier:task=null activity=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t-1} display-id=0 display-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea@41843040 non-freeform-display display-area=DefaultTaskDisplayArea@41843040 maximized-bounds
+05-12 20:46:28.991  1216  2526 I SemDvfsHyPerManager: acquire hyper - AMS_APP_SWITCH/1216@31, type = -999
+05-12 20:46:28.992   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 778159  [1216 / 31]    HINT : AMS_APP_SWITCH    list : 
+05-12 20:46:28.992  1216  2526 D ActivityManagerPerformance: AMP_acquire() APP_SWITCH
+05-12 20:46:28.993   899   924 I SurfaceFlinger: id=27256 createSurf flag=24004, Task=380#27256
+05-12 20:46:28.993  3549  3549 I SemDvfsHyPerManager: acquire hyper - APP_START_SHORT/3549@12, type = -999
+05-12 20:46:28.993   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 6342153  [3549 / 12]    HINT : APP_START    list : [TIMEOUT / 1500] 
+05-12 20:46:28.995  1216  1465 D ActivityTaskManager: TaskLaunchParamsModifier:task=Task{b471a00 #380 type=standard A=10551:com.example.audioanalyser U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=0} activity=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t-1} display-from-task=0 display-id=0 display-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea@41843040 non-freeform-display display-area=DefaultTaskDisplayArea@41843040 maximized-bounds
+05-12 20:46:28.996   899   924 I SurfaceFlinger: id=27257 createSurf flag=80004, ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}#27257
+05-12 20:46:28.996   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:28.996   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:28.996   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e300 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:28.996   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:28.996   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:28.996   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:28.996   899   899 D SurfaceFlinger: 
+05-12 20:46:28.996   899  1455 D NativeSemDvfsManager: acquire:: timeout = 2000 mIsAcquired = 1  mTagName : SurfaceFlinger 
+05-12 20:46:28.996   899  1455 E NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::acquire()
+05-12 20:46:28.996   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 1805050  [899 / 1000]    HINT : SF_GPU_MINLOCK    list : [TIMEOUT / 2000] 
+05-12 20:46:29.002  1216  1465 D ActivityTaskManager: scheduleTopResumedActivityChanged, onTop=false r=ActivityRecord{632da01 u0 com.sec.android.app.launcher/.activities.LauncherActivity} t7} caller=com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:2510 com.android.server.wm.TaskDisplayArea.positionChildTaskAt:602 com.android.server.wm.TaskDisplayArea.positionChildAt:537 com.android.server.wm.Task.moveToFrontInner:6053 com.android.server.wm.Task.moveToFront:6019 com.android.server.wm.ActivityStarter.startActivityInner:2924 
+05-12 20:46:29.003  1216  1465 W WindowManager: Prepare app transition: mNextAppTransitionRequests=[TRANSIT_OPEN], mNextAppTransitionFlags=, displayId: 0 Callers=com.android.server.wm.DisplayContent.prepareAppTransition:6493 com.android.server.wm.DisplayContent.prepareAppTransition:6484 com.android.server.wm.Task.startActivityLocked:6595 com.android.server.wm.ActivityStarter.startActivityInner:2980 com.android.server.wm.ActivityStarter.startActivityUnchecked:2470 
+05-12 20:46:29.003  1216  1465 V WindowManager: Checking theme of starting window: 0x7f0a000a
+05-12 20:46:29.003  1216  1465 V WindowManager: Translucent=false Floating=false ShowWallpaper=false Disable=false
+05-12 20:46:29.003  1216  1465 V WindowManager: Creating SplashScreenStartingData
+05-12 20:46:29.003  1216  1465 D ActivityTaskManager: Add starting com.android.server.wm.ActivityRecord$AddStartingWindow@da9c07e: typeParam=139
+05-12 20:46:29.004  1216  1465 V WindowManager: Add starting com.android.server.wm.ActivityRecord$AddStartingWindow@da9c07e: startingData=com.android.server.wm.SplashScreenStartingData@96189df
+05-12 20:46:29.004  1216  1465 V WindowManager: Added starting ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}: startingWindow=null startingView=com.android.server.wm.StartingSurfaceController$StartingSurface@803d62c
+05-12 20:46:29.008  1216  1465 I Pageboost: stop alp
+05-12 20:46:29.008  1216  1465 I SemDvfsHyPerManager: acquire hyper - AMS_APP_LAUNCH/1216@15, type = -999
+05-12 20:46:29.008  2576  2576 E pageboostd: Received HALT command code 2
+05-12 20:46:29.008   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 758311  [1216 / 15]    HINT : AMS_APP_LAUNCH    list : 
+05-12 20:46:29.009  3549  3549 I SemDvfsHyPerManager: acquire hyper - APP_START/3549@14, type = -999
+05-12 20:46:29.010   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 6349280  [3549 / 14]    HINT : APP_START    list : 
+05-12 20:46:29.012  1216  3669 I AppOps  : updateUidProcState uid: 10067 procState: 1 capability:15
+05-12 20:46:29.013   967  2579 I CameraService: onUidStateChanged: uid=10067, procState is changed. (0 -> 1)
+05-12 20:46:29.014  1902  1972 D NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::BpCustomFrequencyManager()
+05-12 20:46:29.016  1216  1265 W libprocessgroup: Failed to open /dev/blkio//cgroup.procs: No such file or directory
+05-12 20:46:29.019  1902  1970 I AppIconSolution: start to load, pkg=com.example.audioanalyser, bg=90-90, dr=135-135, forDefault=false, density=0
+05-12 20:46:29.019   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.019   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.019   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e300 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.019   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.019   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.019   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.019   899   899 D SurfaceFlinger: 
+05-12 20:46:29.023  1902  1970 I AppIconSolution: getIconScale, pkg=com.example.audioanalyser, size=135, iconScale=IconScale[alpha=1, scale=0.75, isCrop=false]
+05-12 20:46:29.023  1902  1970 I AppIconSolution: fromTheme2, pkg=com.example.audioanalyser, bg=90-90, dr=135-135, tarScale=0.75, relScale=0.50751877, mask=false, isCropInTheme = false, isNight = true
+05-12 20:46:29.023  2335  2335 I BaseActivity: removeActivityFlags, flags : 16
+05-12 20:46:29.024  2335  2335 I BaseActivity: removeActivityFlags, flags : 6
+05-12 20:46:29.024  2335  2335 I DragController: endDrag
+05-12 20:46:29.024  2335  2335 W LauncherAppWidgetHost: setShouldListenFlag, mFlags:15 flag:resume on:false isFront:false
+05-12 20:46:29.024  2335  2335 I SPayUpdater: updateSpayHandler launcher activity is paused false
+05-12 20:46:29.024  1216  3676 D InputTransport: Input channel constructed: 'c1d668a', fd=927
+05-12 20:46:29.024  1216  3676 D InputTransport: Input channel constructed: 'c1d668a', fd=928
+05-12 20:46:29.024  1216  3676 D InputTransport: Input channel constructed: 'c1d668a', fd=932
+05-12 20:46:29.024  9226  9249 I MediaCodec: setCodecState state(1), called in 6
+05-12 20:46:29.025  1216  3667 V ResourceManagerHelper-JNI: JNIMediaResourceHelper::notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:29.025  1216  3667 V ResourceManagerHelper-JNI: notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:29.025   899   924 I SurfaceFlinger: id=27258 createSurf flag=80004, c1d668a Splash Screen com.example.audioanalyser#27258
+05-12 20:46:29.025 29854 29863 V ResourceManagerHelper-JNI: JNIMediaResourceHelper::notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:29.025 29854 29863 V ResourceManagerHelper-JNI: notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:29.025  3549  3549 I SemMediaResourceHelper: onState
+05-12 20:46:29.025  1216  1394 I SemMediaResourceHelper: onState
+05-12 20:46:29.026 29854 29930 I SemMediaResourceHelper: onState
+05-12 20:46:29.026  1216  3676 V WindowManager: addWindow: ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380} startingWindow=Window{c1d668a u0 Splash Screen com.example.audioanalyser}
+05-12 20:46:29.026 29854 29930 I DrmMediaResourceHelper: onStateChanged size = 1
+05-12 20:46:29.026 29854 29930 I DrmMediaResourceHelper: resource type: 2,,,isSecured :  falseIsEncoder : truegetCodecState : 1getpid : 9226
+05-12 20:46:29.027  1216  3676 D InputTransport: Input channel destroyed: 'c1d668a', fd=932
+05-12 20:46:29.027  1216  3669 D MARsPolicyManager: onPackageResumedFG pkgName = com.example.audioanalyser, userId = 0
+05-12 20:46:29.027  1216  3669 W WindowManager: Prepare app transition: mNextAppTransitionRequests=[TRANSIT_OPEN, TRANSIT_OPEN], mNextAppTransitionFlags=, displayId: 0 Callers=com.android.server.wm.DisplayContent.prepareAppTransition:6493 com.android.server.wm.TaskFragment.resumeTopActivity:1573 com.android.server.wm.TaskFragment.resumeTopActivity:1307 com.android.server.wm.Task.resumeTopActivityInnerLocked:6451 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:6352 
+05-12 20:46:29.028  1902  1969 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 720, 1600), mDisplayCutout=DisplayCutout{insets=Rect(0, 43 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(296, 0 - 424, 43), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=720 displayHeight=1600 physicalDisplayWidth=720 physicalDisplayHeight=1600 density={1.875} cutoutSpec={M 0,0 H -34.13333333333333 V 22.93333333333333 H 34.13333333333333 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=60, center=Point(60, 60)}, RoundedCorner{position=TopRight, radius=60, center=Point(660, 60)}, RoundedCorner{position=BottomRight, radius=60, center=Point(660, 1540)}, RoundedCorner{position=BottomLeft, radius=60, center=Point(60, 1540)}]}  mRoundedCornerFrame=Rect(0, 0 - 720, 1600), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(637, 0 - 720, 45) rotation=0}, mSources= { InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][720,45], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_GESTURES, mFrame=[0,0][0,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_GESTURES, mFrame=[720,0][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_MANDATORY_GESTURES, mFrame=[0,0][720,66], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_MANDATORY_GESTURES, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_DISPLAY_CUTOUT, mFrame=[0,0][-100000,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_DISPLAY_CUTOUT, mFrame=[0,0][720,43], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_DISPLAY_CUTOUT, mFrame=[100000,0][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_DISPLAY_CUTOUT, mFrame=[0,100000][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_TAPPABLE_ELEMENT, mFrame=[0,0][720,45], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_TAPPABLE_ELEMENT, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false} } host=Splash Screen com.example.audioanalyser from=android.view.ViewRootImpl.setView:1732
+05-12 20:46:29.029  1216  3669 D WindowManagerServiceExt: notifyOccludeChangeNotice: cn=ComponentInfo{com.example.audioanalyser/com.example.audioanalyser.MainActivity} occludesParent=true inMultiWindow=false styleFloating=false caller=com.android.server.wm.WindowManagerServiceExt.updateOccludeTargetIfNeeded:1402 com.android.server.wm.DisplayContent.ensureActivitiesVisible:7532 com.android.server.wm.RootWindowContainer.ensureActivitiesVisible:2248 com.android.server.wm.RootWindowContainer.ensureActivitiesVisible:2229 com.android.server.wm.TaskFragment.completePause:2076 
+05-12 20:46:29.030  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: setView = android.widget.FrameLayout@ad5c60b TM=true
+05-12 20:46:29.031   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.031   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.031   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e300 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.031   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.031   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.031   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.031   899   899 D SurfaceFlinger: 
+05-12 20:46:29.032  2335  2335 I TopTaskTracker: onTaskMovedToFront : taskId = 380
+05-12 20:46:29.033  1216  1785 I SemWifiServiceDetector: Traff. tracking stopped
+05-12 20:46:29.033  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: performTraversals params={(0,0)(fillxfill) sim={adjust=pan} ty=APPLICATION_STARTING fmt=TRANSLUCENT wanim=0x1030309
+05-12 20:46:29.033  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fl=81030118
+05-12 20:46:29.033  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   pfl=16000010
+05-12 20:46:29.033  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   bhv=DEFAULT
+05-12 20:46:29.033  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fitSides= naviIconColor=0}
+05-12 20:46:29.034  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: performTraversals mFirst=true windowShouldResize=true viewVisibilityChanged=false mForceNextWindowRelayout=false params={(0,0)(fillxfill) sim={adjust=pan} ty=APPLICATION_STARTING fmt=TRANSLUCENT wanim=0x1030309
+05-12 20:46:29.034  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fl=81030118
+05-12 20:46:29.034  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   pfl=16000010
+05-12 20:46:29.034  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   bhv=DEFAULT
+05-12 20:46:29.034  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fitSides= naviIconColor=0}
+05-12 20:46:29.035  1216  3676 D CoreBackPreview: Window{c1d668a u0 Splash Screen com.example.audioanalyser}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@d736156, mPriority=0}
+05-12 20:46:29.035  1216  3669 V WindowManager: Relayout Window{c1d668a u0 Splash Screen com.example.audioanalyser}: viewVisibility=0 req=720x1600 d0
+05-12 20:46:29.035  1216  3669 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+05-12 20:46:29.035   899   924 I SurfaceFlinger: id=27259 createSurf flag=40004, Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.036  1216  3669 D WindowManager: makeSurface duration=1 name=Splash Screen com.example.audioanalyser$_1902
+05-12 20:46:29.039  1216  3669 V WindowManager: Changing focus from Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity} to null displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:595 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6810 com.android.server.wm.WindowManagerService.relayoutWindow:2820 com.android.server.wm.Session.relayout:274 
+05-12 20:46:29.039  1216  3669 D MARsPolicyManager: onPackageResumedFG pkgName = com.sec.android.app.launcher, userId = 0
+05-12 20:46:29.040  1216  3669 D StatusBarManagerService: notifyRequestedSystemKey recent=false home=false
+05-12 20:46:29.040  1216  3669 V WindowManager: rotationForOrientation(orient=SCREEN_ORIENTATION_UNSPECIFIED (-1), last=ROTATION_0 (0)); user=ROTATION_0 (0) 
+05-12 20:46:29.040  1216  3669 D WindowManager: rotationForOrientation, orientationSource=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}
+05-12 20:46:29.040  1216  3669 V WindowManager: rotationForOrientation(orient=SCREEN_ORIENTATION_UNSPECIFIED (-1), last=ROTATION_0 (0)); user=ROTATION_0 (0) 
+05-12 20:46:29.040  1216  3669 D WindowManager: rotationForOrientation, orientationSource=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}
+05-12 20:46:29.041  1216  3669 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=0 based on lastOrientation=SCREEN_ORIENTATION_UNSPECIFIED (-1) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.DisplayRotation.updateOrientation:414 com.android.server.wm.DisplayContent.updateOrientation:1990 com.android.server.wm.DisplayContent.updateOrientation:1872 com.android.server.wm.WindowManagerService.relayoutWindow:2851 com.android.server.wm.Session.relayout:274 android.view.IWindowSession$Stub.onTransact:779 
+05-12 20:46:29.041  1216  1250 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10551; state: DISABLED
+05-12 20:46:29.042  1216  1250 D CompatibilityChangeReporter: Compat change id reported: 177438394; UID 10551; state: DISABLED
+05-12 20:46:29.042  1216  3669 V WindowManager: Relayout hash=c1d668a, pid=1902, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=pan} ty=APPLICATION_STARTING fmt=TRANSLUCENT wanim=0x1030309
+05-12 20:46:29.042  1216  3669 V WindowManager:   fl=81030118
+05-12 20:46:29.042  1216  3669 V WindowManager:   pfl=16000010
+05-12 20:46:29.042  1216  3669 V WindowManager:   bhv=DEFAULT
+05-12 20:46:29.042  1216  3669 V WindowManager:   fitSides= naviIconColor=0}
+05-12 20:46:29.042  1216  1250 D CompatibilityChangeReporter: Compat change id reported: 135772972; UID 10551; state: DISABLED
+05-12 20:46:29.042  1216  1250 D CompatibilityChangeReporter: Compat change id reported: 135754954; UID 10551; state: ENABLED
+05-12 20:46:29.042  1216  3676 D InputDispatcher: Focus left window (0): 174032b com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity
+05-12 20:46:29.043  1216  1260 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10551; state: ENABLED
+05-12 20:46:29.043  1902  1969 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 720, 1600), mDisplayCutout=DisplayCutout{insets=Rect(0, 43 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(296, 0 - 424, 43), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=720 displayHeight=1600 physicalDisplayWidth=720 physicalDisplayHeight=1600 density={1.875} cutoutSpec={M 0,0 H -34.13333333333333 V 22.93333333333333 H 34.13333333333333 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=60, center=Point(60, 60)}, RoundedCorner{position=TopRight, radius=60, center=Point(660, 60)}, RoundedCorner{position=BottomRight, radius=60, center=Point(660, 1540)}, RoundedCorner{position=BottomLeft, radius=60, center=Point(60, 1540)}]}  mRoundedCornerFrame=Rect(0, 0 - 720, 1600), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(637, 0 - 720, 45) rotation=0}, mSources= { InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][720,45], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_GESTURES, mFrame=[0,0][0,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_GESTURES, mFrame=[720,0][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_MANDATORY_GESTURES, mFrame=[0,0][720,66], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_MANDATORY_GESTURES, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_DISPLAY_CUTOUT, mFrame=[0,0][-100000,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_DISPLAY_CUTOUT, mFrame=[0,0][720,43], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_DISPLAY_CUTOUT, mFrame=[100000,0][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_DISPLAY_CUTOUT, mFrame=[0,100000][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_TAPPABLE_ELEMENT, mFrame=[0,0][720,45], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_TAPPABLE_ELEMENT, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_IME, mFrame=[0,0][0,0], mVisibleFrame=[0,928][720,1600], mVisible=false, mInsetsRoundedCornerFrame=false} } host=Splash Screen com.example.audioanalyser from=android.view.ViewRootImpl.relayoutWindow:9802
+05-12 20:46:29.043  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: MSG_WINDOW_FOCUS_CHANGED 0 0
+05-12 20:46:29.043  2335  2335 I BaseActivity: removeActivityFlags, flags : 8
+05-12 20:46:29.044  1216  1216 I CocktailBarManagerServiceContainer: handleMessage: entry what = 6
+05-12 20:46:29.044  1216  1250 D SGM:FgCheckThread: notePauseComponent(), received pkgName: com.sec.android.app.launcher, userId: 0
+05-12 20:46:29.044  1216  1216 I CocktailBarManagerServiceImpl: notePauseComponent : no active host
+05-12 20:46:29.045  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: updateBlastSurfaceIfNeeded mBlastBufferQueue=null isSameSurfaceControl=false
+05-12 20:46:29.045  1902  1969 I BLASTBufferQueue: new BLASTBufferQueue, mName= ViewRootImpl@a87d2ff[audioanalyser] mNativeObject= 0xb400007c3b9df300 sc.mNativeObject= 0xb400007caa3e0b20 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 android.view.Choreographer.doCallbacks:923 android.view.Choreographer.doFrame:852 android.view.Choreographer$FrameDisplayEventReceiver.run:1283 
+05-12 20:46:29.046  1902  1969 I BLASTBufferQueue: update, w= 720 h= 1600 mName = ViewRootImpl@a87d2ff[audioanalyser] mNativeObject= 0xb400007c3b9df300 sc.mNativeObject= 0xb400007caa3e0b20 format= -3 caller= android.graphics.BLASTBufferQueue.<init>:84 android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 
+05-12 20:46:29.046   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.046   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.046   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e300 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.046   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.046   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.046   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.046   899   899 D SurfaceFlinger: 
+05-12 20:46:29.046  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: Relayout returned: old=(0,0,720,1600) new=(0,0,720,1600) req=(720,1600)0 dur=11 res=0x3 s={true 0xb400007b584fb000} ch=true seqId=0
+05-12 20:46:29.047  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: mThreadedRenderer.initialize() mSurface={isValid=true 0xb400007b584fb000} hwInitialized=true
+05-12 20:46:29.047  1902  1972 D OpenGLRenderer: eglCreateWindowSurface
+05-12 20:46:29.048  1216  1265 W libprocessgroup: Failed to open /dev/blkio//cgroup.procs: No such file or directory
+05-12 20:46:29.048  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: reportNextDraw android.view.ViewRootImpl.performTraversals:4438 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 
+05-12 20:46:29.048  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: Setup new sync id=0
+05-12 20:46:29.048  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: Setting syncFrameCallback
+05-12 20:46:29.048  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: registerCallbacksForSync syncBuffer=false
+05-12 20:46:29.049  1216  1265 W libprocessgroup: Failed to open /dev/blkio//cgroup.procs: No such file or directory
+05-12 20:46:29.055  1902  2002 I ViewRootImpl@a87d2ff[audioanalyser]: Received frameDrawingCallback syncResult=0 frameNum=1.
+05-12 20:46:29.055  1902  2002 I ViewRootImpl@a87d2ff[audioanalyser]: Setting up sync and frameCommitCallback
+05-12 20:46:29.056   824   824 D Zygote  : Forked child process 9814
+05-12 20:46:29.057  1216  1260 I ActivityManager: Start proc 9814:com.example.audioanalyser/u0a551 for next-top-activity {com.example.audioanalyser/com.example.audioanalyser.MainActivity}
+05-12 20:46:29.057  1216  1260 D DynamicHiddenApp_BGProtectManager: [SecIpm] it's a ML_TYPE_EMPTYPROCESS protected process com.example.audioanalyser
+05-12 20:46:29.058  1902  1972 I BLASTBufferQueue: [ViewRootImpl@a87d2ff[audioanalyser]#1219](f:0,a:0) onFrameAvailable the first frame is available
+05-12 20:46:29.059  1902  1972 I ViewRootImpl@a87d2ff[audioanalyser]: Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true
+05-12 20:46:29.059  1902  1972 D OpenGLRenderer: CFMS:: SetUp Pid : 1902    Tid : 1972
+05-12 20:46:29.062  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: onSyncComplete
+05-12 20:46:29.063  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: setupSync seqId=0 mSyncId=0 fn=1 caller=android.view.ViewRootImpl$$ExternalSyntheticLambda11.accept:6 android.window.SurfaceSyncer.lambda$setupSync$1$android-window-SurfaceSyncer:128 android.window.SurfaceSyncer$$ExternalSyntheticLambda1.accept:8 android.window.SurfaceSyncer$SyncSet.checkIfSyncIsComplete:382 android.window.SurfaceSyncer$SyncSet.markSyncReady:359 android.window.SurfaceSyncer.markSyncReady:151 android.view.ViewRootImpl.performTraversals:4503 
+05-12 20:46:29.063  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: reportDrawFinished seqId=0 mSyncId=-1 fn=1 mSurfaceChangedTransaction=0xb400007bffedae00
+05-12 20:46:29.063   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.063   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.063   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e300 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.063   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.063   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.063   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.063   899   899 D SurfaceFlinger: 
+05-12 20:46:29.063  1216  4029 D WindowManager: finishDrawingWindow: Window{c1d668a u0 Splash Screen com.example.audioanalyser} mDrawState=DRAW_PENDING seqId=0
+05-12 20:46:29.064  1216  4029 V WindowManager: Finishing drawing window Window{c1d668a u0 Splash Screen com.example.audioanalyser}: mDrawState=DRAW_PENDING
+05-12 20:46:29.064  1216  4029 V WindowManager: Draw state now committed in Window{c1d668a u0 Splash Screen com.example.audioanalyser}
+05-12 20:46:29.065  1216  1251 W WindowManager: Execute app transition: mNextAppTransitionRequests=[TRANSIT_OPEN, TRANSIT_OPEN], mNextAppTransitionFlags=, displayId: 0 Callers=com.android.server.wm.ActivityRecord.onStartingWindowDrawn:7496 com.android.server.wm.WindowState.performShowLocked:5504 com.android.server.wm.WindowStateAnimator.commitFinishDrawingLocked:351 com.android.server.wm.DisplayContent.lambda$new$8:1189 com.android.server.wm.DisplayContent.$r8$lambda$OtLCIQFjCt9o-SYztyeDUcWUwGs:0 
+05-12 20:46:29.065  1216  1251 D WindowManager: performShow logReadyForDisplay win=Window{c1d668a u0 Splash Screen com.example.audioanalyser} mToken.waitingToShow:true isTransitionSet:true
+05-12 20:46:29.067  1216  1251 D WindowManager: Loading animation for app transition. transit=TRANSIT_OLD_WALLPAPER_CLOSE enter=false frame=Rect(0, 0 - 720, 1467) insets=Rect(0, 0 - 0, 0) surfaceInsets=Rect(0, 0 - 0, 0)
+05-12 20:46:29.067  2335  2335 I BadgeRenderer: Invalid count : 0
+05-12 20:46:29.068  1216  1251 I WindowManager: Reparenting to leash, surface=Surface(name=Task=1)/@0x8a3c190, leashParent=Surface(name=DefaultTaskDisplayArea)/@0x8137a89
+05-12 20:46:29.069   899  1077 I SurfaceFlinger: id=27260 createSurf flag=24000, Surface(name=Task=1)/@0x8a3c190 - animation-leash of app_transition#27260
+05-12 20:46:29.069  1216  1251 D WindowManager: makeSurface duration=1 leash=Surface(name=Surface(name=Task=1)/@0x8a3c190 - animation-leash of app_transition)/@0x45c3ce2
+05-12 20:46:29.070  1216  1251 D WindowManager: Loading animation for app transition. transit=TRANSIT_OLD_WALLPAPER_CLOSE enter=true frame=Rect(0, 0 - 720, 1600) insets=Rect(0, 45 - 0, 90) surfaceInsets=Rect(0, 0 - 0, 0)
+05-12 20:46:29.071  1216  1251 I WindowManager: Reparenting to leash, surface=Surface(name=Task=380)/@0xc05452e, leashParent=Surface(name=DefaultTaskDisplayArea)/@0x8137a89
+05-12 20:46:29.071   899  1077 I SurfaceFlinger: id=27261 createSurf flag=24004, Surface(name=Task=380)/@0xc05452e - animation-leash of app_transition#27261
+05-12 20:46:29.072  1216  1251 D WindowManager: makeSurface duration=2 leash=Surface(name=Surface(name=Task=380)/@0xc05452e - animation-leash of app_transition)/@0x8e6a8cf
+05-12 20:46:29.073  1216  1251 V WindowManager: performShowLocked: mDrawState=HAS_DRAWN in Window{c1d668a u0 Splash Screen com.example.audioanalyser}
+05-12 20:46:29.076   899  1077 I SurfaceFlinger: id=27262 createSurf flag=80000, 598a332 ActivityRecordInputSink com.example.audioanalyser/.MainActivity#27262
+05-12 20:46:29.078  9814  9814 I e.audioanalyser: Late-enabling -Xcheck:jni
+05-12 20:46:29.079   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.079   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.079   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e300 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.079   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.079   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.079   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.079   899   899 D SurfaceFlinger: 
+05-12 20:46:29.079  1902  1939 D Bubbles : onLocusVisibilityChanged: LocusId[17_chars] visible=false
+05-12 20:46:29.091   899   899 I Layer   : Layer [Splash Screen com.example.audioanalyser$_1902#27259] hidden!! flag(0)
+05-12 20:46:29.099   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.099   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.099   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.099   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.099   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.099   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.099   899   899 D SurfaceFlinger: 
+05-12 20:46:29.119   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.119   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.119   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.119   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   50  112  670 1488 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.119   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.119   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.119   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.119   899   899 D SurfaceFlinger: 
+05-12 20:46:29.127  9814  9814 I e.audioanalyser: Using CollectorTypeCC GC.
+05-12 20:46:29.129  2335 21282 I RecentModel: onTaskStackChangedBackground
+05-12 20:46:29.136   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.136   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.136   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.136   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   45  100  675 1500 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.136   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.136   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.136   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.136   899   899 D SurfaceFlinger: 
+05-12 20:46:29.136 13811 13840 I adbd    : jdwp connection from 9814
+05-12 20:46:29.137  2335  2646 I RecentTasksList: loadTasksInBackground : groupTask = GroupTask{task1=[id=362 windowingMode=1 user=0 lastActiveTime=374378079] null, task2=null, task3=null, mStagedSplitBounds=null}
+05-12 20:46:29.137  2335  2646 I RecentTasksList: loadTasksInBackground : groupTask = GroupTask{task1=[id=365 windowingMode=1 user=0 lastActiveTime=374469331] null, task2=null, task3=null, mStagedSplitBounds=null}
+05-12 20:46:29.137  2335  2646 I RecentTasksList: loadTasksInBackground : groupTask = GroupTask{task1=[id=380 windowingMode=1 user=0 lastActiveTime=374686592] null, task2=null, task3=null, mStagedSplitBounds=null}
+05-12 20:46:29.149  9814  9814 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+05-12 20:46:29.154   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.154   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.154   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.154   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   38   85  682 1515 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.154   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.154   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.154   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.154   899   899 D SurfaceFlinger: 
+05-12 20:46:29.156  9814  9814 D ActivityThread: setConscryptValidator
+05-12 20:46:29.156  9814  9814 D ActivityThread: setConscryptValidator - put
+05-12 20:46:29.166  1216  3669 I ActivityManager: DSS OFF for com.example.audioanalyser
+05-12 20:46:29.169   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.169   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.169   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.169   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   32   71  688 1529 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.169   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.169   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.169   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.169   899   899 D SurfaceFlinger: 
+05-12 20:46:29.173  1216  3669 V WindowManager: rotationForOrientation(orient=SCREEN_ORIENTATION_UNSPECIFIED (-1), last=ROTATION_0 (0)); user=ROTATION_0 (0) 
+05-12 20:46:29.173  1216  3669 D WindowManager: rotationForOrientation, orientationSource=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}
+05-12 20:46:29.173  1216  3669 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=0 based on lastOrientation=SCREEN_ORIENTATION_UNSPECIFIED (-1) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.DisplayRotation.updateOrientation:414 com.android.server.wm.DisplayContent.updateOrientation:1990 com.android.server.wm.DisplayContent.updateOrientation:1891 com.android.server.wm.RootWindowContainer.ensureVisibilityAndConfig:2139 com.android.server.wm.ActivityTaskSupervisor.realStartActivityLocked:913 com.android.server.wm.RootWindowContainer$AttachApplicationHelper.test:4288 
+05-12 20:46:29.174 23397 23397 I wpa_supplicant: Heartbeat 12885
+05-12 20:46:29.175  1216  3669 D TspStateManager: updateCustomValue customSetting=
+05-12 20:46:29.176  1216  3669 D TspStateManager: updateCustomValue customSetting=
+05-12 20:46:29.177  1216  3669 D SGM:PkgDataHelper: notifyAppCreate(), pkgName: com.example.audioanalyser, userId: 0, sendRet: true
+05-12 20:46:29.177  1216  1421 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_APP_CREATE, pkgName: com.example.audioanalyser, userId: 0
+05-12 20:46:29.178  1216  3669 D MARsPolicyManager: onPackageResumedFG pkgName = com.example.audioanalyser, userId = 0
+05-12 20:46:29.178  1216  3669 D ActivityTaskManager: scheduleTopResumedActivityChanged, onTop=true r=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380} caller=com.android.server.wm.ActivityTaskSupervisor.scheduleTopResumedActivityStateIfNeeded:2535 com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:2527 com.android.server.wm.TaskFragment.setResumedActivity:493 com.android.server.wm.TaskFragment.onActivityStateChanged:805 com.android.server.wm.ActivityRecord.setState:6406 com.android.server.wm.Task.minimalResumeActivityLocked:6155 
+05-12 20:46:29.179  1216  3669 D InputDispatcher: Focused application(0): ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}
+05-12 20:46:29.179  1216  3669 D SGM:FgCheckThread: TaskStackListener.onTaskFocusChanged(), taskId=7, focused=false
+05-12 20:46:29.179  1216  3669 D SGM:FgCheckThread: TaskStackListener.onTaskFocusChanged(), taskId=380, focused=true
+05-12 20:46:29.181  1216  3669 D SGM:FgCheckThread:   sendRunningComponentFocus(), pkgName: com.example.audioanalyser, userId: 0
+05-12 20:46:29.181  1216  1421 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_TASK_FOCUSED, pkgName: com.example.audioanalyser, userId: 0
+05-12 20:46:29.181  1216  1421 D SGM:FgCheckThread: handleTaskFocused().
+05-12 20:46:29.181  1216  1421 D SGM:FgCheckThread:   handleTaskFocused(), pkgName: com.example.audioanalyser, userID:0
+05-12 20:46:29.181  1216  1421 D SGM:FgCheckThread: handleResume().
+05-12 20:46:29.181  1216  1421 D SGM:FgCheckThread: sendFocusOutConditionally() - mPrevNotiPkg: KILL_YOURSELF, userId: 0
+05-12 20:46:29.182  1216  1421 D SGM:FgCheckThread:   handleResume(). pkgName: com.example.audioanalyser, userId: 0, isTunableApp: null
+05-12 20:46:29.182  1216  1421 D SGM:FgCheckThread: notifyFocusInOut(). of pkg: com.example.audioanalyser, type: 4, isTunableApp: false, userId: 0
+05-12 20:46:29.182  1216  1421 D SGM:FgCheckThread:   notifyFocusInOut(). do nothing. mKillNotiCount: 1
+05-12 20:46:29.182  1216  1421 D SGM:SystemHelper: callReleaseBlock needReleaseBlock:false
+05-12 20:46:29.185  1216  1747 D AS.MultiSoundManager: mForegroundUid = 10551
+05-12 20:46:29.186  1216  1250 I GameSDK@LifeCycle: noteResumeComponent(): package name  : com.example.audioanalyser
+05-12 20:46:29.187  1216  1706 V NetworkPolicy: getFirewallRuleWifi UID:10551 policy:0
+05-12 20:46:29.188  1216  1250 D SGM:GameManager: identifyGamePackage. com.example.audioanalyser, mCurrentUserId: 0, callerUserId: 0, callingMethodInfo: com.android.server.ssrm.SortingMachine.isGame(SortingMachine.java:162)
+05-12 20:46:29.188  1216  1250 D SGM:PkgDataHelper: getGamePkgData(). com.example.audioanalyser
+05-12 20:46:29.188   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.188   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.188   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.188   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   27   59  693 1541 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.188   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.188   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.188   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.188   899   899 D SurfaceFlinger: 
+05-12 20:46:29.188  1216  2730 I MediaSessionMonitor: Media session stopped : not playing state
+05-12 20:46:29.190  1216  1250 D SGM:GameManager: identifyGamePackage. com.example.audioanalyser, mCurrentUserId: 0, callerUserId: 0, callingMethodInfo: com.samsung.android.game.SemGameManager.isGamePackage(SemGameManager.java:104)
+05-12 20:46:29.190  1216  1250 D SGM:PkgDataHelper: getGamePkgData(). com.example.audioanalyser
+05-12 20:46:29.190  1216  1250 D SGM:SemGameManager: isGamePackage(), pkgName=com.example.audioanalyser, ret=false
+05-12 20:46:29.191  1216  1216 I CocktailBarManagerServiceContainer: handleMessage: entry what = 5
+05-12 20:46:29.191  1216  1216 I CocktailBarManagerServiceImpl: noteResumeComponent : no active host
+05-12 20:46:29.195  1216  1250 D SGM:FgCheckThread: noteResumeComponent(), received pkgName: com.example.audioanalyser, userId: 0
+05-12 20:46:29.195  1216  1421 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_APP_RESUME, pkgName: com.example.audioanalyser, userid: 0
+05-12 20:46:29.195  1216  1421 D SGM:FgCheckThread: handleResume().
+05-12 20:46:29.195  1216  1421 D SGM:FgCheckThread:   handleResume(). same package with Prev KILL_YOURSELF. ignore
+05-12 20:46:29.195  1216  1250 I ActivityManager: Changes in 10551 19 to 2, 0 to 15
+05-12 20:46:29.195  1216  1250 I AppOps  : updateUidProcState uid: 10551 procState: 2 capability:15
+05-12 20:46:29.196  1216  1250 I AppOps  : commitUidPendingStateLocked() :: UID - 10551, 700 > 200, 0 > 15
+05-12 20:46:29.196  1216  1250 I ActivityManager: updateOomAdj start time is before than pendingPid added, don't delete it
+05-12 20:46:29.196  9814  9814 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10551; state: ENABLED
+05-12 20:46:29.196  4179  7746 I ejla    : (REDACTED) HDM. appOpsListener %s %s
+05-12 20:46:29.196  4179  7746 I ejla    : (REDACTED) HDM. Ignoring irrelevant audio permission changes for package %s
+05-12 20:46:29.206   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.206   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.206   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.206   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   22   49  698 1551 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.206   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.206   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.206   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.206   899   899 D SurfaceFlinger: 
+05-12 20:46:29.220   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.220   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.220   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.220   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   18   40  702 1560 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.220   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.220   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.220   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.220   899   899 D SurfaceFlinger: 
+05-12 20:46:29.237   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.237   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.237   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.237   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   15   33  705 1567 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.237   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.237   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.237   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.237   899   899 D SurfaceFlinger: 
+05-12 20:46:29.253   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.253   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.253   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.253   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   12   26  708 1574 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.253   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.253   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.253   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.253   899   899 D SurfaceFlinger: 
+05-12 20:46:29.268   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.268   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.268   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.268   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |   10   21  710 1579 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.268   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.268   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.268   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.268   899   899 D SurfaceFlinger: 
+05-12 20:46:29.285   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.285   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.285   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.285   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    8   17  712 1583 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.285   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.285   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.285   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.285   899   899 D SurfaceFlinger: 
+05-12 20:46:29.301   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.301   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.301   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.301   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    6   13  714 1587 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.301   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.301   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.301   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.301   899   899 D SurfaceFlinger: 
+05-12 20:46:29.317   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.317   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.317   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.317   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    5   10  715 1590 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.317   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.317   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.317   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.317   899   899 D SurfaceFlinger: 
+05-12 20:46:29.334   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.334   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.334   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.334   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    3    8  717 1592 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.334   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.334   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.334   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.334   899   899 D SurfaceFlinger: 
+05-12 20:46:29.336  1216  2201 D MdnieScenarioControlService:  packageName : com.example.audioanalyser    className : com.example.audioanalyser.MainActivity
+05-12 20:46:29.336  1216  2201 V MdnieScenarioControlService: setUIMode from UI function(3)
+05-12 20:46:29.350   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.350   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.350   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.350   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    3    6  717 1594 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.350   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.350   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.350   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.350   899   899 D SurfaceFlinger: 
+05-12 20:46:29.367   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.367   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.367   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.367   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    2    4  718 1596 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.367   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.367   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.367   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.367   899   899 D SurfaceFlinger: 
+05-12 20:46:29.384   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.384   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.384   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.384   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    1    2  719 1598 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.384   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.384   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.384   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.384   899   899 D SurfaceFlinger: 
+05-12 20:46:29.400   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.400   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.400   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.400   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    1    1  719 1599 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.400   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.400   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.400   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.400   899   899 D SurfaceFlinger: 
+05-12 20:46:29.417   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.417   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.417   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.417   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    1  720 1599 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.417   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.417   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.417   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.417   899   899 D SurfaceFlinger: 
+05-12 20:46:29.433   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.433   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.433   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.433   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.433   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.433   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.433   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.433   899   899 D SurfaceFlinger: 
+05-12 20:46:29.437  1216  2201 V MdnieScenarioControlService: mAclOffEnabled : false mAclPreviewState : false mAclCompensationState : false
+05-12 20:46:29.438  1216  1251 I WindowManager: Reparenting to original parent: Surface(name=DefaultTaskDisplayArea)/@0x8137a89, destroy=true, surface=Surface(name=Task=1)/@0x8a3c190
+05-12 20:46:29.438  1216  1251 V WindowManager: Setting visibility of Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}: false, caller=com.android.server.wm.WindowContainer.sendAppVisibilityToClients:1246 com.android.server.wm.WindowToken.setClientVisible:431 com.android.server.wm.ActivityRecord.setClientVisible:7691 com.android.server.wm.ActivityRecord.onAnimationFinished:8590 com.android.server.wm.WindowContainer.doAnimationFinished:3483 
+05-12 20:46:29.439  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: handleAppVisibility mAppVisible = true visible = false
+05-12 20:46:29.439  1216  1251 I WindowManager: Reparenting to original parent: Surface(name=DefaultTaskDisplayArea)/@0x8137a89, destroy=true, surface=Surface(name=Task=380)/@0xc05452e
+05-12 20:46:29.440  1216  1251 V WindowManager: Setting visibility of Window{782b1f7 u0 com.android.systemui.ImageWallpaper}: false, caller=com.android.server.wm.WindowContainer.sendAppVisibilityToClients:1246 com.android.server.wm.WindowToken.setClientVisible:431 com.android.server.wm.WallpaperWindowToken.setVisible:160 com.android.server.wm.WallpaperWindowToken.updateWallpaperWindows:154 com.android.server.wm.WallpaperController.updateWallpaperTokens:676 
+05-12 20:46:29.440  1902  1922 D WallpaperService: dispatchAppVisibility onVisibilityChanged(): false
+05-12 20:46:29.441  1902  1902 D WallpaperService: reportVisibility onVisibilityChanged visible: false
+05-12 20:46:29.441  1902  2045 I ImageWallpaper[GLEngine]:  onVisibilityChanged false , 0
+05-12 20:46:29.446  1216  1250 D PowerManagerService: [api] setScreenDimDurationOverrideFromWindowManagerInternal: timeoutMillis: -1
+05-12 20:46:29.447   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.447   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:29.447   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa080 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27254
+05-12 20:46:29.447   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.447   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.447   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.447   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.447   899   899 D SurfaceFlinger: 
+05-12 20:46:29.454   899   899 I Layer   : id=27260 removeFromCurrentState Surface(name=Task=1)/@0x8a3c190 - animation-leash of app_transition#27260 (127)
+05-12 20:46:29.454   899   899 I Layer   : id=27261 removeFromCurrentState Surface(name=Task=380)/@0xc05452e - animation-leash of app_transition#27261 (127)
+05-12 20:46:29.454   899   899 I Layer   : Layer [com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335#27254] hidden!! flag(1)
+05-12 20:46:29.455   899   899 I SurfaceFlinger: id=27261 Removed Surface(name=Task=380)/@0xc05452e - animation-leash of app_transition#27261 (127)
+05-12 20:46:29.455   899   899 I SurfaceFlinger: id=27260 Removed Surface(name=Task=1)/@0x8a3c190 - animation-leash of app_transition#27260 (127)
+05-12 20:46:29.455   899   899 I Layer   : id=27260 Destroyed Surface(name=Task=1)/@0x8a3c190 - animation-leash of app_transition#27260
+05-12 20:46:29.455   899   899 I Layer   : id=27261 Destroyed Surface(name=Task=380)/@0xc05452e - animation-leash of app_transition#27261
+05-12 20:46:29.460  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: performTraversals mFirst=false windowShouldResize=false viewVisibilityChanged=true mForceNextWindowRelayout=false params=null
+05-12 20:46:29.461  1216  3669 V WindowManager: Relayout Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}: viewVisibility=8 req=720x1600 d0
+05-12 20:46:29.466   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.466   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.466   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.466   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.466   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.466   899   899 D SurfaceFlinger: 
+05-12 20:46:29.468  1216  3669 V WindowManager: Relayout hash=174032b, pid=2335, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=nothing forwardNavigation} layoutInDisplayCutoutMode=shortEdges ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f4
+05-12 20:46:29.468  1216  3669 V WindowManager:   fl=81910100
+05-12 20:46:29.468  1216  3669 V WindowManager:   pfl=1e020040
+05-12 20:46:29.468  1216  3669 V WindowManager:   vsysui=1700
+05-12 20:46:29.468  1216  3669 V WindowManager:   bhv=SHOW_TRANSIENT_BARS_BY_SWIPE
+05-12 20:46:29.468  1216  3669 V WindowManager:   fitSides= screenDimDuration=200000 naviIconColor=0}
+05-12 20:46:29.472  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Relayout returned: old=(0,0,720,1600) new=(0,0,720,1600) req=(720,1600)8 dur=10 res=0x2 s={false 0x0} ch=true seqId=0
+05-12 20:46:29.478   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.478   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.478   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.478   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055980 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.478   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.478   899   899 D SurfaceFlinger: 
+05-12 20:46:29.493   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:29.493   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:29.493   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:29.493   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:29.493   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:29.493   899   899 D SurfaceFlinger: 
+05-12 20:46:29.525  7896  7896 I bxmb    : onPause
+05-12 20:46:29.950  1216  1801 D SemWifiSwitchForIndividualAppsService: isPackageException - result:3, com.example.audioanalyser
+05-12 20:46:30.007   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:30.007   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:30.007   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:30.007   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:30.007   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:30.007   899   899 D SurfaceFlinger: 
+05-12 20:46:30.169  9814  9814 D nativeloader: Configuring clns-4 for other apk /data/app/~~Uk6TxUht3szvdiWlcoxRSA==/com.example.audioanalyser-BjXuY83QhSXVs5pT5berdg==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~Uk6TxUht3szvdiWlcoxRSA==/com.example.audioanalyser-BjXuY83QhSXVs5pT5berdg==/lib/arm64:/data/app/~~Uk6TxUht3szvdiWlcoxRSA==/com.example.audioanalyser-BjXuY83QhSXVs5pT5berdg==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.example.audioanalyser
+05-12 20:46:30.184  9814  9814 D nativeloader: Load libframework-connectivity-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity.jar: ok
+05-12 20:46:30.192  9814  9814 V GraphicsEnvironment: ANGLE Developer option for 'com.example.audioanalyser' set to: 'default'
+05-12 20:46:30.193  9814  9814 V GraphicsEnvironment: ANGLE GameManagerService for com.example.audioanalyser: false
+05-12 20:46:30.193  9814  9814 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+05-12 20:46:30.200  9814  9814 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+05-12 20:46:30.280  9814  9814 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+05-12 20:46:30.354  9814  9830 D OpenGLRenderer: RenderThread::requireGlContext()
+05-12 20:46:30.360   361   361 I hwservicemanager: getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device VINTF manifest.
+05-12 20:46:30.361  9814  9830 E OpenGLRenderer: Device claims wide gamut support, cannot find matching config, error = EGL_SUCCESS
+05-12 20:46:30.373  9814  9830 D OpenGLRenderer: RenderThread::setGrContext()
+05-12 20:46:30.456  1216  3669 I GenerationRegistry: mBackingStore.isClosed() : false
+05-12 20:46:30.494   848  9807 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 6342153
+05-12 20:46:30.496  9814  9814 I DecorView: [INFO] isPopOver=false config=true
+05-12 20:46:30.497  9814  9814 I DecorView: updateCaptionType: isFloating=false isApplication=true hasWindowDecorCaption=false this=DecorView@73a6c0b[]
+05-12 20:46:30.497  9814  9814 D DecorView: setCaptionType = 0, this = DecorView@73a6c0b[]
+05-12 20:46:30.505  9814  9814 I DecorView: getCurrentDensityDpi: from real metrics. densityDpi=300 msg=resources_loaded
+05-12 20:46:30.506  9814  9814 I DecorView: setWindowBackground: isPopOver=false color=fff6f6f6 d=android.graphics.drawable.LayerDrawable@4c70501
+05-12 20:46:30.575   398   398 D io_stats: !@ 179,0 r 107525316 1452399671 w 11261557 92293924 d 413457 20538248 f 0 0 iot 25971336 0 th 0 0 0 pt 0 inp 0 0 233522.699
+05-12 20:46:30.598  9814  9814 I MSHandlerLifeCycle: check: return. pkg=com.example.audioanalyser parent=null callers=com.android.internal.policy.DecorView.setVisibility:4412 android.app.ActivityThread.handleResumeActivity:5476 android.app.servertransaction.ResumeActivityItem.execute:54 android.app.servertransaction.ActivityTransactionItem.execute:45 android.app.servertransaction.TransactionExecutor.executeLifecycleState:176 
+05-12 20:46:30.599  9814  9814 I MSHandlerLifeCycle: removeMultiSplitHandler: no exist. decor=DecorView@73a6c0b[]
+05-12 20:46:30.603  1902  1902 D SecPowerUI.Notification: showChargingNotice oldChargingType : 11 / currentChargingType : 11, oldChargingTime : 1766000 / mChargingTime : 1766000
+05-12 20:46:30.603  1902  1902 D SecPowerUI.Notification: There is no change about charging status, so return!
+05-12 20:46:30.610  9814  9830 D NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::BpCustomFrequencyManager()
+05-12 20:46:30.617  9814  9814 I DecorView: notifyKeepScreenOnChanged: keepScreenOn=false
+05-12 20:46:30.619  1216  4029 D InputTransport: Input channel constructed: '3b2febc', fd=932
+05-12 20:46:30.619  1216  4029 D InputTransport: Input channel constructed: '3b2febc', fd=937
+05-12 20:46:30.619  1216  4029 D InputTransport: Input channel constructed: '3b2febc', fd=940
+05-12 20:46:30.620   899   924 I SurfaceFlinger: id=27263 createSurf flag=80004, 3b2febc com.example.audioanalyser/com.example.audioanalyser.MainActivity#27263
+05-12 20:46:30.621  1216  4029 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+05-12 20:46:30.622  1216  4029 D InputTransport: Input channel destroyed: '3b2febc', fd=940
+05-12 20:46:30.624   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:30.624   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:30.624   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:30.624   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:30.624   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:30.624   899   899 D SurfaceFlinger: 
+05-12 20:46:30.625   899  1455 D NativeSemDvfsManager: acquire:: timeout = 2000 mIsAcquired = 1  mTagName : SurfaceFlinger 
+05-12 20:46:30.625  9814  9814 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 720, 1600), mDisplayCutout=DisplayCutout{insets=Rect(0, 43 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(296, 0 - 424, 43), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=720 displayHeight=1600 physicalDisplayWidth=720 physicalDisplayHeight=1600 density={1.875} cutoutSpec={M 0,0 H -34.13333333333333 V 22.93333333333333 H 34.13333333333333 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=60, center=Point(60, 60)}, RoundedCorner{position=TopRight, radius=60, center=Point(660, 60)}, RoundedCorner{position=BottomRight, radius=60, center=Point(660, 1540)}, RoundedCorner{position=BottomLeft, radius=60, center=Point(60, 1540)}]}  mRoundedCornerFrame=Rect(0, 0 - 720, 1600), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(637, 0 - 720, 45) rotation=0}, mSources= { InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][720,45], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_GESTURES, mFrame=[0,0][0,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_GESTURES, mFrame=[720,0][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_MANDATORY_GESTURES, mFrame=[0,0][720,66], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_MANDATORY_GESTURES, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_DISPLAY_CUTOUT, mFrame=[0,0][-100000,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_DISPLAY_CUTOUT, mFrame=[0,0][720,43], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_DISPLAY_CUTOUT, mFrame=[100000,0][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_DISPLAY_CUTOUT, mFrame=[0,100000][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_TAPPABLE_ELEMENT, mFrame=[0,0][720,45], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_TAPPABLE_ELEMENT, mFrame=[0,1510][720,1600], mVisible=true, mInsetsRoundedCornerFrame=false} } host=com.example.audioanalyser/com.example.audioanalyser.MainActivity from=android.view.ViewRootImpl.setView:1732
+05-12 20:46:30.625   899  1455 E NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::acquire()
+05-12 20:46:30.625   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 1805050  [899 / 1000]    HINT : SF_GPU_MINLOCK    list : [TIMEOUT / 2000] 
+05-12 20:46:30.629  1216  4029 D CoreBackPreview: Window{3b2febc u0 com.example.audioanalyser/com.example.audioanalyser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@7ba99a, mPriority=0}
+05-12 20:46:30.630  9814  9814 I ViewRootImpl@2fc511d[MainActivity]: setView = com.android.internal.policy.DecorView@73a6c0b TM=true
+05-12 20:46:30.634  9814  9814 I MSHandlerLifeCycle: removeMultiSplitHandler: no exist. decor=DecorView@73a6c0b[MainActivity]
+05-12 20:46:30.646   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:30.646   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:30.646   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:30.646   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:30.646   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:30.646   899   899 D SurfaceFlinger: 
+05-12 20:46:30.979   848  9806 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 1238308
+05-12 20:46:31.045  1216  4029 I GenerationRegistry: mBackingStore.isClosed() : false
+05-12 20:46:31.074  3549  4074 I SDHMS:D : SIOP:: AP:397 BAT:368 USB:0 CHG:410 PA:430 BLK:0 SUBBAT:0 SKIN:355 SKINF:342 SKINB:355 LRP:355 LRF:342 LRB:355 
+05-12 20:46:31.161   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.161   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.161   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.161   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.161   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.161   899   899 D SurfaceFlinger: 
+05-12 20:46:31.195  9814  9814 I e.audioanalyser: hiddenapi: Accessing hidden method Landroid/os/SystemProperties;->addChangeCallback(Ljava/lang/Runnable;)V (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/compose/ui/platform/AndroidComposeView$Companion; (domain=app, TargetSdkVersion=36) using reflection: allowed
+05-12 20:46:31.663  9814  9814 E ComposeInternal: Error was captured in composition.
+05-12 20:46:31.663  9814  9814 E ComposeInternal: java.lang.IllegalArgumentException: Only VectorDrawables and rasterized asset types are supported ex. PNG, JPG, WEBP
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.res.PainterResources_androidKt.loadVectorResource(PainterResources.android.kt:95)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.res.PainterResources_androidKt.painterResource(PainterResources.android.kt:67)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at com.example.audioanalyser.ComposableSingletons$MainActivityKt.lambda__443045720$lambda$5(MainActivity.kt:603)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at com.example.audioanalyser.ComposableSingletons$MainActivityKt$$ExternalSyntheticLambda43.invoke(D8$$SyntheticClass:0)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:378)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.internal.ProvideContentColorTextStyleKt.ProvideContentColorTextStyle-3J-VO9M(ProvideContentColorTextStyle.kt:41)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.AppBarKt.TopAppBarLayout-lyUyIHI(AppBar.kt:3038)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.AppBarKt.access$TopAppBarLayout-lyUyIHI(AppBar.kt:1)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.DefaultSingleRowTopAppBarOverride.SingleRowTopAppBar(AppBar.kt:2584)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.AppBarKt.SingleRowTopAppBar-wn8IZOc(AppBar.kt:2501)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.AppBarKt.CenterAlignedTopAppBar-GHTll3U(AppBar.kt:350)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at com.example.audioanalyser.MainActivityKt.AudioAnalyserContent$lambda$160(MainActivity.kt:599)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at com.example.audioanalyser.MainActivityKt$$ExternalSyntheticLambda24.invoke(D8$$SyntheticClass:0)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.ScaffoldKt$ScaffoldLayout$topBarContent$1$1.invoke(Scaffold.kt:159)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.ScaffoldKt$ScaffoldLayout$topBarContent$1$1.invoke(Scaffold.kt:159)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.internal.Expect_jvmKt.invokeComposable(Expect.jvm.kt:24)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.ComposerImpl.doCompose-aFTiNEg(ComposerImpl.kt:2647)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.ComposerImpl.composeContent--ZbOJvo$runtime(ComposerImpl.kt:2551)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.CompositionImpl.composeContent(Composition.kt:835)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.Recomposer.composeInitial$runtime(Recomposer.kt:1266)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.ComposerImpl$CompositionContextImpl.composeInitial$runtime(ComposerImpl.kt:2993)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.CompositionImpl.composeInitial(Composition.kt:672)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.CompositionImpl.setContent(Composition.kt:639)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(SubcomposeLayout.kt:721)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(SubcomposeLayout.kt:658)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(SubcomposeLayout.kt:624)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState$Scope.subcompose(SubcomposeLayout.kt:1352)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.ScaffoldKt.ScaffoldLayout_FMILGgc$lambda$15$lambda$14(Scaffold.kt:177)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.material3.ScaffoldKt$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState$createMeasurePolicy$1.measure-3p2s80s(SubcomposeLayout.kt:955)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.InnerNodeCoordinator.measure-BRTryo0(InnerNodeCoordinator.kt:128)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:173)
+05-12 20:46:31.663  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:172)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:699)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate.remeasure-BRTryo0(MeasurePassDelegate.kt:1064)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate.measure-BRTryo0(MeasurePassDelegate.kt:470)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.foundation.layout.BoxMeasurePolicy.measure-3p2s80s(Box.kt:145)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.InnerNodeCoordinator.measure-BRTryo0(InnerNodeCoordinator.kt:128)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.graphics.SimpleGraphicsLayerModifier.measure-3p2s80s(GraphicsLayerModifier.kt:843)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.LayoutModifierNodeCoordinator.measure-BRTryo0(LayoutModifierNodeCoordinator.kt:190)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.foundation.layout.FillNode.measure-3p2s80s(Size.kt:721)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.LayoutModifierNodeCoordinator.measure-BRTryo0(LayoutModifierNodeCoordinator.kt:190)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:173)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:172)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:699)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate.remeasure-BRTryo0(MeasurePassDelegate.kt:1064)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate.measure-BRTryo0(MeasurePassDelegate.kt:470)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.layout.RootMeasurePolicy.measure-3p2s80s(RootMeasurePolicy.kt:37)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.InnerNodeCoordinator.measure-BRTryo0(InnerNodeCoordinator.kt:128)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.platform.AndroidComposeView$RootModifierNode.measure-3p2s80s(AndroidComposeView.android.kt:3384)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.LayoutModifierNodeCoordinator.measure-BRTryo0(LayoutModifierNodeCoordinator.kt:190)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:173)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:172)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:728)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasurePassDelegate.remeasure-BRTryo0(MeasurePassDelegate.kt:1064)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.LayoutNode.remeasure-_Sx5XlM$ui(LayoutNode.kt:1281)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasureAndLayoutDelegate.doRemeasure-sdFAvZA(MeasureAndLayoutDelegate.kt:378)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasureAndLayoutDelegate.remeasureOnly(MeasureAndLayoutDelegate.kt:652)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.node.MeasureAndLayoutDelegate.measureOnly(MeasureAndLayoutDelegate.kt:446)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.platform.AndroidComposeView.onMeasure(AndroidComposeView.android.kt:1847)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.platform.AbstractComposeView.internalOnMeasure$ui(ComposeView.android.kt:314)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at androidx.compose.ui.platform.AbstractComposeView.onMeasure(ComposeView.android.kt:301)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.ViewGroup.measureChildWithMargins(ViewGroup.java:7352)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.widget.FrameLayout.onMeasure(FrameLayout.java:194)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.ViewGroup.measureChildWithMargins(ViewGroup.java:7352)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.widget.LinearLayout.measureChildBeforeLayout(LinearLayout.java:1552)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.widget.LinearLayout.measureVertical(LinearLayout.java:842)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.widget.LinearLayout.onMeasure(LinearLayout.java:721)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.ViewGroup.measureChildWithMargins(ViewGroup.java:7352)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.widget.FrameLayout.onMeasure(FrameLayout.java:194)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at com.android.internal.policy.DecorView.onMeasure(DecorView.java:1379)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.ViewRootImpl.performMeasure(ViewRootImpl.java:4841)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.ViewRootImpl.measureHierarchy(ViewRootImpl.java:3426)
+05-12 20:46:31.669  9814  9814 E ComposeInternal: 	at android.view.ViewRootImpl.performTraversals(ViewRootImpl.java:3732)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.ViewRootImpl.doTraversal(ViewRootImpl.java:3116)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.ViewRootImpl$TraversalRunnable.run(ViewRootImpl.java:10885)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:1301)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:1309)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.Choreographer.doCallbacks(Choreographer.java:923)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.Choreographer.doFrame(Choreographer.java:852)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.view.Choreographer$FrameDisplayEventReceiver.run(Choreographer.java:1283)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.os.Handler.handleCallback(Handler.java:942)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.os.Looper.loopOnce(Looper.java:226)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.os.Looper.loop(Looper.java:313)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at android.app.ActivityThread.main(ActivityThread.java:8762)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at java.lang.reflect.Method.invoke(Native Method)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:604)
+05-12 20:46:31.671  9814  9814 E ComposeInternal: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1067)
+05-12 20:46:31.672  9814  9814 D AndroidRuntime: Shutting down VM
+--------- beginning of crash
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: FATAL EXCEPTION: main
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: Process: com.example.audioanalyser, PID: 9814
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: java.lang.IllegalArgumentException: Only VectorDrawables and rasterized asset types are supported ex. PNG, JPG, WEBP
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.res.PainterResources_androidKt.loadVectorResource(PainterResources.android.kt:95)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.res.PainterResources_androidKt.painterResource(PainterResources.android.kt:67)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at com.example.audioanalyser.ComposableSingletons$MainActivityKt.lambda__443045720$lambda$5(MainActivity.kt:603)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at com.example.audioanalyser.ComposableSingletons$MainActivityKt$$ExternalSyntheticLambda43.invoke(D8$$SyntheticClass:0)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:378)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.internal.ProvideContentColorTextStyleKt.ProvideContentColorTextStyle-3J-VO9M(ProvideContentColorTextStyle.kt:41)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.AppBarKt.TopAppBarLayout-lyUyIHI(AppBar.kt:3038)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.AppBarKt.access$TopAppBarLayout-lyUyIHI(AppBar.kt:1)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.DefaultSingleRowTopAppBarOverride.SingleRowTopAppBar(AppBar.kt:2584)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.AppBarKt.SingleRowTopAppBar-wn8IZOc(AppBar.kt:2501)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.AppBarKt.CenterAlignedTopAppBar-GHTll3U(AppBar.kt:350)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at com.example.audioanalyser.MainActivityKt.AudioAnalyserContent$lambda$160(MainActivity.kt:599)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at com.example.audioanalyser.MainActivityKt$$ExternalSyntheticLambda24.invoke(D8$$SyntheticClass:0)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.ScaffoldKt$ScaffoldLayout$topBarContent$1$1.invoke(Scaffold.kt:159)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.ScaffoldKt$ScaffoldLayout$topBarContent$1$1.invoke(Scaffold.kt:159)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.internal.Expect_jvmKt.invokeComposable(Expect.jvm.kt:24)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.ComposerImpl.doCompose-aFTiNEg(ComposerImpl.kt:2647)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.ComposerImpl.composeContent--ZbOJvo$runtime(ComposerImpl.kt:2551)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.CompositionImpl.composeContent(Composition.kt:835)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.Recomposer.composeInitial$runtime(Recomposer.kt:1266)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.ComposerImpl$CompositionContextImpl.composeInitial$runtime(ComposerImpl.kt:2993)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.CompositionImpl.composeInitial(Composition.kt:672)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.CompositionImpl.setContent(Composition.kt:639)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(SubcomposeLayout.kt:721)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(SubcomposeLayout.kt:658)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(SubcomposeLayout.kt:624)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState$Scope.subcompose(SubcomposeLayout.kt:1352)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.ScaffoldKt.ScaffoldLayout_FMILGgc$lambda$15$lambda$14(Scaffold.kt:177)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.material3.ScaffoldKt$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.layout.LayoutNodeSubcompositionsState$createMeasurePolicy$1.measure-3p2s80s(SubcomposeLayout.kt:955)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.InnerNodeCoordinator.measure-BRTryo0(InnerNodeCoordinator.kt:128)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:173)
+05-12 20:46:31.678  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:172)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:699)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate.remeasure-BRTryo0(MeasurePassDelegate.kt:1064)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate.measure-BRTryo0(MeasurePassDelegate.kt:470)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.foundation.layout.BoxMeasurePolicy.measure-3p2s80s(Box.kt:145)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.InnerNodeCoordinator.measure-BRTryo0(InnerNodeCoordinator.kt:128)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.graphics.SimpleGraphicsLayerModifier.measure-3p2s80s(GraphicsLayerModifier.kt:843)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.LayoutModifierNodeCoordinator.measure-BRTryo0(LayoutModifierNodeCoordinator.kt:190)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.foundation.layout.FillNode.measure-3p2s80s(Size.kt:721)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.LayoutModifierNodeCoordinator.measure-BRTryo0(LayoutModifierNodeCoordinator.kt:190)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:173)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:172)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:699)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate.remeasure-BRTryo0(MeasurePassDelegate.kt:1064)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate.measure-BRTryo0(MeasurePassDelegate.kt:470)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.layout.RootMeasurePolicy.measure-3p2s80s(RootMeasurePolicy.kt:37)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.InnerNodeCoordinator.measure-BRTryo0(InnerNodeCoordinator.kt:128)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.platform.AndroidComposeView$RootModifierNode.measure-3p2s80s(AndroidComposeView.android.kt:3384)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.LayoutModifierNodeCoordinator.measure-BRTryo0(LayoutModifierNodeCoordinator.kt:190)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:173)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate$performMeasureBlock$1.invoke(MeasurePassDelegate.kt:172)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:728)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasurePassDelegate.remeasure-BRTryo0(MeasurePassDelegate.kt:1064)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.LayoutNode.remeasure-_Sx5XlM$ui(LayoutNode.kt:1281)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasureAndLayoutDelegate.doRemeasure-sdFAvZA(MeasureAndLayoutDelegate.kt:378)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasureAndLayoutDelegate.remeasureOnly(MeasureAndLayoutDelegate.kt:652)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.node.MeasureAndLayoutDelegate.measureOnly(MeasureAndLayoutDelegate.kt:446)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.platform.AndroidComposeView.onMeasure(AndroidComposeView.android.kt:1847)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.platform.AbstractComposeView.internalOnMeasure$ui(ComposeView.android.kt:314)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at androidx.compose.ui.platform.AbstractComposeView.onMeasure(ComposeView.android.kt:301)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.ViewGroup.measureChildWithMargins(ViewGroup.java:7352)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.widget.FrameLayout.onMeasure(FrameLayout.java:194)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.ViewGroup.measureChildWithMargins(ViewGroup.java:7352)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.widget.LinearLayout.measureChildBeforeLayout(LinearLayout.java:1552)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.widget.LinearLayout.measureVertical(LinearLayout.java:842)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.widget.LinearLayout.onMeasure(LinearLayout.java:721)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.ViewGroup.measureChildWithMargins(ViewGroup.java:7352)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.widget.FrameLayout.onMeasure(FrameLayout.java:194)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at com.android.internal.policy.DecorView.onMeasure(DecorView.java:1379)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.View.measure(View.java:27731)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.ViewRootImpl.performMeasure(ViewRootImpl.java:4841)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.ViewRootImpl.measureHierarchy(ViewRootImpl.java:3426)
+05-12 20:46:31.684  9814  9814 E AndroidRuntime: 	at android.view.ViewRootImpl.performTraversals(ViewRootImpl.java:3732)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.ViewRootImpl.doTraversal(ViewRootImpl.java:3116)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.ViewRootImpl$TraversalRunnable.run(ViewRootImpl.java:10885)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:1301)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:1309)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.Choreographer.doCallbacks(Choreographer.java:923)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.Choreographer.doFrame(Choreographer.java:852)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.view.Choreographer$FrameDisplayEventReceiver.run(Choreographer.java:1283)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.os.Handler.handleCallback(Handler.java:942)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:226)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:313)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:8762)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:604)
+05-12 20:46:31.685  9814  9814 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1067)
+05-12 20:46:31.693  1216  4029 D Debug   : low && ship && 3rdparty app crash, do not dump
+05-12 20:46:31.693  1216  4029 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcast:1252 com.android.server.am.AppErrors.crashApplicationInner:722 com.android.server.am.AppErrors.crashApplication:598 com.android.server.am.ActivityManagerService.handleApplicationCrashInner:10509 com.android.server.am.ActivityManagerService.handleApplicationCrash:10378 
+05-12 20:46:31.693  1216  4029 W ActivityManager: crash : com.example.audioanalyser,10551
+05-12 20:46:31.694  1216  4029 W ActivityTaskManager:   Force finishing activity com.example.audioanalyser/.MainActivity
+05-12 20:46:31.695  1216  4029 W WindowManager: Prepare app transition: mNextAppTransitionRequests=[TRANSIT_CLOSE], mNextAppTransitionFlags=TRANSIT_FLAG_KEYGUARD_GOING_AWAY_TO_LAUNCHER_WITH_IN_WINDOW_ANIMATIONS | TRANSIT_FLAG_APP_CRASHED, displayId: 0 Callers=com.android.server.wm.DisplayContent.prepareAppTransition:6493 com.android.server.wm.DisplayContent.requestTransitionAndLegacyPrepare:6509 com.android.server.wm.Task.finishTopCrashedActivityLocked:6797 com.android.server.wm.RootWindowContainer.lambda$finishTopCrashedActivities$19:2688 com.android.server.wm.RootWindowContainer.$r8$lambda$4nB35TzseTo6qyVD9NxDieoJN1Y:0 
+05-12 20:46:31.696  1216  4029 D ActivityTaskManager: scheduleTopResumedActivityChanged, onTop=false r=ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380 f}} caller=com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:2510 com.android.server.wm.TaskDisplayArea.positionChildTaskAt:602 com.android.server.wm.TaskDisplayArea.positionChildAt:537 com.android.server.wm.WindowContainer.positionChildAt:970 com.android.server.wm.Task.positionChildAt:3354 com.android.server.wm.Task.moveToFrontInner:6053 
+05-12 20:46:31.697  1216  4029 D InputDispatcher: Focused application(0): ActivityRecord{632da01 u0 com.sec.android.app.launcher/.activities.LauncherActivity} t7}
+05-12 20:46:31.697  1216  4029 D SGM:FgCheckThread: TaskStackListener.onTaskFocusChanged(), taskId=380, focused=false
+05-12 20:46:31.697  1216  4029 D SGM:FgCheckThread: TaskStackListener.onTaskFocusChanged(), taskId=7, focused=true
+05-12 20:46:31.697  1216  4029 D SGM:FgCheckThread:   sendRunningComponentFocus(), pkgName: com.sec.android.app.launcher, userId: 0
+05-12 20:46:31.698  1216  1421 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_TASK_FOCUSED, pkgName: com.sec.android.app.launcher, userId: 0
+05-12 20:46:31.698  1216  1747 D AS.MultiSoundManager: mForegroundUid = 10066
+05-12 20:46:31.698  1216  1421 D SGM:FgCheckThread: handleTaskFocused().
+05-12 20:46:31.698  1216  1421 D SGM:FgCheckThread: sendFocusOutConditionally() - mPrevNotiPkg: KILL_YOURSELF, userId: 0
+05-12 20:46:31.698  1216  1421 D SGM:FgCheckThread:   handleTaskFocused(), pkgName: com.sec.android.app.launcher, userID:0 mResumedPkgMap does not containsKey.
+05-12 20:46:31.698  1216  4029 W WindowManager: Prepare app transition: mNextAppTransitionRequests=[TRANSIT_CLOSE, TRANSIT_CLOSE], mNextAppTransitionFlags=TRANSIT_FLAG_KEYGUARD_GOING_AWAY_TO_LAUNCHER_WITH_IN_WINDOW_ANIMATIONS | TRANSIT_FLAG_APP_CRASHED, displayId: 0 Callers=com.android.server.wm.DisplayContent.prepareAppTransition:6493 com.android.server.wm.DisplayContent.prepareAppTransition:6484 com.android.server.wm.ActivityRecord.finishIfPossible:4151 com.android.server.wm.ActivityRecord.finishIfPossible:3966 com.android.server.wm.Task.finishTopCrashedActivityLocked:6798 
+05-12 20:46:31.699  1216  4029 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+05-12 20:46:31.699  1216  4029 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+05-12 20:46:31.701   899   899 I Layer   : id=27264 Destroyed Screenshot Parent#27264
+05-12 20:46:31.711  9814  9814 I Process : Sending signal. PID: 9814 SIG: 9
+05-12 20:46:31.713  2335  2335 I TopTaskTracker: onTaskMovedToFront : taskId = 7
+05-12 20:46:31.725   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.725   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.725   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.725   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.725   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.725   899   899 D SurfaceFlinger: 
+05-12 20:46:31.738  3549  3549 I SDHMS:BarTender:Gatherer:AppError: update AppError : uid=10551, pkg=com.example.audioanalyser, errorType=crash
+05-12 20:46:31.739   899   899 I SurfaceFlinger: SFWD update time=233523863336236
+05-12 20:46:31.743   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.743   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.743   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.743   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.743   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.743   899   899 D SurfaceFlinger: 
+05-12 20:46:31.752  3549  3549 I SDHMS:BarTender:Analyzer:AppError: analyze app error : uid=10551, pkg=com.example.audioanalyser, appErrorCount=2
+05-12 20:46:31.752  1216  3669 D InputMethodManagerService: removeClient
+05-12 20:46:31.752   875  1050 I AudioFlinger: removeDlbCodecCallback pid:9814 type:-1
+05-12 20:46:31.752  1216  3676 I WindowManager: WIN DEATH: Window{3b2febc u0 com.example.audioanalyser/com.example.audioanalyser.MainActivity}
+05-12 20:46:31.752 13811 13811 I adbd    : Remote process closed the socket (on MSG_PEEK)
+05-12 20:46:31.752  1216  3676 D InputTransport: Input channel destroyed: '3b2febc', fd=932
+05-12 20:46:31.753  1216  3676 W InputManager-JNI: Input channel object '3b2febc com.example.audioanalyser/com.example.audioanalyser.MainActivity (client)' was disposed without first being removed with the input manager!
+05-12 20:46:31.753  1216  3676 D InputTransport: Input channel destroyed: '3b2febc', fd=937
+05-12 20:46:31.753  1216  3100 I ActivityManager: Process com.example.audioanalyser (pid 9814) has died: fg  TOP (163,736)
+05-12 20:46:31.753  1216  3676 V WindowManager: Remove Window{3b2febc u0 com.example.audioanalyser/com.example.audioanalyser.MainActivity}: mSurfaceController=null mAnimatingExit=false mRemoveOnExit=false mHasSurface=false surfaceShowing=false animating=true app-animation=true mWillReplaceWindow=false mDisplayFrozen=false callers=com.android.server.wm.WindowState.-$$Nest$mremoveIfPossible:0 com.android.server.wm.WindowState$DeathRecipient.binderDied:3808 android.os.IBinder$DeathRecipient.binderDied:323 android.os.BinderProxy.sendDeathNotice:781 <bottom of call stack> <bottom of call stack> 
+05-12 20:46:31.753  1216  1261 I libprocessgroup: Successfully killed process cgroup uid 10551 pid 9814 in 0ms
+05-12 20:46:31.754  1216  3676 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+05-12 20:46:31.754  1216  3676 V WindowManager: Last window, removing starting window Window{3b2febc u0 com.example.audioanalyser/com.example.audioanalyser.MainActivity}
+05-12 20:46:31.754  1216  3676 V WindowManager: Schedule remove starting ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380 f}} startingWindow=null startingView=null Callers=com.android.server.wm.ActivityRecord.removeStartingWindow:3233 com.android.server.wm.ActivityRecord.postWindowRemoveStartingWindowCleanup:8208 com.android.server.wm.WindowManagerService.postWindowRemoveCleanupLocked:2336 com.android.server.wm.WindowState.removeImmediately:3035 com.android.server.wm.WindowState.removeIfPossible:3228 
+05-12 20:46:31.754  1216  1251 V WindowManager: Removing startingView=com.android.server.wm.StartingSurfaceController$StartingSurface@803d62c
+05-12 20:46:31.754   824   824 I Zygote  : Process 9814 exited due to signal 9 (Killed)
+05-12 20:46:31.760  1216  3100 V MARsPolicyManager: Current Home Package com.sec.android.app.launcher Resumed
+05-12 20:46:31.760  1216  3100 D MARsPolicyManager: onPackageResumedFG pkgName = com.sec.android.app.launcher, userId = 0
+05-12 20:46:31.760  1216  3100 I SemDvfsHyPerManager: acquire hyper - AMS_APP_HOME/1216@32, type = -999
+05-12 20:46:31.760   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 779408  [1216 / 32]    HINT : AMS_APP_HOME    list : 
+05-12 20:46:31.761  1216  3100 D ActivityManagerPerformance: AMP_acquire() HOME
+05-12 20:46:31.761  1216  3100 W WindowManager: Prepare app transition: mNextAppTransitionRequests=[TRANSIT_CLOSE, TRANSIT_CLOSE, TRANSIT_OPEN], mNextAppTransitionFlags=TRANSIT_FLAG_KEYGUARD_GOING_AWAY_TO_LAUNCHER_WITH_IN_WINDOW_ANIMATIONS | TRANSIT_FLAG_APP_CRASHED, displayId: 0 Callers=com.android.server.wm.DisplayContent.prepareAppTransition:6493 com.android.server.wm.DisplayContent.prepareAppTransition:6484 com.android.server.wm.TaskFragment.resumeTopActivity:1583 com.android.server.wm.TaskFragment.resumeTopActivity:1307 com.android.server.wm.Task.resumeTopActivityInnerLocked:6451 
+05-12 20:46:31.762  1216  3100 V WindowManager: Setting visibility of Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}: true, caller=com.android.server.wm.WindowContainer.sendAppVisibilityToClients:1246 com.android.server.wm.WindowToken.setClientVisible:431 com.android.server.wm.ActivityRecord.setClientVisible:7691 com.android.server.wm.ActivityRecord.setVisibility:6091 com.android.server.wm.ActivityRecord.setVisibility:5984 
+05-12 20:46:31.762  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: handleAppVisibility mAppVisible = false visible = true
+05-12 20:46:31.762  3549  3549 I SemDvfsHyPerManager: acquire hyper - APP_START_HOME/3549@13, type = -999
+05-12 20:46:31.763   848   910 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 6345716  [3549 / 13]    HINT : APP_START    list : [KERNEL_APP_START_NOTIFY / 0] [TIMEOUT / 1500] 
+05-12 20:46:31.763  1216  3100 D WindowManagerServiceExt: notifyOccludeChangeNotice: reset caller=com.android.server.wm.WindowManagerServiceExt.updateOccludeTargetIfNeeded:1402 com.android.server.wm.DisplayContent.ensureActivitiesVisible:7532 com.android.server.wm.RootWindowContainer.ensureActivitiesVisible:2248 com.android.server.wm.RootWindowContainer.ensureVisibilityAndConfig:2126 com.android.server.wm.TaskFragment.resumeTopActivity:1652 
+05-12 20:46:31.763  1216  3100 V WindowManager: rotationForOrientation(orient=SCREEN_ORIENTATION_NOSENSOR (5), last=ROTATION_0 (0)); user=ROTATION_0 (0) 
+05-12 20:46:31.763  1216  3100 D WindowManager: rotationForOrientation, orientationSource=ActivityRecord{632da01 u0 com.sec.android.app.launcher/.activities.LauncherActivity} t7}
+05-12 20:46:31.764  1216  3100 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=0 based on lastOrientation=SCREEN_ORIENTATION_NOSENSOR (5) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.DisplayRotation.updateOrientation:414 com.android.server.wm.DisplayContent.updateOrientation:1990 com.android.server.wm.DisplayContent.updateOrientation:1891 com.android.server.wm.RootWindowContainer.ensureVisibilityAndConfig:2139 com.android.server.wm.TaskFragment.resumeTopActivity:1652 com.android.server.wm.TaskFragment.resumeTopActivity:1307 
+05-12 20:46:31.765  1216  3100 D TspStateManager: updateCustomValue customSetting=
+05-12 20:46:31.766  1216  3100 D TspStateManager: updateCustomValue customSetting=
+05-12 20:46:31.767  1216  3100 E WindowManager: win=Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity} destroySurfaces: appStopped=false cleanupOnResume=true win.mWindowRemovalAllowed=false win.mRemoveOnExit=false win.mViewVisibility=8 caller=com.android.server.wm.ActivityRecord.destroySurfaces:6539 com.android.server.wm.ActivityRecord.notifyAppResumed:6559 com.android.server.wm.TaskFragment.resumeTopActivity:1698 com.android.server.wm.TaskFragment.resumeTopActivity:1307 com.android.server.wm.Task.resumeTopActivityInnerLocked:6451 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:6352 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:6374 
+05-12 20:46:31.767  1216  3100 I WindowManager: Destroying surface Surface(name=com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335)/@0x737b197 called by com.android.server.wm.WindowStateAnimator.destroySurface:942 com.android.server.wm.WindowStateAnimator.destroySurfaceLocked:536 com.android.server.wm.WindowState.destroySurfaceUnchecked:4309 com.android.server.wm.WindowState.destroySurface:4283 com.android.server.wm.ActivityRecord.destroySurfaces:6539 com.android.server.wm.ActivityRecord.notifyAppResumed:6559 com.android.server.wm.TaskFragment.resumeTopActivity:1698 com.android.server.wm.TaskFragment.resumeTopActivity:1307 
+05-12 20:46:31.770  1216  3100 W WindowManager: Execute app transition: mNextAppTransitionRequests=[TRANSIT_CLOSE, TRANSIT_CLOSE, TRANSIT_OPEN], mNextAppTransitionFlags=TRANSIT_FLAG_KEYGUARD_GOING_AWAY_TO_LAUNCHER_WITH_IN_WINDOW_ANIMATIONS | TRANSIT_FLAG_APP_CRASHED, displayId: 0 Callers=com.android.server.wm.RootWindowContainer.executeAppTransitionForAllDisplay:2580 com.android.server.wm.ActivityTaskSupervisor.reportResumedActivityLocked:2287 com.android.server.wm.ActivityRecord.completeResumeLocked:6987 com.android.server.wm.TaskFragment.resumeTopActivity:1743 com.android.server.wm.TaskFragment.resumeTopActivity:1307 
+05-12 20:46:31.772   899   899 I Layer   : id=27263 removeFromCurrentState 3b2febc com.example.audioanalyser/com.example.audioanalyser.MainActivity#27263 (126)
+05-12 20:46:31.772   899   899 I Layer   : id=27254 removeFromCurrentState com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335#27254 (126)
+05-12 20:46:31.773   899   899 I SurfaceFlinger: id=27254 Removed com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335#27254 (126)
+05-12 20:46:31.773   899   899 I SurfaceFlinger: id=27263 Removed 3b2febc com.example.audioanalyser/com.example.audioanalyser.MainActivity#27263 (126)
+05-12 20:46:31.773   899   899 I Layer   : id=27254 Destroyed com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335#27254
+05-12 20:46:31.773   899   899 I Layer   : id=27263 Destroyed 3b2febc com.example.audioanalyser/com.example.audioanalyser.MainActivity#27263
+05-12 20:46:31.773  1216  3100 I ActivityManager: updateOomAdj start time is before than pendingPid added, don't delete it
+05-12 20:46:31.774  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: performTraversals mFirst=false windowShouldResize=false viewVisibilityChanged=true mForceNextWindowRelayout=false params=null
+05-12 20:46:31.775  1216  1250 W ActivityManager: setHasOverlayUi called on unknown pid: 9814
+05-12 20:46:31.775  1216  1265 W libprocessgroup: Failed to open /dev/blkio//cgroup.procs: No such file or directory
+05-12 20:46:31.776  1216  1265 W libprocessgroup: Failed to open /dev/blkio//cgroup.procs: No such file or directory
+05-12 20:46:31.777  1216  3100 V WindowManager: Relayout Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}: viewVisibility=0 req=720x1600 d0
+05-12 20:46:31.777  1216  3100 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+05-12 20:46:31.778   899  1078 I SurfaceFlinger: id=27265 createSurf flag=40004, com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335#27265
+05-12 20:46:31.778   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.778   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dd5e9e780 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.778   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.778   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.778   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.778   899   899 D SurfaceFlinger: 
+05-12 20:46:31.779  1216  3100 D WindowManager: makeSurface duration=1 name=com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity$_2335
+05-12 20:46:31.782  2335 21282 I ViewRootImpl@6dc6262[LauncherActivity]: Resizing android.view.ViewRootImpl@17b984f: frame = [0,0][720,1600] reportDraw = true forceLayout = false syncSeqId = 0
+05-12 20:46:31.783  1216  3100 V WindowManager: Changing focus from null to Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity} displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:595 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6810 com.android.server.wm.WindowManagerService.relayoutWindow:2820 com.android.server.wm.Session.relayout:274 
+05-12 20:46:31.784  1216  3100 D StatusBarManagerService: notifyRequestedSystemKey recent=false home=false
+05-12 20:46:31.785  1216  1250 I GameSDK@LifeCycle: noteResumeComponent(): package name  : com.sec.android.app.launcher
+05-12 20:46:31.785  1216  2730 I MediaSessionMonitor: Media session stopped : not playing state
+05-12 20:46:31.786  1216  3100 V WindowManager: Relayout hash=174032b, pid=2335, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=nothing forwardNavigation} layoutInDisplayCutoutMode=shortEdges ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f4
+05-12 20:46:31.786  1216  3100 V WindowManager:   fl=81910100
+05-12 20:46:31.786  1216  3100 V WindowManager:   pfl=1e020040
+05-12 20:46:31.786  1216  3100 V WindowManager:   vsysui=1700
+05-12 20:46:31.786  1216  3100 V WindowManager:   bhv=SHOW_TRANSIENT_BARS_BY_SWIPE
+05-12 20:46:31.786  1216  3100 V WindowManager:   fitSides= screenDimDuration=200000 naviIconColor=0}
+05-12 20:46:31.787  1216  1250 D SGM:GameManager: identifyGamePackage. com.sec.android.app.launcher, mCurrentUserId: 0, callerUserId: 0, callingMethodInfo: com.samsung.android.game.SemGameManager.isGamePackage(SemGameManager.java:104)
+05-12 20:46:31.787  1216  1250 D SGM:PkgDataHelper: getGamePkgData(). com.sec.android.app.launcher
+05-12 20:46:31.787  1216  1250 D SGM:SemGameManager: isGamePackage(), pkgName=com.sec.android.app.launcher, ret=false
+05-12 20:46:31.787  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: updateBlastSurfaceIfNeeded mBlastBufferQueue=null isSameSurfaceControl=false
+05-12 20:46:31.787  1216  1216 I CocktailBarManagerServiceContainer: handleMessage: entry what = 5
+05-12 20:46:31.788  1216  1216 I CocktailBarManagerServiceImpl: noteResumeComponent : no active host
+05-12 20:46:31.788  2335  2335 I BLASTBufferQueue: new BLASTBufferQueue, mName= ViewRootImpl@6dc6262[LauncherActivity] mNativeObject= 0xb400007c21a2af00 sc.mNativeObject= 0xb400007c21bb6dc0 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 android.view.Choreographer.doCallbacks:923 android.view.Choreographer.doFrame:852 android.view.Choreographer$FrameDisplayEventReceiver.run:1283 
+05-12 20:46:31.788  2335  2335 I BLASTBufferQueue: update, w= 720 h= 1600 mName = ViewRootImpl@6dc6262[LauncherActivity] mNativeObject= 0xb400007c21a2af00 sc.mNativeObject= 0xb400007c21bb6dc0 format= -2 caller= android.graphics.BLASTBufferQueue.<init>:84 android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 
+05-12 20:46:31.788  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Relayout returned: old=(0,0,720,1600) new=(0,0,720,1600) req=(720,1600)0 dur=13 res=0x3 s={true 0xb400007c18d6e800} ch=true seqId=0
+05-12 20:46:31.789  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: mThreadedRenderer.initialize() mSurface={isValid=true 0xb400007c18d6e800} hwInitialized=true
+05-12 20:46:31.789  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: reportNextDraw android.view.ViewRootImpl.performTraversals:4438 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 
+05-12 20:46:31.789  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Setup new sync id=473
+05-12 20:46:31.789  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Setting syncFrameCallback
+05-12 20:46:31.789  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: registerCallbacksForSync syncBuffer=false
+05-12 20:46:31.790  1216  1250 D SGM:FgCheckThread: noteResumeComponent(), received pkgName: com.sec.android.app.launcher, userId: 0
+05-12 20:46:31.790  1216  1421 D SGM:FgCheckThread: onLooperPrepared(), msg: MSG_APP_RESUME, pkgName: com.sec.android.app.launcher, userid: 0
+05-12 20:46:31.790  1216  1421 D SGM:FgCheckThread: handleResume().
+05-12 20:46:31.791  1216  1421 D SGM:FgCheckThread: sendFocusOutConditionally() - mPrevNotiPkg: KILL_YOURSELF, userId: 0
+05-12 20:46:31.791  1216  1421 D SGM:FgCheckThread:   handleResume(). pkgName: com.sec.android.app.launcher, userId: 0, isTunableApp: null
+05-12 20:46:31.791  1216  1421 D SGM:FgCheckThread: notifyFocusInOut(). of pkg: com.sec.android.app.launcher, type: 4, isTunableApp: false, userId: 0
+05-12 20:46:31.791  1216  1421 D SGM:FgCheckThread:   notifyFocusInOut(). do nothing. mKillNotiCount: 1
+05-12 20:46:31.791  1216  1421 D SGM:SystemHelper: callReleaseBlock needReleaseBlock:false
+05-12 20:46:31.793  1216  1250 D PowerManagerService: [api] setScreenDimDurationOverrideFromWindowManagerInternal: timeoutMillis: 200000
+05-12 20:46:31.798   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.798   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa200 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.798   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.798   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.798   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.798   899   899 D SurfaceFlinger: 
+05-12 20:46:31.800  2335  2335 I BadgeRenderer: Invalid count : 0
+05-12 20:46:31.804  2335  4218 I ViewRootImpl@6dc6262[LauncherActivity]: Received frameDrawingCallback syncResult=0 frameNum=1.
+05-12 20:46:31.804  2335  4218 I ViewRootImpl@6dc6262[LauncherActivity]: Setting up sync and frameCommitCallback
+05-12 20:46:31.805   899   899 D SurfaceFlinger: [input] inputWindowCommands.focusRequests size is 1
+05-12 20:46:31.807   899  1055 D SurfaceFlinger: [input] setFocusedWindow: 174032b com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity
+05-12 20:46:31.807  1216  1465 D InputDispatcher: Focus request (0): 174032b com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity but waiting because NO_WINDOW
+05-12 20:46:31.810  2335  3940 I BLASTBufferQueue: [ViewRootImpl@6dc6262[LauncherActivity]#439](f:0,a:0) onFrameAvailable the first frame is available
+05-12 20:46:31.810  2335  3940 I ViewRootImpl@6dc6262[LauncherActivity]: Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true
+05-12 20:46:31.812  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: onSyncComplete
+05-12 20:46:31.812  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: setupSync seqId=0 mSyncId=473 fn=1 caller=android.view.ViewRootImpl$$ExternalSyntheticLambda11.accept:6 android.window.SurfaceSyncer.lambda$setupSync$1$android-window-SurfaceSyncer:128 android.window.SurfaceSyncer$$ExternalSyntheticLambda1.accept:8 android.window.SurfaceSyncer$SyncSet.checkIfSyncIsComplete:382 android.window.SurfaceSyncer$SyncSet.markSyncReady:359 android.window.SurfaceSyncer.markSyncReady:151 android.view.ViewRootImpl.performTraversals:4503 
+05-12 20:46:31.812  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: reportDrawFinished seqId=0 mSyncId=-1 fn=1 mSurfaceChangedTransaction=0xb400007caa245200
+05-12 20:46:31.813  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: stopped(false) old = false
+05-12 20:46:31.813  2335  2335 I Launcher: !@Boot_DEBUG: Launcher.onResume()
+05-12 20:46:31.813  2335  2335 I Launcher: !@Boot_EBS_D: Launcher.onResume()
+05-12 20:46:31.813  2335  2335 I BaseActivity: addActivityFlags, flags : 18
+05-12 20:46:31.813  2335  2335 I BaseActivity: removeActivityFlags, flags : 32
+05-12 20:46:31.813  1216  3100 D WindowManager: finishDrawingWindow: Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity} mDrawState=DRAW_PENDING seqId=0
+05-12 20:46:31.813  2335  2646 I IMM_LC  : hsifw() - flag : 0
+05-12 20:46:31.813  2335  2646 I IMM_LC  : hsifw() - mService.hideSoftInput
+05-12 20:46:31.813  2335  2335 I AppsSearchBar: restoreCurrentCellLayoutAlpha: [com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... .......D 721,45-1391,1441}[a=1.0,v=0,sId=1]]
+05-12 20:46:31.813  1216  3100 D InputMethodManagerService: hideSoftInput
+05-12 20:46:31.813  1216  1251 V WindowManager: Setting visibility of Window{782b1f7 u0 com.android.systemui.ImageWallpaper}: true, caller=com.android.server.wm.WindowContainer.sendAppVisibilityToClients:1246 com.android.server.wm.WindowToken.setClientVisible:431 com.android.server.wm.WallpaperWindowToken.setVisible:160 com.android.server.wm.WallpaperWindowToken.commitVisibility:202 com.android.server.wm.WallpaperWindowToken.setVisibility:187 
+05-12 20:46:31.814  1216  3100 V InputMethodManagerService: Client requesting input be hidden
+05-12 20:46:31.814  1216  3100 V InputMethodManagerService: hideCurrentInputLocked : canceled, shouldHideSoftInput=false, mInputShown=false, mImeWindowVis=0
+05-12 20:46:31.814   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.814   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaa380 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.814   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.814   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.814   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.814   899   899 D SurfaceFlinger: 
+05-12 20:46:31.814  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... .......D 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.814  1216  3100 I InputMethodBindingController: setCurrentMethodNotVisible: mVisibleBound=false, mHasConnection=true, caller = com.android.server.inputmethod.InputMethodManagerService.hideCurrentInputLocked:4356 com.android.server.inputmethod.InputMethodManagerService.hideSoftInput:4294 com.android.internal.view.IInputMethodManager$Stub.onTransact:488 com.android.server.inputmethod.InputMethodManagerService.onTransact:2302 android.os.Binder.execTransactInternal:1316 android.os.Binder.execTransact:1280 <bottom of call stack> <bottom of call stack> <bottom of call stack> <bottom of call stack> 
+05-12 20:46:31.814  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... .......D 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.814  1902  1922 D WallpaperService: dispatchAppVisibility onVisibilityChanged(): true
+05-12 20:46:31.814  1902  1902 D WallpaperService: updateSurface forceRelayout=true forceReport=false redrawNeeded=false myWidth=1200 myHeight=1200 fixedSize=true x = 0 y = 0 mWidth=1200 mHeight=1200 mIsSleepMode=false
+05-12 20:46:31.815  1902  1902 D WallpaperService: mDeviceHeight : 1600, mDeviceWidth : 720,mDeviceRotation  : 0
+05-12 20:46:31.815  7896  7896 I bxmb    : onResume
+05-12 20:46:31.815  2335  2335 I DecorView: notifyKeepScreenOnChanged: keepScreenOn=false
+05-12 20:46:31.815  2335  2652 I SPayUpdater: updateSpayHandler, show = false, defaultPage = false
+05-12 20:46:31.816  2335  2335 I Launcher: setWallpaperOffsets
+05-12 20:46:31.816  2335  5383 I Launcher: DisplayMetrics from Resources : DisplayMetrics{density=1.875, width=720, height=1467, scaledDensity=1.875, xdpi=268.941, ydpi=269.139}
+05-12 20:46:31.816  2335  5383 I Launcher: realMetrics from Wm : DisplayMetrics{density=1.875, width=720, height=1600, scaledDensity=1.875, xdpi=268.941, ydpi=269.139}
+05-12 20:46:31.816  2335  5383 I Launcher: Launcher DeviceProfile onResume availSize: 720x1510 windowSize: 720x1600 isLandscape: false
+05-12 20:46:31.816  2335  2335 I DecorView: notifyKeepScreenOnChanged: keepScreenOn=false
+05-12 20:46:31.817  1216  1216 I Pageboost: package null
+05-12 20:46:31.817  2576  2576 E pageboostd: Received HALT command code 2
+05-12 20:46:31.817  1216  1251 D WindowManager: Loading animation for app transition. transit=TRANSIT_OLD_CRASHING_ACTIVITY_CLOSE enter=false frame=Rect(0, 0 - 720, 1467) insets=Rect(0, 0 - 0, 0) surfaceInsets=Rect(0, 0 - 0, 0)
+05-12 20:46:31.817  1216  1251 D WindowManager: Loading animation for app transition. transit=TRANSIT_OLD_CRASHING_ACTIVITY_CLOSE enter=true frame=Rect(0, 0 - 720, 1600) insets=Rect(0, 45 - 0, 90) surfaceInsets=Rect(0, 0 - 0, 0)
+05-12 20:46:31.818  1216  1251 E WindowManager: win=Window{c1d668a u0 Splash Screen com.example.audioanalyser EXITING} destroySurfaces: appStopped=false cleanupOnResume=false win.mWindowRemovalAllowed=true win.mRemoveOnExit=true win.mViewVisibility=0 caller=com.android.server.wm.WindowState.onExitAnimationDone:6000 com.android.server.wm.ActivityRecord$$ExternalSyntheticLambda10.accept:2 java.util.ArrayList.forEach:1613 com.android.server.wm.ActivityRecord.onAnimationFinished:8607 com.android.server.wm.ActivityRecord.postApplyAnimation:6252 com.android.server.wm.ActivityRecord.commitVisibility:6224 com.android.server.wm.ActivityRecord.commitVisibility:6228 
+05-12 20:46:31.818  1216  1251 I WindowManager: Destroying surface Surface(name=Splash Screen com.example.audioanalyser$_1902)/@0xa16c36d called by com.android.server.wm.WindowStateAnimator.destroySurface:942 com.android.server.wm.WindowStateAnimator.destroySurfaceLocked:536 com.android.server.wm.WindowState.destroySurfaceUnchecked:4309 com.android.server.wm.WindowState.destroySurface:4283 com.android.server.wm.WindowState.onExitAnimationDone:6000 com.android.server.wm.ActivityRecord$$ExternalSyntheticLambda10.accept:2 java.util.ArrayList.forEach:1613 com.android.server.wm.ActivityRecord.onAnimationFinished:8607 
+05-12 20:46:31.818  1216  1251 D InputTransport: Input channel destroyed: 'c1d668a', fd=927
+05-12 20:46:31.819  1216  1251 W InputManager-JNI: Input channel object 'c1d668a Splash Screen com.example.audioanalyser (client)' was disposed without first being removed with the input manager!
+05-12 20:46:31.819  1216  1251 D InputTransport: Input channel destroyed: 'c1d668a', fd=928
+05-12 20:46:31.819  1216  1251 V WindowManager: Nulling last startingData
+05-12 20:46:31.819  1216  1251 D ActivityTaskManager: mStartingWindow and mStartingData is null for token=ActivityRecord{632da01 u0 com.sec.android.app.launcher/.activities.LauncherActivity} t7}
+05-12 20:46:31.819  1216  1251 V WindowManager: performShowLocked: mDrawState=HAS_DRAWN in Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+05-12 20:46:31.822   899   899 I Layer   : id=27259 removeFromCurrentState Splash Screen com.example.audioanalyser$_1902#27259 (125)
+05-12 20:46:31.822   899   899 I Layer   : Layer [Splash Screen com.example.audioanalyser$_1902#27259] hidden!! flag(1)
+05-12 20:46:31.822   899   899 I Layer   : id=27258 removeFromCurrentState c1d668a Splash Screen com.example.audioanalyser#27258 (125)
+05-12 20:46:31.823   899   899 I SurfaceFlinger: id=27258 Removed c1d668a Splash Screen com.example.audioanalyser#27258 (125)
+05-12 20:46:31.823   899   899 I Layer   : id=27258 Destroyed c1d668a Splash Screen com.example.audioanalyser#27258
+05-12 20:46:31.823  1216  1465 V WindowManager: Relayout Window{782b1f7 u0 com.android.systemui.ImageWallpaper}: viewVisibility=0 req=1200x1200 d0
+05-12 20:46:31.823  1902  1939 D Bubbles : onLocusVisibilityChanged: LocusId[17_chars] visible=true
+05-12 20:46:31.824  1902  1972 D OpenGLRenderer: setSurface called with nullptr
+05-12 20:46:31.824  1902  1972 D OpenGLRenderer: setSurface() destroyed EGLSurface
+05-12 20:46:31.824  1902  1972 D OpenGLRenderer: destroyEglSurface
+05-12 20:46:31.825  1216  4029 D InputDispatcher: Focus entered window (0): 174032b com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity
+05-12 20:46:31.826  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: performTraversals params={(0,0)(fillxfill) sim={adjust=pan} ty=APPLICATION_STARTING fmt=TRANSLUCENT wanim=0x1030309 alpha=0.0
+05-12 20:46:31.826  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fl=81030118
+05-12 20:46:31.826  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   pfl=16000010
+05-12 20:46:31.826  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   bhv=DEFAULT
+05-12 20:46:31.826  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fitSides= naviIconColor=0}
+05-12 20:46:31.827  1216  1465 V WindowManager: Relayout hash=782b1f7, pid=1902, syncId=-1: mAttrs={(0,0)(1600x1600) gr=TOP START CENTER layoutInDisplayCutoutMode=always ty=WALLPAPER fmt=RGBX_8888 wanim=0x103031a
+05-12 20:46:31.827  1216  1465 V WindowManager:   fl=14318
+05-12 20:46:31.827  1216  1465 V WindowManager:   pfl=2000014
+05-12 20:46:31.827  1216  1465 V WindowManager:   bhv=DEFAULT naviIconColor=0
+05-12 20:46:31.827  1216  1465 V WindowManager:   sfl=8}
+05-12 20:46:31.827  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: performTraversals mFirst=false windowShouldResize=false viewVisibilityChanged=true mForceNextWindowRelayout=false params={(0,0)(fillxfill) sim={adjust=pan} ty=APPLICATION_STARTING fmt=TRANSLUCENT wanim=0x1030309 alpha=0.0
+05-12 20:46:31.827  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fl=81030118
+05-12 20:46:31.827  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   pfl=16000010
+05-12 20:46:31.827  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   bhv=DEFAULT
+05-12 20:46:31.827  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]:   fitSides= naviIconColor=0}
+05-12 20:46:31.828  1902  1902 I BLASTBufferQueue: update, w= 1200 h= 1200 mName = Wallpaper mNativeObject= 0xb400007c3b2b9000 sc.mNativeObject= 0xb400007c3b47c3c0 format= 2 caller= android.service.wallpaper.WallpaperService$Engine.getOrCreateBLASTSurface:2575 android.service.wallpaper.WallpaperService$Engine.updateSurface:1527 android.service.wallpaper.WallpaperService$Engine.reportVisibility:1902 android.service.wallpaper.WallpaperService$Engine.doVisibilityChanged:1872 android.service.wallpaper.WallpaperService$IWallpaperEngineWrapper.executeMessage:2842 com.android.internal.os.HandlerCaller$MyHandler.handleMessage:44 
+05-12 20:46:31.828  1902  1902 D WallpaperService: reportVisibility onVisibilityChanged visible: true
+05-12 20:46:31.828  1902  2045 I ImageWallpaper[GLEngine]:  onVisibilityChanged true , 0
+05-12 20:46:31.829  1216  1465 D WALLPAPER_SVC:WallpaperManagerService: getWallpaperSafeLocked, userId = 0, which = 1, caller = com.android.server.wallpaper.WallpaperManagerService.semGetWallpaperType:6817 
+05-12 20:46:31.829  1216  1465 D WallpaperManagerService: which : 1, return type : 0 (called by userId= 0)
+05-12 20:46:31.830  1902  2045 I ImageWallpaperRenderer: updateWallpaperOffset 0 lastCropOffset 0 , wp Type 0 , rotation 0 , allowed true Do not change Display offset 0
+05-12 20:46:31.830  1216  4029 I AppOps  : updateUidProcState uid: 10067 procState: 0 capability:15
+05-12 20:46:31.830   967  2532 I CameraService: onUidStateChanged: uid=10067, procState is changed. (1 -> 0)
+05-12 20:46:31.831  2335  2335 I MSHandlerLifeCycle: removeMultiSplitHandler: no exist. decor=DecorView@4e943a2[LauncherActivity]
+05-12 20:46:31.831   899  1078 I SurfaceFlinger: id=27262 Removed 598a332 ActivityRecordInputSink com.example.audioanalyser/.MainActivity#27262 (124)
+05-12 20:46:31.832  1216  1265 W libprocessgroup: Failed to open /dev/blkio//cgroup.procs: No such file or directory
+05-12 20:46:31.832   899  1078 I SurfaceFlinger: id=27266 createSurf flag=24004, Task=380#27266
+05-12 20:46:31.832  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: handleResized, msg = 5 frames=ClientWindowFrames{frame=[0,0][720,1600] display=[0,0][720,1600] parentFrame=[0,0][0,0] parentClippedByDisplayCutout=false} forceNextWindowRelayout=false displayId=0 resizeMode=-1 frameChanged=false displayFrameChanged=false configChanged=false displayChanged=false
+05-12 20:46:31.832  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: handleResized mSyncSeqId = 0
+05-12 20:46:31.833  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: reportNextDraw android.view.ViewRootImpl.handleResized:2450 android.view.ViewRootImpl.-$$Nest$mhandleResized:0 android.view.ViewRootImpl$ViewRootHandler.handleMessageImpl:6728 android.view.ViewRootImpl$ViewRootHandler.handleMessage:6697 android.os.Handler.dispatchMessage:106 
+05-12 20:46:31.833  2335  2335 I BaseActivity: addActivityFlags, flags : 4
+05-12 20:46:31.833  2335  2335 I Launcher: onDeferredResumed
+05-12 20:46:31.833  2335  2335 I InstallShortcutReceiver: flushInstallQueue 0
+05-12 20:46:31.833  2335  2335 I Launcher.NotificationListener: onNotificationFullRefresh
+05-12 20:46:31.833  2335  2335 I BadgeCountUpdaterImpl: onNotificationsChangedConnected
+05-12 20:46:31.833  2335  2335 W LauncherAppWidgetHost: setShouldListenFlag, mFlags:7 flag:resume on:true isFront:false
+05-12 20:46:31.834  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... .......D 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.834  2335  2651 I InstallShortcutReceiver: flushQueueInBackground 0
+05-12 20:46:31.834  2335  2335 I LauncherRootView: handleSystemWindowInsets Rect(0, 45 - 0, 90)
+05-12 20:46:31.834  1216  1251 D ActivityTaskManager: mStartingWindow and mStartingData is null for token=ActivityRecord{632da01 u0 com.sec.android.app.launcher/.activities.LauncherActivity} t7}
+05-12 20:46:31.837  2335  2651 I Launcher.NotificationListener: Full refresh isConnected : true active size : 0
+05-12 20:46:31.837  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: performTraversals params={(0,0)(fillxfill) sim={adjust=nothing forwardNavigation} layoutInDisplayCutoutMode=shortEdges ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f4
+05-12 20:46:31.837  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   fl=81910100
+05-12 20:46:31.837  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   pfl=1e020040
+05-12 20:46:31.837  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   vsysui=1700
+05-12 20:46:31.837  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   bhv=SHOW_TRANSIENT_BARS_BY_SWIPE
+05-12 20:46:31.837  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   fitSides= screenDimDuration=200000 naviIconColor=0}
+05-12 20:46:31.838  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: performTraversals mFirst=false windowShouldResize=false viewVisibilityChanged=false mForceNextWindowRelayout=false params={(0,0)(fillxfill) sim={adjust=nothing forwardNavigation} layoutInDisplayCutoutMode=shortEdges ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f4
+05-12 20:46:31.838  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   fl=81910100
+05-12 20:46:31.838  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   pfl=1e020040
+05-12 20:46:31.838  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   vsysui=1700
+05-12 20:46:31.838  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   bhv=SHOW_TRANSIENT_BARS_BY_SWIPE
+05-12 20:46:31.838  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]:   fitSides= screenDimDuration=200000 naviIconColor=0}
+05-12 20:46:31.840  1216  3100 W WindowManager: Failed looking up window session=Session{958ed4d 1902:u0a10067} callers=com.android.server.wm.WindowManagerService.windowForClientLocked:6618 com.android.server.wm.WindowManagerService.relayoutWindow:2515 com.android.server.wm.Session.relayout:274 
+05-12 20:46:31.841  1216  4029 V WindowManager: Relayout Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}: viewVisibility=0 req=720x1600 d0
+05-12 20:46:31.841   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.841   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:31.841   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054f00 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27265
+05-12 20:46:31.841   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.841   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.841   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.841   899   899 D SurfaceFlinger: 
+05-12 20:46:31.841  1902  1969 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 0, 0), mDisplayCutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=0 displayHeight=0 physicalDisplayWidth=0 physicalDisplayHeight=0 density={0.0} cutoutSpec={} rotation={0} scale={0.0} physicalPixelDisplaySizeRatio={0.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=0, center=Point(0, 0)}, RoundedCorner{position=TopRight, radius=0, center=Point(0, 0)}, RoundedCorner{position=BottomRight, radius=0, center=Point(0, 0)}, RoundedCorner{position=BottomLeft, radius=0, center=Point(0, 0)}]}  mRoundedCornerFrame=Rect(0, 0 - 0, 0), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=null rotation=0}, mSources= {  } host=Splash Screen com.example.audioanalyser from=android.view.ViewRootImpl.relayoutWindow:9802
+05-12 20:46:31.842   899   899 I Layer   : id=27257 removeFromCurrentState ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}#27257 (125)
+05-12 20:46:31.842   899   899 I Layer   : id=27262 removeFromCurrentState 598a332 ActivityRecordInputSink com.example.audioanalyser/.MainActivity#27262 (125)
+05-12 20:46:31.842   899   899 I Layer   : id=27256 removeFromCurrentState Task=380#27256 (125)
+05-12 20:46:31.842  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: 1) Force to draw a frame when frame become empty from non-empty
+05-12 20:46:31.842   899   899 I Layer   : id=27266 removeFromCurrentState Task=380#27266 (125)
+05-12 20:46:31.842   899   899 I SurfaceFlinger: id=27257 Removed ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}#27257 (125)
+05-12 20:46:31.842  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: Relayout returned: old=(0,0,720,1600) new=(0,0,0,0) req=(720,1600)8 dur=15 res=0x0 s={false 0x0} ch=true seqId=0
+05-12 20:46:31.842   899   899 I SurfaceFlinger: id=27266 Removed Task=380#27266 (125)
+05-12 20:46:31.842   899   899 I Layer   : id=27266 Destroyed Task=380#27266
+05-12 20:46:31.843   899   899 I Layer   : id=27257 Destroyed ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t380}#27257
+05-12 20:46:31.843   899   899 I Layer   : id=27262 Destroyed 598a332 ActivityRecordInputSink com.example.audioanalyser/.MainActivity#27262
+05-12 20:46:31.844  1902  1969 I ViewRootImpl@a87d2ff[audioanalyser]: dispatchDetachedFromWindow
+05-12 20:46:31.845  1216  4029 V WindowManager: Relayout hash=174032b, pid=2335, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=nothing forwardNavigation} layoutInDisplayCutoutMode=shortEdges ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f4
+05-12 20:46:31.845  1216  4029 V WindowManager:   fl=81910100
+05-12 20:46:31.845  1216  4029 V WindowManager:   pfl=1e020040
+05-12 20:46:31.845  1216  4029 V WindowManager:   vsysui=1700
+05-12 20:46:31.845  1216  4029 V WindowManager:   bhv=SHOW_TRANSIENT_BARS_BY_SWIPE
+05-12 20:46:31.845  1216  4029 V WindowManager:   fitSides= screenDimDuration=200000 naviIconColor=0}
+05-12 20:46:31.845  1216  3100 W WindowManager: Failed looking up window session=Session{958ed4d 1902:u0a10067} callers=com.android.server.wm.WindowManagerService.windowForClientLocked:6618 com.android.server.wm.Session.setOnBackInvokedCallbackInfo:1090 android.view.IWindowSession$Stub.onTransact:1319 
+05-12 20:46:31.845  1216  3100 E WindowManager: setOnBackInvokedCallback(): No window state for package:com.android.systemui
+05-12 20:46:31.845  1216  3676 W WindowManager: Failed looking up window session=Session{958ed4d 1902:u0a10067} callers=com.android.server.wm.WindowManagerService.windowForClientLocked:6618 com.android.server.wm.WindowManagerService.removeWindow:2287 com.android.server.wm.Session.remove:236 
+05-12 20:46:31.846  1902  1969 D InputTransport: Input channel destroyed: 'c1d668a', fd=364
+05-12 20:46:31.848  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: updateBlastSurfaceIfNeeded mBlastBufferQueue=0xb400007c21a2af00 isSameSurfaceControl=true
+05-12 20:46:31.849  2335  2335 I BLASTBufferQueue: update, w= 720 h= 1600 mName = ViewRootImpl@6dc6262[LauncherActivity] mNativeObject= 0xb400007c21a2af00 sc.mNativeObject= 0xb400007c21bb7720 format= -2 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2898 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 
+05-12 20:46:31.849  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Relayout returned: old=(0,0,720,1600) new=(0,0,720,1600) req=(720,1600)0 dur=10 res=0x0 s={true 0xb400007c18d6e800} ch=false seqId=0
+05-12 20:46:31.849  2335  2335 I LauncherRootView: handleSystemWindowInsets Rect(0, 45 - 0, 90)
+05-12 20:46:31.850  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Setup new sync id=474
+05-12 20:46:31.850  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: Setting syncFrameCallback
+05-12 20:46:31.850  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: registerCallbacksForSync syncBuffer=false
+05-12 20:46:31.851  2335  4220 I ViewRootImpl@6dc6262[LauncherActivity]: Received frameDrawingCallback syncResult=0 frameNum=2.
+05-12 20:46:31.851  2335  4220 I ViewRootImpl@6dc6262[LauncherActivity]: Setting up sync and frameCommitCallback
+05-12 20:46:31.856  2335  3940 I ViewRootImpl@6dc6262[LauncherActivity]: Received frameCommittedCallback lastAttemptedDrawFrameNum=2 didProduceBuffer=true
+05-12 20:46:31.857   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.857   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:31.857   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab054f00 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27265
+05-12 20:46:31.857   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.857   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055b00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.857   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.857   899   899 D SurfaceFlinger: 
+05-12 20:46:31.857  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: onSyncComplete
+05-12 20:46:31.857  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: setupSync seqId=0 mSyncId=474 fn=2 caller=android.view.ViewRootImpl$$ExternalSyntheticLambda11.accept:6 android.window.SurfaceSyncer.lambda$setupSync$1$android-window-SurfaceSyncer:128 android.window.SurfaceSyncer$$ExternalSyntheticLambda1.accept:8 android.window.SurfaceSyncer$SyncSet.checkIfSyncIsComplete:382 android.window.SurfaceSyncer$SyncSet.markSyncReady:359 android.window.SurfaceSyncer.markSyncReady:151 android.view.ViewRootImpl.performTraversals:4503 
+05-12 20:46:31.858  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: reportDrawFinished seqId=0 mSyncId=-1 fn=2 mSurfaceChangedTransaction=0xb400007caa245200
+05-12 20:46:31.858   899   899 I SurfaceFlinger: id=27259 Removed Splash Screen com.example.audioanalyser$_1902#27259 (122)
+05-12 20:46:31.858  2335  2335 W Launcher: onEnterAnimationComplete
+05-12 20:46:31.858  2335  2335 W Launcher: onEnterAnimationComplete
+05-12 20:46:31.858  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: MSG_WINDOW_FOCUS_CHANGED 1 0
+05-12 20:46:31.858  1216  3100 D WindowManager: finishDrawingWindow: Window{174032b u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity} mDrawState=HAS_DRAWN seqId=0
+05-12 20:46:31.858  2335  2335 I ViewRootImpl@6dc6262[LauncherActivity]: mThreadedRenderer.initializeIfNeeded()#2 mSurface={isValid=true 0xb400007c18d6e800}
+05-12 20:46:31.859   899   899 I Layer   : id=27259 Destroyed Splash Screen com.example.audioanalyser$_1902#27259
+05-12 20:46:31.859  2335  2335 I BaseActivity: addActivityFlags, flags : 8
+05-12 20:46:31.862  2335  2335 I InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+05-12 20:46:31.863  1216  3100 V InputMethodManagerService: hideCurrentInputLocked : canceled, shouldHideSoftInput=false, mInputShown=false, mImeWindowVis=0
+05-12 20:46:31.863  1216  3100 I InputMethodBindingController: setCurrentMethodNotVisible: mVisibleBound=false, mHasConnection=true, caller = com.android.server.inputmethod.InputMethodManagerService.hideCurrentInputLocked:4356 com.android.server.inputmethod.InputMethodManagerService.startInputOrWindowGainedFocusInternalLocked:4783 com.android.server.inputmethod.InputMethodManagerService.startInputOrWindowGainedFocusInternal:4440 com.android.server.inputmethod.InputMethodManagerService.startInputOrWindowGainedFocus:4379 com.android.internal.view.IInputMethodManager$Stub.onTransact:518 com.android.server.inputmethod.InputMethodManagerService.onTransact:2302 android.os.Binder.execTransactInternal:1316 android.os.Binder.execTransact:1280 <bottom of call stack> <bottom of call stack> 
+05-12 20:46:31.863  1216  3100 D InputMethodManagerService: mDesktopModeManager null!
+05-12 20:46:31.863  1216  3100 V InputMethodManagerService: getDisplayIdOfInputMethodWindowToBeAdded: displayId=0
+05-12 20:46:31.863  1216  3100 D InputMethodManagerService: isImeSwitcherDisabledPackage : false
+05-12 20:46:31.864  1216  3100 D InputMethodManagerService: shouldShowImeSwitcherLocked : checking vis : 3
+05-12 20:46:31.865  1216  3100 D InputMethodManagerService: checkDisplayOfStartInputAndUpdateKeyboard: displayId=0, mFocusedDisplayId=0
+05-12 20:46:31.865  1216  3100 D InputTransport: Input channel constructed: 'ClientS', fd=906
+05-12 20:46:31.866  1216  3100 D InputTransport: Input channel destroyed: 'ClientS', fd=906
+05-12 20:46:31.866  2335  2335 I PopupDataProvider: onNotificationFullRefresh prev dotInfoSize : 0
+05-12 20:46:31.866  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... .......D 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.866  4139  4139 I HBD     : HoneyBoardService onFinishInput 
+05-12 20:46:31.867  4139  4139 I HBD     : a IC have been unbinding,  RemoteInputConnection{idHash=#5bbdfb7}
+05-12 20:46:31.867  4139  4139 I HBD     : HoneyBoardService [PF_CL][onFinishInput]  1 ms 
+05-12 20:46:31.867  1216  2808 D SemWifiUsabilityStatsMonitor: onWifiUsabilityStats - seqNum 22447, isSameBssidAndFreq true
+05-12 20:46:31.867  4139  4139 I HBD     : HoneyBoardService [IMI] onStartInput - caller pid : 2335 , caller uid : 10066 
+05-12 20:46:31.867  4139  4139 I HBD     : j updateConfigs 
+05-12 20:46:31.867  4139  4139 I HBD     : j isEnabledNightMode : true 
+05-12 20:46:31.867  4139  4139 I HBD     : a IC have been binding, RemoteInputConnection{idHash=#5bbdfb7} 
+05-12 20:46:31.868  4139  4139 I HBD     : h [EditorInputType]setPrivateImeOptionsToTable privateImeOptions ( null )
+05-12 20:46:31.868  4139  4139 I HBD     : b incognitoMode : false 
+05-12 20:46:31.868  4139  4139 I HBD     : b needOff = true , isForceOff = false, isNullInputClass : true 
+05-12 20:46:31.868  4139  4139 I HBD     : h getDefaultInputRange : UNKNOWN 
+05-12 20:46:31.868  4139  4139 I HBD     : h getDefaultInputRange : UNKNOWN 
+05-12 20:46:31.868  4139  4139 I HBD     : h getDefaultInputRange : UNKNOWN 
+05-12 20:46:31.868  1216  1787 I SemWifiLinkQualityMonitor: Link Qos Query: 0.148 ms / 54.000 Mbps (72 / 0.000 / 1.333)
+05-12 20:46:31.869  1902  1902 D NetworkController.WifiSignalController: notifyListener: visible=true, connected=true, inetCondition=1, isDefault=true, wifiTestReported=true, receivedInetCondition=-1, hideDuringMobileSwitching=false
+05-12 20:46:31.869  4139  4139 I HBD     : b needOff = true , isForceOff = false, isNullInputClass : true 
+05-12 20:46:31.869  4139  4139 I HBD     : b update cached prediction status : false 
+05-12 20:46:31.869  4139  4139 I HBD     : h getDefaultInputRange : UNKNOWN 
+05-12 20:46:31.869  4139  4139 I HBD     : a currentState : 0 
+05-12 20:46:31.870  4139  4139 I HBD     : a [UpdatePolicy] [post] a: 0 cl: 65537 kit: [0/0] vt: 0 ir: 1 
+05-12 20:46:31.870  4139  4139 I HBD     : a [NRIC] resetNoResponseState 
+05-12 20:46:31.870  4139  4139 I HBD     : b needOff = true , isForceOff = false, isNullInputClass : true 
+05-12 20:46:31.870  4139  4139 I HBD     : b update cached prediction status : false 
+05-12 20:46:31.871  4139  4139 I HBD     : HoneyBoardService [PF_OP][onStartInput]  4 ms 
+05-12 20:46:31.874  2335  2335 I BadgeRenderer: Invalid count : 0
+05-12 20:46:31.875   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.875   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:31.875   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055c80 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27265
+05-12 20:46:31.875   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.875   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054c00 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.875   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.875   899   899 D SurfaceFlinger: 
+05-12 20:46:31.885   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.885   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:31.885   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055c80 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27265
+05-12 20:46:31.885   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab054a80 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.885   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055980 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.885   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.885   899   899 D SurfaceFlinger: 
+05-12 20:46:31.886  2335  2335 I RecentsView: onTaskRemoved() taskId : 380
+05-12 20:46:31.886  2335  2335 I TopTaskTracker: onTaskRemoved : taskId = 380
+05-12 20:46:31.886  2335  2335 I RecentsView: onTaskRemoved() taskId : 380
+05-12 20:46:31.886  2335  2335 I TopTaskTracker: onTaskRemoved : taskId = 380
+05-12 20:46:31.887  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.889  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.897   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.897   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:31.897   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab055c80 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27265
+05-12 20:46:31.897   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab056700 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.897   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055980 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.897   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.897   899   899 D SurfaceFlinger: 
+05-12 20:46:31.905  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.914   899   899 D SurfaceFlinger: Display 0 HWC layers:
+05-12 20:46:31.914   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056e80 | 0100 | RGBx_8888    |  330.0    0.0  870.0 1200.0 |    0    0  720 1600 | Wallpaper BBQ wrapper#89
+05-12 20:46:31.914   899   899 D SurfaceFlinger:      DEVICE | 0xb400007daafaac80 | 0100 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | com.sec.android.app.launcher/com.sec[...]ivities.LauncherActivity$_2335#27265
+05-12 20:46:31.914   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab056700 | 0100 | RGBA_8888    |    0.0    0.0  720.0   45.0 |    0    0  720   45 | StatusBar$_1902#97
+05-12 20:46:31.914   899   899 D SurfaceFlinger:      CLIENT | 0xb400007dab055980 | 0100 | RGBA_8888    |    0.0    0.0  720.0   90.0 |    0 1510  720 1600 | NavigationBar0$_1902#91
+05-12 20:46:31.914   899   899 D SurfaceFlinger:      DEVICE | 0xb400007dab056280 | 0108 | RGBA_8888    |    0.0    0.0  720.0 1600.0 |    0    0  720 1600 | $_1902#93
+05-12 20:46:31.914   899   899 D SurfaceFlinger: 
+05-12 20:46:31.922  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.939  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.955  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.959  1216  1801 D SemWifiSwitchForIndividualAppsService: isSkipNetworkCondition - result:2
+05-12 20:46:31.972  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.989  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:31.989  2335  2335 I AppsSearchBar: mCurrentCellLayouts onAnimationEnd
+05-12 20:46:31.989  2335  2335 I Launcher.AppsViewCellLayout: com.android.homescreen.apptray.AppsViewCellLayout{d4e6f99 V.ED..... ........ 721,45-1391,1441}[a=1.0,v=0,sId=1] setAlpha : 1.0
+05-12 20:46:32.009   848  9811 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 758311
+05-12 20:46:32.038  1216  1785 I SemWifiServiceDetector: Traff. tracking started
+05-12 20:46:32.196  1216  1250 W ActivityTaskManager: Activity top resumed state loss timeout for ActivityRecord{e62e883 u0 com.example.audioanalyser/.MainActivity} t-1 f}}
+05-12 20:46:32.197  1216  1250 D ActivityTaskManager: scheduleTopResumedActivityChanged, onTop=true r=ActivityRecord{632da01 u0 com.sec.android.app.launcher/.activities.LauncherActivity} t7} caller=com.android.server.wm.ActivityTaskSupervisor.scheduleTopResumedActivityStateIfNeeded:2535 com.android.server.wm.ActivityTaskSupervisor.handleTopResumedStateReleased:2564 com.android.server.wm.ActivityTaskSupervisor$ActivityTaskSupervisorHandler.handleMessageInner:2990 com.android.server.wm.ActivityTaskSupervisor$ActivityTaskSupervisorHandler.handleMessage:2888 android.os.Handler.dispatchMessage:106 android.os.Looper.loopOnce:226 
+05-12 20:46:32.261   848  9842 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 779408
+05-12 20:46:32.318  8652  8720 I ContactsProvider_EventLog: cp_s: [CONTACT con(132) dat(1148) acc({google(2)=132, com.google.android.apps.tachyon(47)=27, com.whatsapp(9)=50}) calls([logtype:100 cnt:377, logtype:200 cnt:182, logtype:300 cnt:318, logtype:500 cnt:1, logtype:1000 cnt:1622]) Iso(US) uId(0) ]
+05-12 20:46:32.318  8652  8720 I ContactsProvider_EventLog: cp_s: [ agr({[2 ,9 ,47]=17, [2 ,47]=10, [2]=72, [2 ,9]=33}) ]
+05-12 20:46:32.318  8652  8720 I ContactsProvider_EventLog: cp_s: [ cnt({acore(8652)=1}) ]
+05-12 20:46:32.318  8652  8720 I ContactsProvider_EventLog: cp_s: [PROFILE ] [SAPROFILE con(1) acc({phone(1)=1}) ]
+05-12 20:46:32.318  8652  8720 I ContactsProvider_EventLog: cp_s: [STATE R(F) ]
+05-12 20:46:32.539  1216  1785 D SemNscXgbMsL1: Probability - Cloud gaming: [0.017771149]
+05-12 20:46:32.539  1216  1785 D SemNscXgbMsL1: Probability - Real time: [0.019616947]
+05-12 20:46:32.539  1216  1785 D SemNscXgbMsL1: Probability - Non real time: [0.9200984]
+05-12 20:46:32.539  1216  1785 D SemNscXgbMsL1: 1 sample inference time: 0.500616 msecs
+05-12 20:46:32.540  1216  1785 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 0.889961 msecs
+05-12 20:46:32.541  1216  1785 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 0.645346 msecs
+05-12 20:46:32.576   398   398 D io_stats: !@ 179,0 r 107525339 1452399795 w 11261638 92294228 d 413457 20538248 f 0 0 iot 25971356 0 th 0 0 0 pt 0 inp 0 0 233524.699
+05-12 20:46:32.626   848  9809 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 1805050
+05-12 20:46:32.791  1216  6468 D SGM:GameManager: identifyGamePackage. com.sec.android.app.launcher, mCurrentUserId: 0, callerUserId: 0, callingMethodInfo: com.android.server.ssrm.SortingMachine.isGame(SortingMachine.java:162)
+05-12 20:46:32.791  1216  6468 D SGM:PkgDataHelper: getGamePkgData(). com.sec.android.app.launcher
+05-12 20:46:32.967  1216  1801 D SemWifiSwitchForIndividualAppsService: isSkipNetworkCondition - result:2
+05-12 20:46:33.042  1216  1785 D SemNscXgbMsL1: Probability - Cloud gaming: [0.020999884]
+05-12 20:46:33.042  1216  1785 D SemNscXgbMsL1: Probability - Real time: [0.034071278]
+05-12 20:46:33.042  1216  1785 D SemNscXgbMsL1: Probability - Non real time: [0.85317296]
+05-12 20:46:33.042  1216  1785 D SemNscXgbMsL1: 1 sample inference time: 0.493231 msecs
+05-12 20:46:33.043  1216  1785 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 0.856654 msecs
+05-12 20:46:33.044  1216  1785 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 0.648308 msecs
+05-12 20:46:33.264   848  9843 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 6345716
+05-12 20:46:33.381  1216  1823 D NetdEventListenerService: DNS Requested by : 142, 10250
+05-12 20:46:33.386   807   807 E audit   : type=1400 audit(1778633193.381:135324): avc:  denied  { search } for  pid=15858 comm="Thread-25454" name="fslog" dev="proc" ino=4026532636 scontext=u:r:untrusted_app:s0:c250,c256,c512,c768 tcontext=u:object_r:proc_fslog:s0 tclass=dir permissive=0 SEPF_SM-A127M_13_0001 audit_filtered
+05-12 20:46:33.386   807   807 E audit   : type=1300 audit(1778633193.381:135324): arch=c00000b7 syscall=79 success=no exit=-13 a0=ffffff9c a1=b400007caa2226b0 a2=7c93ffa810 a3=0 items=1 ppid=824 pid=15858 auid=4294967295 uid=10250 gid=10250 euid=10250 suid=10250 fsuid=10250 egid=10250 sgid=10250 fsgid=10250 tty=(none) ses=4294967295 comm="Thread-25454" exe="/system/bin/app_process64" subj=u:r:untrusted_app:s0:c250,c256,c512,c768 key=(null)
+05-12 20:46:33.386   807   807 E audit   : type=1302 audit(1778633193.381:135324): item=0 name="/proc/stlog" nametype=UNKNOWN cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0
+05-12 20:46:33.386   807   807 E audit   : type=1327 audit(1778633193.381:135324): proctitle="com.usaa.mobile.android.safedriving"
+05-12 20:46:33.545  1216  1785 D SemNscXgbMsL1: Probability - Cloud gaming: [0.033862866]
+05-12 20:46:33.545  1216  1785 D SemNscXgbMsL1: Probability - Real time: [0.029413342]
+05-12 20:46:33.545  1216  1785 D SemNscXgbMsL1: Probability - Non real time: [0.9179973]
+05-12 20:46:33.545  1216  1785 D SemNscXgbMsL1: 1 sample inference time: 0.480231 msecs
+05-12 20:46:33.546  1216  1785 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 0.859654 msecs
+05-12 20:46:33.547  1216  1785 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 0.636308 msecs
+05-12 20:46:33.974  1216  1801 D SemWifiSwitchForIndividualAppsService: isSkipNetworkCondition - result:2
+05-12 20:46:34.026  9226  9249 I MediaCodec: setCodecState state(0), called in 6
+05-12 20:46:34.027  1216  3100 V ResourceManagerHelper-JNI: JNIMediaResourceHelper::notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:34.027  1216  3100 V ResourceManagerHelper-JNI: notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:34.027 29854 29863 V ResourceManagerHelper-JNI: JNIMediaResourceHelper::notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:34.027  3549  3549 I SemMediaResourceHelper: onState
+05-12 20:46:34.027 29854 29863 V ResourceManagerHelper-JNI: notify eventType : 3, ext1 : 0, ext2 : 0
+05-12 20:46:34.027  1216  1394 I SemMediaResourceHelper: onState
+05-12 20:46:34.027 29854 29930 I SemMediaResourceHelper: onState
+05-12 20:46:34.027 29854 29930 I DrmMediaResourceHelper: onStateChanged size = 1
+05-12 20:46:34.027 29854 29930 I DrmMediaResourceHelper: resource type: 2,,,isSecured :  falseIsEncoder : truegetCodecState : 0getpid : 9226
+05-12 20:46:34.047  1216  1785 D SemNscXgbMsL1: Probability - Cloud gaming: [0.016433587]
+05-12 20:46:34.048  1216  1785 D SemNscXgbMsL1: Probability - Real time: [0.012691313]
+05-12 20:46:34.048  1216  1785 D SemNscXgbMsL1: Probability - Non real time: [0.93809617]
+05-12 20:46:34.048  1216  1785 D SemNscXgbMsL1: 1 sample inference time: 0.471308 msecs
+05-12 20:46:34.049  1216  1785 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 0.887615 msecs
+05-12 20:46:34.049  1216  1785 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 0.648538 msecs
+05-12 20:46:34.550  1216  1785 D SemNscXgbMsL1: Probability - Cloud gaming: [0.04336829]
+05-12 20:46:34.551  1216  1785 D SemNscXgbMsL1: Probability - Real time: [0.03404081]
+05-12 20:46:34.551  1216  1785 D SemNscXgbMsL1: Probability - Non real time: [0.94043374]
+05-12 20:46:34.551  1216  1785 D SemNscXgbMsL1: 1 sample inference time: 0.502039 msecs
+05-12 20:46:34.552  1216  1785 D SemNscXgbL2Rt: L2 RT 1 sample inference time: 0.869538 msecs
+05-12 20:46:34.552  1216  1785 D SemNscXgbL2Nrt: L2 NRT 1 sample inference time: 0.673769 msecs
+05-12 20:46:34.576   398   398 D io_stats: !@ 179,0 r 107525339 1452399795 w 11261641 92294236 d 413457 20538248 f 0 0 iot 25971384 0 th 0 0 0 pt 0 inp 0 0 233526.699

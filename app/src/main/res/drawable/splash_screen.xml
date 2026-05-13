@@ -2,11 +2,16 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- background color (black) -->
     <item android:drawable="@android:color/black" />
-    <!-- center the provided splash image (place your vertical splash image at
-         res/drawable-nodpi/splash_image.png) -->
+    <!-- Scale the splash image to fill the screen bounds. Keep original
+         high-resolution bitmap in res/drawable-nodpi/splash_image.png -->
     <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash_image" />
+        <scale
+            android:scaleWidth="100%"
+            android:scaleHeight="100%"
+            android:useIntrinsicSizeAsMinimum="false">
+            <bitmap
+                android:src="@drawable/splash_image"
+                android:gravity="center" />
+        </scale>
     </item>
 </layer-list>

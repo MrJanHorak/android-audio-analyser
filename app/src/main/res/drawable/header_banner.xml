@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@android:color/transparent" />
+    <!-- Use the app header drawable scaled to fit the area; avoids using
+         composable painterResource on potential XML composites. -->
     <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/ic_launcher" />
+        <scale
+            android:scaleWidth="100%"
+            android:scaleHeight="100%"
+            android:useIntrinsicSizeAsMinimum="false">
+            <bitmap
+                android:src="@drawable/app_header"
+                android:gravity="center" />
+        </scale>
     </item>
 </layer-list>
