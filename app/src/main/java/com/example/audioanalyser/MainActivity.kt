@@ -48,6 +48,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -97,27 +101,27 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
     val delayMs = (distMeters / speedOfSound) * 1000f
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
-        Text(text = "Delay Calculator", style = MaterialTheme.typography.labelLarge)
+        AutoSizeText(text = "Delay Calculator", style = MaterialTheme.typography.labelLarge)
         Text(text = "Calculate speaker alignment times based on distance.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Unit: ", modifier = Modifier.weight(0.3f))
+            AutoSizeText("Unit: ", modifier = Modifier.weight(0.3f))
             Row(modifier = Modifier.weight(0.7f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = isMeters, onClick = { isMeters = true }, label = { Text("Meters") })
-                FilterChip(selected = !isMeters, onClick = { isMeters = false }, label = { Text("Feet") })
+                FilterChip(selected = isMeters, onClick = { isMeters = true }, label = { AutoSizeText("Meters") })
+                FilterChip(selected = !isMeters, onClick = { isMeters = false }, label = { AutoSizeText("Feet") })
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(text = "Distance: ${"%.1f".format(Locale.getDefault(), distanceValue)} ${if (isMeters) "m" else "ft"}")
+        AutoSizeText(text = "Distance: ${"%.1f".format(Locale.getDefault(), distanceValue)} ${if (isMeters) "m" else "ft"}")
         Slider(value = distanceValue, onValueChange = { distanceValue = it }, valueRange = 0.5f..100f)
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(text = "Temperature: ${"%.1f".format(Locale.getDefault(), temperatureC)} °C")
+        AutoSizeText(text = "Temperature: ${"%.1f".format(Locale.getDefault(), temperatureC)} °C")
         Slider(value = temperatureC, onValueChange = { temperatureC = it }, valueRange = -10f..45f)
 
         Surface(
@@ -126,7 +130,7 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Alignment Delay", style = MaterialTheme.typography.labelMedium)
+                AutoSizeText(text = "Alignment Delay", style = MaterialTheme.typography.labelMedium)
                 Text(
                     text = "${"%.1f".format(Locale.getDefault(), delayMs)} ms",
                     style = MaterialTheme.typography.displayMedium,
@@ -164,7 +168,7 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
             enabled = !isMeasuring,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isMeasuring) "Listening for ping..." else "Auto-Measure with Ping")
+            AutoSizeText(if (isMeasuring) "Listening for ping..." else "Auto-Measure with Ping")
         }
     }
 }
@@ -178,7 +182,7 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
     val isRunning by generator.isRunning.collectAsState()
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
-        Text(text = "Signal generator", style = MaterialTheme.typography.labelLarge)
+        AutoSizeText(text = "Signal generator", style = MaterialTheme.typography.labelLarge)
 
         Row(
             modifier = Modifier
@@ -197,19 +201,19 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
         }
 
         if (modes[selectedModeIndex] == SignalGenerator.Mode.SINE) {
-            Text(text = "Frequency: ${freq.toInt()} Hz", modifier = Modifier.padding(top = 8.dp))
+            AutoSizeText(text = "Frequency: ${freq.toInt()} Hz", modifier = Modifier.padding(top = 8.dp))
             Slider(value = freq, onValueChange = { freq = it }, valueRange = 20f..20000f)
         }
 
-        Text(text = "Level", modifier = Modifier.padding(top = 8.dp))
+        AutoSizeText(text = "Level", modifier = Modifier.padding(top = 8.dp))
         Slider(value = level, onValueChange = { level = it }, valueRange = 0f..1f)
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { generator.start(modes[selectedModeIndex], freq, level) }, enabled = !isRunning) {
-                Text("Start")
+                AutoSizeText("Start")
             }
             Button(onClick = { generator.stop() }, enabled = isRunning) {
-                Text("Stop")
+                AutoSizeText("Stop")
             }
         }
     }
@@ -491,7 +495,7 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Audio Analyser needs microphone access to measure the sound in your room and display frequency data.\n\nWe do not record, store, or transmit any raw audio.",
+                        text = "SoundRunner needs microphone access to measure the sound in your room and display frequency data.\n\nWe do not record, store, or transmit any raw audio.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1802,7 +1806,7 @@ fun AnalyzerToolsSheet(
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) }
+                        text = { AutoSizeText(title) }
                     )
                 }
             }
@@ -2798,11 +2802,11 @@ fun SettingsDialog(
                         .padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(onClick = onExportBackup) {
-                        Text("Export backup")
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onExportBackup) {
+                        AutoSizeText("Export backup")
                     }
-                    OutlinedButton(onClick = onImportBackup) {
-                        Text("Import backup")
+                    OutlinedButton(modifier = Modifier.weight(1f), onClick = onImportBackup) {
+                        AutoSizeText("Import backup")
                     }
                 }
                 if (!importExportMessage.isNullOrBlank()) {
@@ -2863,7 +2867,7 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                         Tab(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
-                            text = { Text(title) }
+                            text = { AutoSizeText(title) }
                         )
                     }
                 }
@@ -3190,8 +3194,46 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                     Text(stringResource(id = R.string.done))
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                TextButton(onClick = onClose) { Text(stringResource(id = R.string.cancel)) }
+                TextButton(onClick = onClose) { AutoSizeText(stringResource(id = R.string.cancel)) }
             }
         }
     }
+}
+
+@Composable
+fun AutoSizeText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    style: TextStyle = LocalTextStyle.current,
+    fontWeight: FontWeight? = null,
+    textAlign: TextAlign? = null,
+    maxLines: Int = 1
+) {
+    var multiplier by remember { mutableFloatStateOf(1f) }
+    
+    val mergedStyle = style.merge(
+        TextStyle(
+            color = color,
+            fontWeight = fontWeight,
+            textAlign = textAlign ?: TextAlign.Unspecified
+        )
+    )
+
+    Text(
+        text = text,
+        modifier = modifier,
+        color = color,
+        style = mergedStyle.copy(fontSize = if (mergedStyle.fontSize.isSp) mergedStyle.fontSize * multiplier else 14.sp * multiplier),
+        fontWeight = fontWeight,
+        textAlign = textAlign ?: TextAlign.Unspecified,
+        maxLines = maxLines,
+        softWrap = false,
+        overflow = TextOverflow.Visible,
+        onTextLayout = {
+            if (it.hasVisualOverflow && multiplier > 0.4f) {
+                multiplier *= 0.9f
+            }
+        }
+    )
 }

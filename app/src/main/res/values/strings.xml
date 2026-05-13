@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Audio Analyser</string>
+    <string name="app_name">SoundRunner</string>
     <string name="mic_access_required">Microphone access is required for analysis</string>
     <string name="allow_mic">Allow Microphone Access</string>
     <string name="open_settings">Open App Settings</string>
