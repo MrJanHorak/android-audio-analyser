@@ -117,6 +117,12 @@ class AudioAnalyzer {
     val isLogging: StateFlow<Boolean> = _isLogging
     private val loggedData = mutableListOf<String>()
 
+    private var transientCallback: ((Long) -> Unit)? = null
+
+    fun awaitNextTransient(onDetected: (Long) -> Unit) {
+        transientCallback = onDetected
+    }
+
     private val binSize = sampleRate.toFloat() / fftSize
     private val feedbackCandidateLimit = 6
     private val feedbackPeakLimit = 3
@@ -189,6 +195,12 @@ class AudioAnalyzer {
                 val calibratedDb = (rawDb + _dbOffset.value).coerceAtLeast(0f)
                 val currentDb = if (calibratedDb > _noiseThreshold.value) calibratedDb else 0f
                 _dbLevel.value = currentDb
+                
+                // Transient detection
+                if (transientCallback != null && currentDb > _noiseThreshold.value + 15f) {
+                    transientCallback?.invoke(System.nanoTime())
+                    transientCallback = null // only fire once
+                }
 
                 // Update stats
                 if (currentDb > 0) {

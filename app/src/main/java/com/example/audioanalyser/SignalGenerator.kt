@@ -11,7 +11,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 class SignalGenerator(private val sampleRate: Int = 44100) {
-    enum class Mode { SINE, WHITE, PINK, PULSE }
+    enum class Mode { SINE, WHITE, PINK, PULSE, SWEEP }
 
     private var audioTrack: AudioTrack? = null
     private var playJob: Job? = null
@@ -54,6 +54,7 @@ class SignalGenerator(private val sampleRate: Int = 44100) {
                 Mode.WHITE -> playWhite(level, minBuf)
                 Mode.PINK -> playPink(level, minBuf)
                 Mode.PULSE -> playPulse(freqHz, level, minBuf)
+                Mode.SWEEP -> playSweep(level, minBuf)
             }
         }
     }
@@ -154,5 +155,88 @@ class SignalGenerator(private val sampleRate: Int = 44100) {
         }
     }
 
+    private suspend fun playSweep(level: Float, bufferSize: Int) {
+        val buffer = ShortArray(bufferSize)
+        val amp = (level.coerceIn(0f, 1f) * Short.MAX_VALUE).toInt()
+        val durationSec = 3.0 // 3 seconds sweep
+        val startFreq = 20.0
+        val endFreq = 20000.0
+        
+        // Logarithmic sweep parameters
+        val l1 = kotlin.math.ln(startFreq)
+        val l2 = kotlin.math.ln(endFreq)
+        
+        var totalSamples = 0.0
+        var phase = 0.0
+        
+        while (isActive()) {
+            for (i in buffer.indices) {
+                val time = (totalSamples / sampleRate) % durationSec
+                
+                // Exponential frequency sweep
+                val currentFreq = kotlin.math.exp(l1 + (l2 - l1) * (time / durationSec))
+                phase += 2.0 * PI * currentFreq / sampleRate
+                if (phase > 2.0 * PI) phase -= 2.0 * PI
+                
+                val v = (sin(phase) * amp).toInt()
+                buffer[i] = v.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                totalSamples++
+            }
+            audioTrack?.write(buffer, 0, buffer.size)
+        }
+    }
+
     private fun isActive(): Boolean = playJob?.isActive ?: false
+
+    fun emitSinglePing(): Long {
+        stop()
+
+        val minBuf = AudioTrack.getMinBufferSize(
+            sampleRate,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        ).coerceAtLeast(2048)
+
+        audioTrack = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build()
+            )
+            .setBufferSizeInBytes(minBuf)
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .build()
+            
+        // 5ms burst of high amplitude click
+        val pulseLength = (sampleRate * 0.005).toInt()
+        val buffer = ShortArray(pulseLength)
+        for (i in buffer.indices) {
+            buffer[i] = (Short.MAX_VALUE * (1.0 - i.toDouble() / buffer.size)).toInt().toShort()
+        }
+        
+        audioTrack?.write(buffer, 0, buffer.size)
+        
+        val txTime = System.nanoTime()
+        audioTrack?.play()
+        
+        // Cleanup after play
+        scope.launch {
+            delay(1000)
+            try {
+                audioTrack?.stop()
+                audioTrack?.release()
+            } catch (_: Exception) {}
+            audioTrack = null
+        }
+        
+        return txTime
+    }
 }

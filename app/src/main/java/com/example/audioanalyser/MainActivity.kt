@@ -85,7 +85,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun DelayCalculatorPanel(modifier: Modifier = Modifier) {
+fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, modifier: Modifier = Modifier) {
     var distanceValue by rememberSaveable { mutableStateOf(10f) }
     var temperatureC by rememberSaveable { mutableStateOf(20f) }
     var isMeters by rememberSaveable { mutableStateOf(true) }
@@ -134,6 +134,37 @@ fun DelayCalculatorPanel(modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
             }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        var isMeasuring by remember { mutableStateOf(false) }
+        
+        Button(
+            onClick = {
+                isMeasuring = true
+                val txTime = generator.emitSinglePing()
+                analyzer.awaitNextTransient { rxTime ->
+                    val diffNanos = rxTime - txTime
+                    // Subtract roughly 40ms for OS audio routing latency (buffer inherent limits)
+                    val rawMs = diffNanos / 1_000_000.0
+                    val adjustedMs = (rawMs - 40.0).coerceAtLeast(0.0)
+                    
+                    // Update distance based on delay!
+                    val speedOfSoundMetres = 331.3 + (0.606 * temperatureC)
+                    val newDistanceMeters = (adjustedMs / 1000.0) * speedOfSoundMetres
+                    
+                    distanceValue = if (isMeters) {
+                        newDistanceMeters.toFloat()
+                    } else {
+                        (newDistanceMeters * 3.28084).toFloat()
+                    }
+                    isMeasuring = false
+                }
+            },
+            enabled = !isMeasuring,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isMeasuring) "Listening for ping..." else "Auto-Measure with Ping")
         }
     }
 }
@@ -761,6 +792,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
             if (isLandscape) {
                 LandscapeLayout(
+                    analyzer = analyzer,
                     dbLevel = dbLevel,
                     dbLevelA = dbLevelA,
                     dbLevelC = dbLevelC,
@@ -839,6 +871,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 )
             } else {
                 PortraitLayout(
+                    analyzer = analyzer,
                     dbLevel = dbLevel,
                     dbLevelA = dbLevelA,
                     dbLevelC = dbLevelC,
@@ -949,6 +982,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
 @Composable
 fun PortraitLayout(
+    analyzer: AudioAnalyzer,
     dbLevel: Float,
     dbLevelA: Float,
     dbLevelC: Float,
@@ -1004,6 +1038,7 @@ fun PortraitLayout(
         Spacer(modifier = Modifier.height(24.dp))
 
         VisualizerCard(
+            analyzer = analyzer,
             dbLevel = dbLevel,
             frequencies = frequencies,
             dominantFrequency = dominantFrequency,
@@ -1040,6 +1075,7 @@ fun PortraitLayout(
 
 @Composable
 fun LandscapeLayout(
+    analyzer: AudioAnalyzer,
     dbLevel: Float,
     dbLevelA: Float,
     dbLevelC: Float,
@@ -1097,6 +1133,7 @@ fun LandscapeLayout(
         Spacer(modifier = Modifier.width(16.dp))
 
         VisualizerCard(
+            analyzer = analyzer,
             dbLevel = dbLevel,
             frequencies = frequencies,
             dominantFrequency = dominantFrequency,
@@ -1258,6 +1295,7 @@ fun HistorySparkline(history: List<Float>, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VisualizerCard(
+    analyzer: AudioAnalyzer,
     dbLevel: Float,
     frequencies: FloatArray,
     dominantFrequency: Float,
@@ -1631,6 +1669,7 @@ fun VisualizerCard(
 
     if (showAnalyzerTools) {
         AnalyzerToolsSheet(
+            analyzer = analyzer,
             selectedOverlay = selectedOverlay,
             selectedTargetCurve = selectedTargetCurve,
             savedTargetCurves = savedTargetCurves,
@@ -1699,6 +1738,7 @@ fun VisualizerCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyzerToolsSheet(
+    analyzer: AudioAnalyzer,
     selectedOverlay: AnalyzerOverlayProfile,
     selectedTargetCurve: AnalyzerTargetCurveProfile,
     savedTargetCurves: List<SavedTargetCurvePreset>,
@@ -2046,7 +2086,7 @@ fun AnalyzerToolsSheet(
                     }
 
                     3 -> {
-                        DelayCalculatorPanel()
+                        DelayCalculatorPanel(analyzer = analyzer, generator = generator)
                     }
                     else -> {
                         Column(modifier = Modifier.fillMaxWidth()) {
