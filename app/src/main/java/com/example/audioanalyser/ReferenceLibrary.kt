@@ -229,6 +229,46 @@ val analyzerOverlayProfiles = listOf(
             AnalyzerRangeBand("Boxy", 250f, 500f, "Trim here if keys feel crowded.", cautionBandColor),
             AnalyzerRangeBand("Presence", 2000f, 5000f, "Adds articulation.", presenceBandColor)
         )
+    ),
+    AnalyzerOverlayProfile(
+        id = "horns",
+        label = "Horns",
+        description = "Trumpet, Sax, and Trombone. Shows the body, honk, and piercing zones.",
+        bands = listOf(
+            AnalyzerRangeBand("Body", 180f, 350f, "Warmth and weight.", bodyBandColor),
+            AnalyzerRangeBand("Honk", 600f, 1000f, "Can feel nasal if over-focused.", cautionBandColor),
+            AnalyzerRangeBand("Pierce", 2500f, 5000f, "Bite, but cuts heads off if too loud.", presenceBandColor)
+        )
+    ),
+    AnalyzerOverlayProfile(
+        id = "strings",
+        label = "Strings",
+        description = "Useful for Cellos, Violas, and Violins to remove rosin-scratch and boost bowing clarity.",
+        bands = listOf(
+            AnalyzerRangeBand("Warmth", 150f, 300f, "Cello & Viola body foundation.", bodyBandColor),
+            AnalyzerRangeBand("Scratch", 1500f, 3000f, "Harsh rosin/bow scraping.", cautionBandColor),
+            AnalyzerRangeBand("Sheen", 7000f, 10000f, "Gives strings a smooth lift.", airBandColor)
+        )
+    ),
+    AnalyzerOverlayProfile(
+        id = "toms",
+        label = "Toms",
+        description = "Rack and floor toms. Highlights low rumble, boxy ringing, and stick definition.",
+        bands = listOf(
+            AnalyzerRangeBand("Thump", 80f, 150f, "Low-end ringing sustain.", lowBandColor),
+            AnalyzerRangeBand("Cardboard", 300f, 600f, "Muddy and cloudy ringing.", cautionBandColor),
+            AnalyzerRangeBand("Slap", 3500f, 5500f, "Stick impact and snap.", presenceBandColor)
+        )
+    ),
+    AnalyzerOverlayProfile(
+        id = "upright_bass",
+        label = "Uprht Bass",
+        description = "Acoustic Double Bass. Good for managing unruly low frequencies and finding finger pluck.",
+        bands = listOf(
+            AnalyzerRangeBand("Sub/Rumble", 40f, 100f, "Can feedback easily on stages.", cautionBandColor),
+            AnalyzerRangeBand("Wood", 150f, 250f, "The actual woody tone of the body.", bodyBandColor),
+            AnalyzerRangeBand("Pluck", 1200f, 2500f, "The string snap and articulation.", presenceBandColor)
+        )
     )
 )
 
