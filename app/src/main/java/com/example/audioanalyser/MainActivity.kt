@@ -2944,6 +2944,11 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                                 whyItHelps = "The overlay narrows your attention to the zones that usually matter for that source instead of the whole spectrum."
                             )
                             GuideTipCard(
+                                title = "Choose Vocal Range First",
+                                action = "Use Lead Vocal for a broad check, Low Vox for lower-range singers, and High Vox for higher-range singers. Set HPF and body by the actual voice, not only the label.",
+                                whyItHelps = "Lower voices often carry fundamentals around 85-180 Hz, while higher voices often sit around 165-260 Hz. Mud, presence, and sibilance still overlap, so treat the overlay as a starting map."
+                            )
+                            GuideTipCard(
                                 title = "Clear Mud Before You Boost",
                                 action = "If a channel feels cloudy, work 200-400 Hz before reaching for top-end boosts.",
                                 whyItHelps = "Small low-mid cuts often create more clarity and more gain before feedback than adding highs."

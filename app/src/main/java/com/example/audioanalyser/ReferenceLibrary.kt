@@ -151,12 +151,41 @@ val analyzerOverlayProfiles = listOf(
     AnalyzerOverlayProfile(
         id = "lead_vocal",
         label = "Lead Vocal",
-        description = "Highlights the common warmth, mud, presence, and air zones used to seat a vocal over a band.",
+        description = "Broad vocal overlay for HPF, body, mud, presence, sibilance, and air. Use Low Vox or High Vox when the singer range is known.",
         bands = listOf(
-            AnalyzerRangeBand("Warmth", 120f, 250f, "Body and chest resonance.", bodyBandColor),
-            AnalyzerRangeBand("Mud", 250f, 400f, "Too much here clouds lyric clarity.", cautionBandColor),
-            AnalyzerRangeBand("Presence", 2000f, 4500f, "Helps the lyric cut through.", presenceBandColor),
-            AnalyzerRangeBand("Air", 8000f, 12000f, "Adds openness if the mic is dull.", airBandColor)
+            AnalyzerRangeBand("Rumble", 70f, 120f, "Set HPF above stage rumble without thinning the singer.", lowBandColor),
+            AnalyzerRangeBand("Body", 120f, 260f, "Fundamental weight and chest tone.", bodyBandColor),
+            AnalyzerRangeBand("Mud", 260f, 500f, "Too much here clouds lyric clarity.", cautionBandColor),
+            AnalyzerRangeBand("Presence", 2000f, 5000f, "Helps the lyric cut through.", presenceBandColor),
+            AnalyzerRangeBand("Sibilance", 5000f, 8000f, "Sharp S and T sounds often gather here.", cautionBandColor),
+            AnalyzerRangeBand("Air", 10000f, 14000f, "Adds openness if the mic is dull.", airBandColor)
+        )
+    ),
+    AnalyzerOverlayProfile(
+        id = "low_vocal",
+        label = "Low Vox",
+        description = "Lower-range vocal starting overlay, often useful for male, baritone, tenor, or deeper alto voices. Match it to the actual singer.",
+        bands = listOf(
+            AnalyzerRangeBand("Rumble", 50f, 90f, "HPF often starts around 70-100 Hz unless the voice thins.", lowBandColor),
+            AnalyzerRangeBand("Body", 90f, 180f, "Fundamental and chest weight for many lower voices.", bodyBandColor),
+            AnalyzerRangeBand("Warmth", 180f, 250f, "Useful fullness before it turns cloudy.", bodyBandColor),
+            AnalyzerRangeBand("Mud", 250f, 400f, "Proximity buildup can hide consonants.", cautionBandColor),
+            AnalyzerRangeBand("Presence", 2000f, 4500f, "Lyric intelligibility and forwardness.", presenceBandColor),
+            AnalyzerRangeBand("Sibilance", 4500f, 7000f, "Watch bite, esses, and mic harshness.", cautionBandColor),
+            AnalyzerRangeBand("Air", 10000f, 14000f, "Lift only if the vocal sounds dull.", airBandColor)
+        )
+    ),
+    AnalyzerOverlayProfile(
+        id = "high_vocal",
+        label = "High Vox",
+        description = "Higher-range vocal starting overlay, often useful for female, soprano, mezzo, or light tenor voices. Match it to the actual singer.",
+        bands = listOf(
+            AnalyzerRangeBand("Rumble", 80f, 140f, "HPF often starts around 100-140 Hz, lower if the tone gets thin.", lowBandColor),
+            AnalyzerRangeBand("Body", 165f, 260f, "Fundamental weight for many higher voices.", bodyBandColor),
+            AnalyzerRangeBand("Mud", 260f, 500f, "Low-mid buildup can make the vocal cloudy.", cautionBandColor),
+            AnalyzerRangeBand("Presence", 2500f, 5000f, "Consonants and lead-vocal focus.", presenceBandColor),
+            AnalyzerRangeBand("Sibilance", 5500f, 9000f, "Watch sharp esses before adding air.", cautionBandColor),
+            AnalyzerRangeBand("Air", 10000f, 16000f, "Adds openness after sibilance is controlled.", airBandColor)
         )
     ),
     AnalyzerOverlayProfile(
@@ -390,9 +419,9 @@ val analyzerTargetCurveProfiles = listOf(
         id = "lead_vocal_guide",
         label = "Lead Vox",
         badge = "Guide",
-        description = "A source guide for lead vocal channels with filtered lows, controlled mud, and a presence lift through the intelligibility band.",
-        useCase = "Helpful when comparing a live vocal against a common modern worship or pop vocal shape.",
-        caution = "This is a vocal shaping guide only; room acoustics, mic choice, and singer tone should override it.",
+        description = "A broad source guide for lead vocal channels with filtered lows, controlled mud, and a presence lift through the intelligibility band.",
+        useCase = "Helpful when comparing a live vocal against a common modern worship or pop vocal shape. Pair it with Low Vox or High Vox source overlays for range-specific EQ starting points.",
+        caution = "This is a vocal shaping guide only; choose the range-specific overlay by the singer's actual voice, mic, and room.",
         color = Color(0xFF283593),
         points = listOf(
             TargetCurvePoint(60f, -12f),
@@ -472,22 +501,22 @@ fun buildAnalyzerTargetCurveProfiles(savedCurves: List<SavedTargetCurvePreset>):
 
 val eqReferenceEntries = listOf(
     EqReferenceEntry(
-        title = "Male Vocal",
-        role = "Lead or solo singer",
-        highPass = "HPF around 80-100 Hz unless the voice is especially light.",
-        body = "Warmth and body usually sit around 120-250 Hz.",
-        presence = "Clarity around 2-4.5 kHz, air around 10-12 kHz if needed.",
-        watchOut = "Watch 250-400 Hz mud and 4.5-6 kHz harshness.",
-        startingMove = "HPF first, then a small presence lift only if the lyric is still getting buried."
+        title = "Male / Low Vocal",
+        role = "Lower-range lead or solo singer",
+        highPass = "Start HPF around 70-100 Hz, then raise it until rumble clears without thinning the chest tone.",
+        body = "Fundamental weight is often 85-180 Hz, with warmth extending through about 250 Hz.",
+        presence = "Lyric clarity usually sits around 2-4.5 kHz, with air around 10-14 kHz if needed.",
+        watchOut = "Watch 180-400 Hz proximity mud and 4.5-7 kHz bite or sibilance.",
+        startingMove = "Set HPF first, tame low-mid buildup, then add only a small presence lift if the lyric is still buried."
     ),
     EqReferenceEntry(
-        title = "Female Vocal",
-        role = "Lead or featured singer",
-        highPass = "HPF around 100-120 Hz for most live vocal mics.",
-        body = "Body often sits around 180-300 Hz.",
-        presence = "Presence around 3-5 kHz and air around 10-14 kHz.",
-        watchOut = "Watch 300-500 Hz buildup and 5-7 kHz sibilance.",
-        startingMove = "Start with subtraction in the low mids before boosting top end."
+        title = "Female / High Vocal",
+        role = "Higher-range lead or featured singer",
+        highPass = "Start HPF around 100-140 Hz, backing it down if the singer loses body.",
+        body = "Fundamental weight is often 165-260 Hz, with low-mid warmth reaching toward 350 Hz.",
+        presence = "Presence usually sits around 2.5-5 kHz, with air around 10-16 kHz after sibilance is controlled.",
+        watchOut = "Watch 250-500 Hz buildup and 5.5-9 kHz sibilance or mic harshness.",
+        startingMove = "Set HPF to the actual voice, subtract low-mid cloudiness, then control sibilance before boosting air."
     ),
     EqReferenceEntry(
         title = "Speech / Pastor",
