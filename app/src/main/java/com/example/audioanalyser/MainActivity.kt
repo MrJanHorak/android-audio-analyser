@@ -102,7 +102,7 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
         AutoSizeText(text = "Delay Calculator", style = MaterialTheme.typography.labelLarge)
-        Text(text = "Calculate speaker alignment times based on distance.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ToolHelperText(text = "Calculate speaker alignment times based on distance.", modifier = Modifier.padding(top = 4.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -593,6 +593,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val useTabletLayout = screenWidthDp >= 600 && screenHeightDp >= 600
+    val useExpandedTabletLayout = screenWidthDp >= 840
 
     // Load persisted calibration values (if any)
     val ctx = LocalContext.current
@@ -744,6 +748,51 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         }
     }
 
+    val onOverlayProfileSelected: (AnalyzerOverlayProfile) -> Unit = { selectedOverlayId = it.id }
+    val onUpsertSavedTargetCurve: (SavedTargetCurvePreset) -> Unit = { preset ->
+        val presetToStore = preset.markUsed()
+        val updatedPresets = sortSavedTargetCurvePresets(savedTargetCurves.filterNot { it.id == presetToStore.id } + presetToStore)
+        savedTargetCurves = updatedPresets
+        saveSavedTargetCurvePresets(ctx, updatedPresets)
+        selectedTargetCurveId = presetToStore.id
+    }
+    val onDeleteSavedTargetCurve: (String) -> Unit = { presetId ->
+        val updatedPresets = savedTargetCurves.filterNot { it.id == presetId }
+        savedTargetCurves = updatedPresets
+        saveSavedTargetCurvePresets(ctx, updatedPresets)
+        if (selectedTargetCurveId == presetId) {
+            selectedTargetCurveId = analyzerTargetCurveProfiles.first().id
+        }
+    }
+    val onCaptureSpectrumSnapshot: () -> Unit = {
+        spectrumSnapshot = SpectrumSnapshot(
+            frequencies = frequencies.copyOf(),
+            dominantFrequency = dominantFrequency,
+            dbLevel = dbLevel
+        )
+        snapshotCompareEnabled = true
+    }
+    val onClearSpectrumSnapshot: () -> Unit = {
+        spectrumSnapshot = null
+        snapshotCompareEnabled = false
+    }
+    val onStopLoggingAndExport: () -> Unit = {
+        val csvData = analyzer.stopLogging()
+        try {
+            val file = java.io.File(ctx.cacheDir, "decibel_log_${System.currentTimeMillis()}.csv")
+            file.writeText(csvData)
+            val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            ctx.startActivity(Intent.createChooser(intent, "Export Decibel Log"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     Scaffold(
         topBar = {
             Row(
@@ -814,7 +863,49 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 }
             }
 
-            if (isLandscape) {
+            if (useTabletLayout) {
+                TabletLayout(
+                    analyzer = analyzer,
+                    dbLevel = dbLevel,
+                    dbLevelA = dbLevelA,
+                    dbLevelC = dbLevelC,
+                    dbLevelZ = dbLevelZ,
+                    spectrogram = spectrogram,
+                    minDb = minDb,
+                    maxDb = maxDb,
+                    avgDb = avgDb,
+                    dbHistory = dbHistory,
+                    frequencies = frequencies,
+                    dominantFrequency = dominantFrequency,
+                    feedbackPeaks = feedbackPeaks,
+                    feedbackHuntEnabled = feedbackHuntEnabled,
+                    bigGraphModeEnabled = bigGraphModeEnabled,
+                    spectrumSnapshot = spectrumSnapshot,
+                    snapshotCompareEnabled = snapshotCompareEnabled,
+                    selectedOverlay = selectedOverlay,
+                    selectedTargetCurve = selectedTargetCurve,
+                    savedTargetCurves = savedTargetCurves,
+                    overlayProfiles = overlayProfiles,
+                    targetCurveProfiles = targetCurveProfiles,
+                    expanded = useExpandedTabletLayout,
+                    onOverlaySelected = onOverlayProfileSelected,
+                    onTargetCurveSelected = ::selectTargetCurve,
+                    onUpsertSavedTargetCurve = onUpsertSavedTargetCurve,
+                    onDeleteSavedTargetCurve = onDeleteSavedTargetCurve,
+                    onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
+                    onBigGraphModeEnabledChange = { bigGraphModeEnabled = it },
+                    onCaptureSnapshot = onCaptureSpectrumSnapshot,
+                    onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
+                    onClearSnapshot = onClearSpectrumSnapshot,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(if (useExpandedTabletLayout) 24.dp else 16.dp),
+                    generator = generator,
+                    isLogging = isLogging,
+                    onStartLogging = { analyzer.startLogging() },
+                    onStopLogging = onStopLoggingAndExport
+                )
+            } else if (isLandscape) {
                 LandscapeLayout(
                     analyzer = analyzer,
                     dbLevel = dbLevel,
@@ -838,60 +929,22 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     savedTargetCurves = savedTargetCurves,
                     overlayProfiles = overlayProfiles,
                     targetCurveProfiles = targetCurveProfiles,
-                    onOverlaySelected = { selectedOverlayId = it.id },
+                    onOverlaySelected = onOverlayProfileSelected,
                     onTargetCurveSelected = ::selectTargetCurve,
-                    onUpsertSavedTargetCurve = { preset ->
-                        val presetToStore = preset.markUsed()
-                        val updatedPresets = sortSavedTargetCurvePresets(savedTargetCurves.filterNot { it.id == presetToStore.id } + presetToStore)
-                        savedTargetCurves = updatedPresets
-                        saveSavedTargetCurvePresets(ctx, updatedPresets)
-                        selectedTargetCurveId = presetToStore.id
-                    },
-                    onDeleteSavedTargetCurve = { presetId ->
-                        val updatedPresets = savedTargetCurves.filterNot { it.id == presetId }
-                        savedTargetCurves = updatedPresets
-                        saveSavedTargetCurvePresets(ctx, updatedPresets)
-                        if (selectedTargetCurveId == presetId) {
-                            selectedTargetCurveId = analyzerTargetCurveProfiles.first().id
-                        }
-                    },
+                    onUpsertSavedTargetCurve = onUpsertSavedTargetCurve,
+                    onDeleteSavedTargetCurve = onDeleteSavedTargetCurve,
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onBigGraphModeEnabledChange = { bigGraphModeEnabled = it },
-                    onCaptureSnapshot = {
-                        spectrumSnapshot = SpectrumSnapshot(
-                            frequencies = frequencies.copyOf(),
-                            dominantFrequency = dominantFrequency,
-                            dbLevel = dbLevel
-                        )
-                        snapshotCompareEnabled = true
-                    },
+                    onCaptureSnapshot = onCaptureSpectrumSnapshot,
                     onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
-                    onClearSnapshot = {
-                        spectrumSnapshot = null
-                        snapshotCompareEnabled = false
-                    },
+                    onClearSnapshot = onClearSpectrumSnapshot,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
                     generator = generator,
                     isLogging = isLogging,
                     onStartLogging = { analyzer.startLogging() },
-                    onStopLogging = {
-                        val csvData = analyzer.stopLogging()
-                        try {
-                            val file = java.io.File(ctx.cacheDir, "decibel_log_${System.currentTimeMillis()}.csv")
-                            file.writeText(csvData)
-                            val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/csv"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(Intent.createChooser(intent, "Export Decibel Log"))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
+                    onStopLogging = onStopLoggingAndExport
                 )
             } else {
                 PortraitLayout(
@@ -917,60 +970,22 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     savedTargetCurves = savedTargetCurves,
                     overlayProfiles = overlayProfiles,
                     targetCurveProfiles = targetCurveProfiles,
-                    onOverlaySelected = { selectedOverlayId = it.id },
+                    onOverlaySelected = onOverlayProfileSelected,
                     onTargetCurveSelected = ::selectTargetCurve,
-                    onUpsertSavedTargetCurve = { preset ->
-                        val presetToStore = preset.markUsed()
-                        val updatedPresets = sortSavedTargetCurvePresets(savedTargetCurves.filterNot { it.id == presetToStore.id } + presetToStore)
-                        savedTargetCurves = updatedPresets
-                        saveSavedTargetCurvePresets(ctx, updatedPresets)
-                        selectedTargetCurveId = presetToStore.id
-                    },
-                    onDeleteSavedTargetCurve = { presetId ->
-                        val updatedPresets = savedTargetCurves.filterNot { it.id == presetId }
-                        savedTargetCurves = updatedPresets
-                        saveSavedTargetCurvePresets(ctx, updatedPresets)
-                        if (selectedTargetCurveId == presetId) {
-                            selectedTargetCurveId = analyzerTargetCurveProfiles.first().id
-                        }
-                    },
+                    onUpsertSavedTargetCurve = onUpsertSavedTargetCurve,
+                    onDeleteSavedTargetCurve = onDeleteSavedTargetCurve,
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onBigGraphModeEnabledChange = { bigGraphModeEnabled = it },
-                    onCaptureSnapshot = {
-                        spectrumSnapshot = SpectrumSnapshot(
-                            frequencies = frequencies.copyOf(),
-                            dominantFrequency = dominantFrequency,
-                            dbLevel = dbLevel
-                        )
-                        snapshotCompareEnabled = true
-                    },
+                    onCaptureSnapshot = onCaptureSpectrumSnapshot,
                     onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
-                    onClearSnapshot = {
-                        spectrumSnapshot = null
-                        snapshotCompareEnabled = false
-                    },
+                    onClearSnapshot = onClearSpectrumSnapshot,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
                     generator = generator,
                     isLogging = isLogging,
                     onStartLogging = { analyzer.startLogging() },
-                    onStopLogging = {
-                        val csvData = analyzer.stopLogging()
-                        try {
-                            val file = java.io.File(ctx.cacheDir, "decibel_log_${System.currentTimeMillis()}.csv")
-                            file.writeText(csvData)
-                            val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/csv"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            ctx.startActivity(Intent.createChooser(intent, "Export Decibel Log"))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
+                    onStopLogging = onStopLoggingAndExport
                 )
             }
         }
@@ -1188,6 +1203,208 @@ fun LandscapeLayout(
             modifier = Modifier
                 .weight(0.6f)
                 .fillMaxHeight()
+        )
+    }
+}
+
+@Composable
+fun TabletLayout(
+    analyzer: AudioAnalyzer,
+    dbLevel: Float,
+    dbLevelA: Float,
+    dbLevelC: Float,
+    dbLevelZ: Float,
+    spectrogram: List<FloatArray>,
+    minDb: Float,
+    maxDb: Float,
+    avgDb: Float,
+    dbHistory: List<Float>,
+    frequencies: FloatArray,
+    dominantFrequency: Float,
+    feedbackPeaks: List<FeedbackPeak>,
+    feedbackHuntEnabled: Boolean,
+    bigGraphModeEnabled: Boolean,
+    spectrumSnapshot: SpectrumSnapshot?,
+    snapshotCompareEnabled: Boolean,
+    selectedOverlay: AnalyzerOverlayProfile,
+    selectedTargetCurve: AnalyzerTargetCurveProfile,
+    savedTargetCurves: List<SavedTargetCurvePreset>,
+    overlayProfiles: List<AnalyzerOverlayProfile>,
+    targetCurveProfiles: List<AnalyzerTargetCurveProfile>,
+    expanded: Boolean,
+    onOverlaySelected: (AnalyzerOverlayProfile) -> Unit,
+    onTargetCurveSelected: (AnalyzerTargetCurveProfile) -> Unit,
+    onUpsertSavedTargetCurve: (SavedTargetCurvePreset) -> Unit,
+    onDeleteSavedTargetCurve: (String) -> Unit,
+    onFeedbackHuntEnabledChange: (Boolean) -> Unit,
+    onBigGraphModeEnabledChange: (Boolean) -> Unit,
+    onCaptureSnapshot: () -> Unit,
+    onSnapshotCompareEnabledChange: (Boolean) -> Unit,
+    onClearSnapshot: () -> Unit,
+    modifier: Modifier = Modifier,
+    generator: SignalGenerator,
+    isLogging: Boolean,
+    onStartLogging: () -> Unit,
+    onStopLogging: () -> Unit
+) {
+    val sideWeight = if (expanded) 0.34f else 0.42f
+    val graphWeight = 1f - sideWeight
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(sideWeight)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            DbMeterCard(
+                dbLevel = dbLevel,
+                dbLevelA = dbLevelA,
+                dbLevelC = dbLevelC,
+                dbLevelZ = dbLevelZ,
+                minDb = minDb,
+                maxDb = maxDb,
+                avgDb = avgDb,
+                dbHistory = dbHistory,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.62f)
+            )
+
+            AnalyzerTabletSummaryCard(
+                selectedOverlay = selectedOverlay,
+                selectedTargetCurve = selectedTargetCurve,
+                feedbackHuntEnabled = feedbackHuntEnabled,
+                spectrumSnapshot = spectrumSnapshot,
+                snapshotCompareEnabled = snapshotCompareEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.38f)
+            )
+        }
+
+        VisualizerCard(
+            analyzer = analyzer,
+            dbLevel = dbLevel,
+            frequencies = frequencies,
+            dominantFrequency = dominantFrequency,
+            feedbackPeaks = feedbackPeaks,
+            feedbackHuntEnabled = feedbackHuntEnabled,
+            bigGraphModeEnabled = bigGraphModeEnabled,
+            spectrumSnapshot = spectrumSnapshot,
+            snapshotCompareEnabled = snapshotCompareEnabled,
+            selectedOverlay = selectedOverlay,
+            selectedTargetCurve = selectedTargetCurve,
+            savedTargetCurves = savedTargetCurves,
+            overlayProfiles = overlayProfiles,
+            targetCurveProfiles = targetCurveProfiles,
+            onOverlaySelected = onOverlaySelected,
+            onTargetCurveSelected = onTargetCurveSelected,
+            onUpsertSavedTargetCurve = onUpsertSavedTargetCurve,
+            onDeleteSavedTargetCurve = onDeleteSavedTargetCurve,
+            onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
+            onBigGraphModeEnabledChange = onBigGraphModeEnabledChange,
+            onCaptureSnapshot = onCaptureSnapshot,
+            onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
+            onClearSnapshot = onClearSnapshot,
+            generator = generator,
+            spectrogram = spectrogram,
+            isLogging = isLogging,
+            onStartLogging = onStartLogging,
+            onStopLogging = onStopLogging,
+            modifier = Modifier
+                .weight(graphWeight)
+                .fillMaxHeight()
+        )
+    }
+}
+
+@Composable
+fun AnalyzerTabletSummaryCard(
+    selectedOverlay: AnalyzerOverlayProfile,
+    selectedTargetCurve: AnalyzerTargetCurveProfile,
+    feedbackHuntEnabled: Boolean,
+    spectrumSnapshot: SpectrumSnapshot?,
+    snapshotCompareEnabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Session guide",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            ToolHelperText(
+                text = "Active source, room target, and capture status stay visible on larger screens.",
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            TabletSummaryItem(
+                label = "Source",
+                value = selectedOverlay.label,
+                detail = overlayBandSummary(selectedOverlay),
+                modifier = Modifier.padding(top = 16.dp)
+            )
+            TabletSummaryItem(
+                label = "Target",
+                value = if (selectedTargetCurve.isEnabled) selectedTargetCurve.label else "Off",
+                detail = if (selectedTargetCurve.isEnabled) selectedTargetCurve.useCase else "No room curve is being drawn.",
+                modifier = Modifier.padding(top = 14.dp)
+            )
+            TabletSummaryItem(
+                label = "Snapshot",
+                value = when {
+                    spectrumSnapshot == null -> "None"
+                    snapshotCompareEnabled -> "Compare on"
+                    else -> "Saved"
+                },
+                detail = spectrumSnapshot?.let { snapshot ->
+                    "Reference captured at ${formatFrequencyLabel(snapshot.dominantFrequency)}."
+                } ?: "Capture a reference when you want an A/B view.",
+                modifier = Modifier.padding(top = 14.dp)
+            )
+            TabletSummaryItem(
+                label = "Feedback",
+                value = if (feedbackHuntEnabled) "Hunt on" else "Hunt off",
+                detail = if (feedbackHuntEnabled) "Narrow repeated peaks are marked on the graph." else "Enable feedback hunt from Tools when ringing starts.",
+                modifier = Modifier.padding(top = 14.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TabletSummaryItem(
+    label: String,
+    value: String,
+    detail: String,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = label.uppercase(Locale.getDefault()),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+        ToolHelperText(
+            text = detail,
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }
@@ -1778,6 +1995,122 @@ fun VisualizerCard(
     }
 }
 
+@Composable
+fun ToolHelperText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+        color = color,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun ToolToggleRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            ToolHelperText(
+                text = description,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+fun overlayBandSummary(profile: AnalyzerOverlayProfile, maxBands: Int = 4): String {
+    if (profile.bands.isEmpty()) {
+        return profile.description
+    }
+
+    val summary = profile.bands.take(maxBands).joinToString(" · ") { band ->
+        "${band.label} ${formatFrequencyRange(band.startHz, band.endHz)}"
+    }
+    val hiddenCount = profile.bands.size - maxBands
+    return if (hiddenCount > 0) "$summary · +$hiddenCount more in Info" else summary
+}
+
+@Composable
+fun FocusOverlayGuide(selectedOverlay: AnalyzerOverlayProfile, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = selectedOverlay.label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            ToolHelperText(
+                text = selectedOverlay.description,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            if (selectedOverlay.bands.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    selectedOverlay.bands.forEach { band ->
+                        OverlayBandToken(band = band)
+                    }
+                }
+                Text(
+                    text = "Detailed ranges and mixing notes are in Info.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun OverlayBandToken(band: AnalyzerRangeBand) {
+    Surface(
+        color = band.color.copy(alpha = 0.16f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text = "${band.label} ${formatFrequencyRange(band.startHz, band.endHz)}",
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyzerToolsSheet(
@@ -1833,10 +2166,8 @@ fun AnalyzerToolsSheet(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
+            ToolHelperText(
                 text = "Less-used controls and explanations live here so the spectrum stays readable on stage or at FOH.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
             )
 
@@ -1869,81 +2200,35 @@ fun AnalyzerToolsSheet(
                                 )
                             }
                         }
-                        Text(
-                            text = selectedOverlay.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 10.dp)
+                        FocusOverlayGuide(
+                            selectedOverlay = selectedOverlay,
+                            modifier = Modifier.padding(top = 12.dp)
                         )
-                        if (selectedOverlay.bands.isNotEmpty()) {
-                            selectedOverlay.bands.forEach { band ->
-                                Text(
-                                    text = "${band.label}: ${formatFrequencyRange(band.startHz, band.endHz)} - ${band.note}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(top = 6.dp)
-                                )
-                            }
-                        }
 
                         // Signal generator controls
                         GeneratorPanel(generator = generator)
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Feedback hunt",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Shows repeated narrow peaks and suggested cut frequencies.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = feedbackHuntEnabled,
-                                onCheckedChange = onFeedbackHuntEnabledChange
-                            )
-                        }
+                        ToolToggleRow(
+                            title = "Feedback hunt",
+                            description = "Shows repeated narrow peaks and suggested cut frequencies.",
+                            checked = feedbackHuntEnabled,
+                            onCheckedChange = onFeedbackHuntEnabledChange,
+                            modifier = Modifier.padding(top = 20.dp)
+                        )
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Waterfall (spectrogram)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Show time-based waterfall view of the spectrum.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = showWaterfall,
-                                onCheckedChange = onShowWaterfallChange
-                            )
-                        }
+                        ToolToggleRow(
+                            title = "Waterfall (spectrogram)",
+                            description = "Show a time-based waterfall view of the spectrum.",
+                            checked = showWaterfall,
+                            onCheckedChange = onShowWaterfallChange,
+                            modifier = Modifier.padding(top = 14.dp)
+                        )
 
                         // Waterfall settings: percentiles and gamma
                         Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                             Text(text = "Waterfall settings", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(text = "Min percentile: ${ (waterfallMinPercentile * 100).roundToInt() }%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ToolHelperText(text = "Min percentile: ${ (waterfallMinPercentile * 100).roundToInt() }%")
                             Slider(
                                 value = waterfallMinPercentile,
                                 onValueChange = { v ->
@@ -1953,7 +2238,7 @@ fun AnalyzerToolsSheet(
                                 valueRange = 0f..0.49f
                             )
 
-                            Text(text = "Max percentile: ${ (waterfallMaxPercentile * 100).roundToInt() }%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ToolHelperText(text = "Max percentile: ${ (waterfallMaxPercentile * 100).roundToInt() }%")
                             Slider(
                                 value = waterfallMaxPercentile,
                                 onValueChange = { v ->
@@ -1963,7 +2248,7 @@ fun AnalyzerToolsSheet(
                                 valueRange = 0.51f..1f
                             )
 
-                            Text(text = "Gamma: ${"%.2f".format(Locale.getDefault(), waterfallGamma)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ToolHelperText(text = "Gamma: ${"%.2f".format(Locale.getDefault(), waterfallGamma)}")
                             Slider(
                                 value = waterfallGamma,
                                 onValueChange = { v -> onWaterfallGammaChange(v.coerceIn(0.25f, 2.0f)) },
@@ -1991,30 +2276,13 @@ fun AnalyzerToolsSheet(
                             }
                         }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Big graph mode",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Keeps the live screen focused on the graph, dominant frequency, and marker overlays.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = bigGraphModeEnabled,
-                                onCheckedChange = onBigGraphModeEnabledChange
-                            )
-                        }
+                        ToolToggleRow(
+                            title = "Big graph mode",
+                            description = "Keeps the live screen focused on the graph, dominant frequency, and marker overlays.",
+                            checked = bigGraphModeEnabled,
+                            onCheckedChange = onBigGraphModeEnabledChange,
+                            modifier = Modifier.padding(top = 18.dp)
+                        )
                     }
 
                     1 -> {
@@ -2042,20 +2310,18 @@ fun AnalyzerToolsSheet(
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(top = 10.dp)
                             )
-                            Text(
+                            ToolHelperText(
                                 text = selectedTargetCurve.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
-                            Text(
+                            ToolHelperText(
                                 text = "Best for: ${selectedTargetCurve.useCase}",
-                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
-                            Text(
+                            ToolHelperText(
                                 text = "Caution: ${selectedTargetCurve.caution}",
-                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -2114,7 +2380,7 @@ fun AnalyzerToolsSheet(
                                 }
                             }
                         }
-                        Text(
+                        ToolHelperText(
                             text = spectrumSnapshot?.let { snapshot ->
                                 if (snapshotCompareEnabled) {
                                     "Snapshot compare is active. Cyan line shows the saved reference over the live bars."
@@ -2122,8 +2388,6 @@ fun AnalyzerToolsSheet(
                                     "Saved snapshot at ${formatFrequencyLabel(snapshot.dominantFrequency)} and ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}."
                                 }
                             } ?: "No snapshot saved yet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 12.dp)
                         )
                     }
@@ -2139,10 +2403,9 @@ fun AnalyzerToolsSheet(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
+                            ToolHelperText(
                                 "Continuously logs timestamp, dB(Z), dB(A), dB(C), and the dominant frequency to memory over a long session, which you can export as a CSV later.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             
