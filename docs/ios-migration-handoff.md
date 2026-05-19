@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a richer live analyzer UI with shared feedback-cut suggestions, live level history, a compact spectrum-history waterfall, spectrum snapshot compare, CSV logging/export, configurable feedback markers, versioned JSON analyzer sample export, and dedicated waterfall-session export.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, shared feedback presentation, shared target-curve helpers, shared formatting rules, and iOS now renders a richer live analyzer UI with spectrum snapshot compare, CSV logging/export, versioned JSON analyzer sample export, dedicated waterfall-session export, and a Markdown session report.
 
 ## What landed in this phase
 
@@ -69,6 +69,11 @@
   - a dedicated waterfall-session JSON export on iOS with per-row timestamps and full-precision normalized waterfall rows
   - a shared `TargetCurveHelpers.kt` file for default target-curve settings, saved-target-curve display/description helpers, and normalized saved target-curve point generation
   - Android app call sites updated to consume the shared target-curve helpers instead of keeping that pure logic app-side
+- Added the final non-blocked helper/export slice with:
+  - a shared `AnalyzerTextFormatter` in `:shared` for deterministic frequency, dB, and delta formatting across Android and iOS
+  - Android wrappers updated to delegate formatting through the shared formatter
+  - iOS label rendering updated to use the shared formatter (with iOS-specific `--` handling for missing frequencies)
+  - a Markdown session report export on iOS for human-readable sharing of live metrics, feedback suggestions, snapshot state, and waterfall-session availability
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
   - `./scripts/build-ios-shell.sh`
@@ -108,8 +113,8 @@ Owns the first pure helpers that can compile for Android, JVM, and iOS.
 2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
 3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
 4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Start extracting any remaining non-UI helpers such as formatting seams and comparison helpers.
-6. Revisit larger shared analyzer-state moves only after the concurrency design is agreed.
+5. Revisit larger shared analyzer-state moves only after the concurrency design is agreed.
+6. If needed later, design the shared-state abstractions/tests before moving `SpectrogramBuffer` or other buffer-like analyzer state.
 
 ## Guardrails for future sessions
 

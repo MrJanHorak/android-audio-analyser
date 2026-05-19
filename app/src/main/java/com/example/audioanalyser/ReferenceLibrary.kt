@@ -1,6 +1,7 @@
 package com.example.audioanalyser
 
 import androidx.compose.ui.graphics.Color
+import com.example.audioanalyser.shared.AnalyzerTextFormatter
 import com.example.audioanalyser.shared.CUSTOM_TARGET_CURVE_ID_PREFIX
 import com.example.audioanalyser.shared.buildCustomTargetCurvePoints
 import com.example.audioanalyser.shared.buildSavedTargetCurveDescription
@@ -563,13 +564,11 @@ val eqReferenceEntries = listOf(
     )
 )
 
-fun formatFrequencyLabel(frequencyHz: Float): String = when {
-    frequencyHz >= 1000f -> String.format(Locale.getDefault(), "%.1f kHz", frequencyHz / 1000f)
-    else -> String.format(Locale.getDefault(), "%.0f Hz", frequencyHz)
-}
+fun formatFrequencyLabel(frequencyHz: Float): String =
+    AnalyzerTextFormatter.formatFrequencyLabel(frequencyHz)
 
 fun formatFrequencyRange(startHz: Float, endHz: Float): String =
-    "${formatFrequencyLabel(startHz)} - ${formatFrequencyLabel(endHz)}"
+    AnalyzerTextFormatter.formatFrequencyRange(startHz, endHz)
 
 fun formatRelativeCurveLevel(relativeDb: Float): String =
-    String.format(Locale.getDefault(), "%+.1f dB", relativeDb)
+    AnalyzerTextFormatter.formatRelativeCurveLevel(relativeDb)

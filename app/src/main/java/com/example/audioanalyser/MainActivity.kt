@@ -59,6 +59,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.rememberCoroutineScope
+import com.example.audioanalyser.shared.AnalyzerTextFormatter
 import com.example.audioanalyser.shared.CustomTargetCurveSettings
 import com.example.audioanalyser.shared.defaultCustomTargetCurveSettings
 import com.example.audioanalyser.shared.displayName
@@ -3037,13 +3038,11 @@ fun feedbackPeakLabel(peak: FeedbackPeak): String = when (FeedbackPeakPresentati
     else -> "Watch"
 }
 
-fun formatSignedFrequencyDelta(deltaHz: Float): String = when {
-    kotlin.math.abs(deltaHz) >= 1000f -> String.format(Locale.getDefault(), "%+.1f kHz", deltaHz / 1000f)
-    else -> String.format(Locale.getDefault(), "%+.0f Hz", deltaHz)
-}
+fun formatSignedFrequencyDelta(deltaHz: Float): String =
+    AnalyzerTextFormatter.formatSignedFrequencyDelta(deltaHz)
 
 fun formatSignedDbDelta(deltaDb: Float): String =
-    String.format(Locale.getDefault(), "%+.1f dB", deltaDb)
+    AnalyzerTextFormatter.formatSignedDbDelta(deltaDb)
 
 @Composable
 fun SettingsDialog(

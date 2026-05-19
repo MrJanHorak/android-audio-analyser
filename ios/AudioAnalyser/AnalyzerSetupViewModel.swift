@@ -58,6 +58,11 @@ struct ExportedWaterfallSample {
     let rowCount: Int
 }
 
+struct ExportedAnalyzerReport {
+    let fileURL: URL
+    let exportedAt: Date
+}
+
 struct LiveFeedbackSuggestion: Identifiable, Equatable {
     let frequencyHz: Float
     let suggestedCutHz: Float
@@ -98,9 +103,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var exportedAnalyzerLog: ExportedAnalyzerLog?
     @Published private(set) var exportedAnalyzerSample: ExportedAnalyzerSample?
     @Published private(set) var exportedWaterfallSample: ExportedWaterfallSample?
+    @Published private(set) var exportedAnalyzerReport: ExportedAnalyzerReport?
     @Published private(set) var logStatusMessage: String?
     @Published private(set) var analyzerSampleStatusMessage: String?
     @Published private(set) var waterfallExportStatusMessage: String?
+    @Published private(set) var analyzerReportStatusMessage: String?
     @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
 
@@ -149,9 +156,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
         exportedAnalyzerLog = nil
         exportedAnalyzerSample = nil
         exportedWaterfallSample = nil
+        exportedAnalyzerReport = nil
         logStatusMessage = nil
         analyzerSampleStatusMessage = nil
         waterfallExportStatusMessage = nil
+        analyzerReportStatusMessage = nil
         bindCaptureCallbacks()
         refreshSetup()
     }
@@ -283,6 +292,18 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
 
         return "Start live capture to collect a waterfall session you can export for external analysis."
+    }
+
+    var isAnalyzerReportDisabled: Bool {
+        liveAnalyzerSnapshot == nil && savedSpectrumSnapshot == nil && savedWaterfallSession == nil
+    }
+
+    var analyzerReportStatusText: String {
+        if let analyzerReportStatusMessage {
+            return analyzerReportStatusMessage
+        }
+
+        return "Prepare a Markdown session report with human-readable analyzer metrics, feedback suggestions, snapshot status, and waterfall-session availability."
     }
 
     func captureSpectrumSnapshot() {
@@ -458,6 +479,37 @@ final class AnalyzerSetupViewModel: ObservableObject {
         } catch {
             exportedWaterfallSample = nil
             waterfallExportStatusMessage = "Couldn't prepare the waterfall export: \(error.localizedDescription)"
+        }
+    }
+
+    func prepareAnalyzerReport(
+        feedbackMarkersEnabled: Bool,
+        feedbackDisplayCount: Int
+    ) {
+        guard !isAnalyzerReportDisabled else {
+            analyzerReportStatusMessage = "Capture live analyzer data or save a session artifact before preparing a report."
+            return
+        }
+
+        let exportDate = Date()
+        let markerLimit = max(1, feedbackDisplayCount)
+        let reportMarkdown = buildAnalyzerReportMarkdown(
+            exportDate: exportDate,
+            feedbackMarkersEnabled: feedbackMarkersEnabled,
+            feedbackDisplayCount: markerLimit
+        )
+        let exportURL = makeAnalyzerReportExportUrl()
+
+        do {
+            try reportMarkdown.write(to: exportURL, atomically: true, encoding: .utf8)
+            exportedAnalyzerReport = ExportedAnalyzerReport(
+                fileURL: exportURL,
+                exportedAt: exportDate
+            )
+            analyzerReportStatusMessage = "Markdown session report ready: \(exportURL.lastPathComponent)"
+        } catch {
+            exportedAnalyzerReport = nil
+            analyzerReportStatusMessage = "Couldn't prepare the session report: \(error.localizedDescription)"
         }
     }
 
@@ -1075,10 +1127,89 @@ final class AnalyzerSetupViewModel: ObservableObject {
         return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
     }
 
+    private func makeAnalyzerReportExportUrl() -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970 * 1_000)
+        let filename = "audio-analyser-session-report-\(timestamp).md"
+        return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+    }
+
     private func normalizeSpectrumMagnitude(_ magnitude: Float) -> Float {
         let magnitudeDb = 20.0 * log10(max(Double(magnitude), 1e-9))
         let normalized = Float((magnitudeDb + 80.0) / 80.0)
         return normalized.clampedToUnit()
+    }
+
+    private func buildAnalyzerReportMarkdown(
+        exportDate: Date,
+        feedbackMarkersEnabled: Bool,
+        feedbackDisplayCount: Int
+    ) -> String {
+        var lines = [
+            "# AudioAnalyser session report",
+            "",
+            "- Generated: \(captureDateString(exportDate))",
+            "- Feedback markers: \(feedbackMarkersEnabled ? "Enabled" : "Hidden")",
+            "- Feedback focus: Top \(feedbackDisplayCount)"
+        ]
+
+        if let liveAnalyzerSnapshot {
+            lines += [
+                "",
+                "## Live analyzer",
+                "- Level: \(decibelString(liveAnalyzerSnapshot.zLevelDb))",
+                "- A-weighted: \(decibelString(liveAnalyzerSnapshot.aLevelDb, unitSuffix: "dB"))",
+                "- C-weighted: \(decibelString(liveAnalyzerSnapshot.cLevelDb, unitSuffix: "dB"))",
+                "- Dominant frequency: \(frequencyString(liveAnalyzerSnapshot.dominantFrequencyHz))",
+                "- Suggested cut: \(frequencyString(liveAnalyzerSnapshot.suggestedCutFrequencyHz))",
+                "- Sample rate: \(Int(liveAnalyzerSnapshot.sampleRateHz)) Hz",
+                "- Frame length: \(liveAnalyzerSnapshot.frameLength) samples",
+                "- Channels: \(liveAnalyzerSnapshot.channelCount)"
+            ]
+
+            let visibleSuggestions = Array(liveAnalyzerSnapshot.feedbackSuggestions.prefix(feedbackDisplayCount))
+            lines += [
+                "",
+                "## Feedback suggestions"
+            ]
+            if visibleSuggestions.isEmpty {
+                lines += ["- No stable feedback suggestions were visible when the report was generated."]
+            } else {
+                lines += visibleSuggestions.map { suggestion in
+                    "- \(frequencyString(suggestion.frequencyHz)) -> Cut \(frequencyString(suggestion.suggestedCutHz)) (\(feedbackTierTitle(for: suggestion.stabilityKey)), hold \(suggestion.holdFrames), level \(roundForExport(suggestion.normalizedLevel, places: 3)))"
+                }
+            }
+        } else {
+            lines += [
+                "",
+                "## Live analyzer",
+                "- No live analyzer snapshot was available when the report was generated."
+            ]
+        }
+
+        if let savedSpectrumSnapshot {
+            lines += [
+                "",
+                "## Saved spectrum snapshot",
+                "- Captured: \(captureDateString(savedSpectrumSnapshot.capturedAt))",
+                "- Dominant frequency: \(frequencyString(savedSpectrumSnapshot.dominantFrequencyHz))",
+                "- Level: \(decibelString(savedSpectrumSnapshot.zLevelDb))",
+                "- Compare ready: \(isSavedSpectrumSnapshotComparable ? "Yes" : "No")"
+            ]
+        }
+
+        if let savedWaterfallSession {
+            lines += [
+                "",
+                "## Saved waterfall session",
+                "- Captured: \(captureDateString(savedWaterfallSession.capturedAt))",
+                "- Rows: \(savedWaterfallSession.rows.count)",
+                "- Columns: \(savedWaterfallSession.rows.first?.count ?? 0)",
+                "- Sample rate: \(Int(savedWaterfallSession.sampleRateHz)) Hz",
+                "- Frame length: \(savedWaterfallSession.frameLength) samples"
+            ]
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     private func frequencyString(_ value: Float) -> String {
@@ -1086,11 +1217,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
             return "--"
         }
 
-        return String(format: "%.0f Hz", value)
+        return AnalyzerTextFormatter.shared.formatFrequencyLabel(frequencyHz: value)
     }
 
-    private func decibelString(_ value: Float) -> String {
-        String(format: "%.1f dB(Z)", value)
+    private func decibelString(_ value: Float, unitSuffix: String = "dB(Z)") -> String {
+        let formattedValue = AnalyzerTextFormatter.shared.formatDecibelValue(valueDb: value)
+        return formattedValue == "--" ? "--" : "\(formattedValue) \(unitSuffix)"
     }
 
     private func captureDateString(_ date: Date) -> String {
@@ -1098,6 +1230,17 @@ final class AnalyzerSetupViewModel: ObservableObject {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func feedbackTierTitle(for stabilityKey: String) -> String {
+        switch stabilityKey {
+        case "stable":
+            return "Stable"
+        case "building":
+            return "Building"
+        default:
+            return "Watch"
+        }
     }
 
     private func roundForExport(_ value: Float, places: Int) -> Double {

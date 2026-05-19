@@ -218,6 +218,44 @@ struct ContentView: View {
                                     .monospacedDigit()
                                 }
                             }
+
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Session report")
+                                    .font(.headline)
+
+                                HStack(spacing: 10) {
+                                    Button("Prepare Markdown report") {
+                                        setupViewModel.prepareAnalyzerReport(
+                                            feedbackMarkersEnabled: feedbackMarkersEnabled,
+                                            feedbackDisplayCount: feedbackDisplayCount
+                                        )
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(setupViewModel.isAnalyzerReportDisabled)
+
+                                    if let exportedAnalyzerReport = setupViewModel.exportedAnalyzerReport {
+                                        ShareLink(item: exportedAnalyzerReport.fileURL) {
+                                            Label("Share report", systemImage: "square.and.arrow.up")
+                                        }
+                                        .buttonStyle(.bordered)
+                                    }
+                                }
+
+                                Text(setupViewModel.analyzerReportStatusText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+
+                                if let exportedAnalyzerReport = setupViewModel.exportedAnalyzerReport {
+                                    Text(
+                                        "Prepared session report on \(exportedAnalyzerReport.exportedAt.formatted(date: .abbreviated, time: .shortened))."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -277,7 +315,7 @@ struct ContentView: View {
                             )
                             StatusRow(
                                 title: "Analyzer tools",
-                                detail: "iOS can save live spectrum snapshots, compare them against matching live input, export CSV logs, prepare JSON analyzer samples, and export dedicated waterfall sessions."
+                                detail: "iOS can save live spectrum snapshots, compare them against matching live input, export CSV logs, prepare JSON artifacts, export waterfall sessions, and share a Markdown session report."
                             )
                             StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
                         }
@@ -341,7 +379,7 @@ private struct LevelStatChip: View {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(String(format: "%.1f dB", value))
+            Text(sharedDecibelLabel(value))
                 .font(.headline.weight(.semibold))
                 .monospacedDigit()
         }
@@ -435,15 +473,11 @@ private struct LiveAnalyzerMetricsView: View {
     }
 
     private func decibelString(_ value: Float) -> String {
-        String(format: "%.1f dB", value)
+        sharedDecibelLabel(value)
     }
 
     private func frequencyString(_ value: Float) -> String {
-        guard value > 0 else {
-            return "--"
-        }
-
-        return String(format: "%.0f Hz", value)
+        sharedFrequencyLabel(value)
     }
 }
 
@@ -638,9 +672,9 @@ private struct FeedbackFocusSection: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .center) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(String(format: "%.0f Hz", primarySuggestion.frequencyHz))
+                            Text(sharedFrequencyLabel(primarySuggestion.frequencyHz))
                                 .font(.title3.weight(.semibold))
-                            Text(String(format: "Cut %.0f Hz", primarySuggestion.suggestedCutHz))
+                            Text("Cut \(sharedFrequencyLabel(primarySuggestion.suggestedCutHz))")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -724,12 +758,12 @@ private struct FeedbackSuggestionRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(String(format: "%.0f Hz", suggestion.frequencyHz))
+                    Text(sharedFrequencyLabel(suggestion.frequencyHz))
                         .font(.headline)
                     FeedbackTierBadge(stabilityKey: suggestion.stabilityKey)
                 }
                 Spacer()
-                Text(String(format: "Cut %.0f Hz", suggestion.suggestedCutHz))
+                Text("Cut \(sharedFrequencyLabel(suggestion.suggestedCutHz))")
                     .font(.subheadline.weight(.semibold))
             }
 
@@ -875,12 +909,29 @@ private func feedbackFocusDetail(
 
     switch suggestion.stabilityKey {
     case "stable":
-        return "This resonance is holding consistently. Cut near \(Int(suggestion.suggestedCutHz.rounded())) Hz first and verify the live bars settle. \(markerDetail)"
+        return "This resonance is holding consistently. Cut near \(sharedFrequencyLabel(suggestion.suggestedCutHz)) first and verify the live bars settle. \(markerDetail)"
     case "building":
-        return "This hotspot is strengthening over consecutive frames. Keep an eye on \(Int(suggestion.frequencyHz.rounded())) Hz and be ready to trim around \(Int(suggestion.suggestedCutHz.rounded())) Hz. \(markerDetail)"
+        return "This hotspot is strengthening over consecutive frames. Keep an eye on \(sharedFrequencyLabel(suggestion.frequencyHz)) and be ready to trim around \(sharedFrequencyLabel(suggestion.suggestedCutHz)). \(markerDetail)"
     default:
-        return "A possible feedback hotspot is emerging around \(Int(suggestion.frequencyHz.rounded())) Hz. Watch for it to build before making a deeper cut. \(markerDetail)"
+        return "A possible feedback hotspot is emerging around \(sharedFrequencyLabel(suggestion.frequencyHz)). Watch for it to build before making a deeper cut. \(markerDetail)"
     }
+}
+
+private func sharedFrequencyLabel(_ value: Float) -> String {
+    guard value > 0 else {
+        return "--"
+    }
+
+    return AnalyzerTextFormatter.shared.formatFrequencyLabel(frequencyHz: value)
+}
+
+private func sharedDecibelLabel(_ value: Float, unitSuffix: String = "dB") -> String {
+    let numericValue = AnalyzerTextFormatter.shared.formatDecibelValue(valueDb: value)
+    guard numericValue != "--" else {
+        return "--"
+    }
+
+    return "\(numericValue) \(unitSuffix)"
 }
 
 #Preview {

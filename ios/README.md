@@ -28,7 +28,8 @@ open ios/AudioAnalyser.xcodeproj
 - iOS can now capture a live spectrum snapshot, compare it against matching live input, and prepare/share CSV decibel logs from the analyzer session.
 - iOS now adds richer analyzer tools: shared feedback-stability tiers, configurable spectrum feedback markers, and versioned JSON analyzer sample export.
 - iOS can now also export a dedicated waterfall-session JSON with per-row timestamps and full-precision waterfall rows for external analysis.
+- Shared label formatting now comes from Kotlin so Android and iOS use the same frequency/delta formatting rules, and iOS can now share a human-readable Markdown session report.
 
 ## Next step
 
-Continue extracting the remaining pure non-UI analyzer helpers into shared code and leave larger shared analyzer-state moves for a dedicated concurrency design pass.
+The remaining substantial migration item is the shared analyzer-state/concurrency design needed before moving `SpectrogramBuffer` or similar stateful buffers into `:shared`.
