@@ -12,7 +12,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("iOS port in progress")
                             .font(.largeTitle.weight(.bold))
-                        Text("This SwiftUI shell now links the shared Kotlin core, handles microphone setup, and can start live AVAudioEngine capture.")
+                        Text("This SwiftUI shell now links the shared Kotlin core, handles microphone setup, starts live AVAudioEngine capture, and runs shared frame analysis on iOS.")
                             .foregroundStyle(.secondary)
                     }
 
@@ -72,8 +72,8 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Move FFT, dominant-frequency, and weighted SPL logic into shared code")
-                            BulletRow(text: "Feed live iOS buffers into the shared analyzer pipeline")
+                            BulletRow(text: "Render live spectrum and weighted SPL UI from shared analysis results")
+                            BulletRow(text: "Feed shared frame results into the existing feedback tracker on iOS")
                             BulletRow(text: "Start live SPL and spectrum rendering on iOS")
                             BulletRow(text: "Move more pure analyzer helpers and defaults into shared code")
                         }

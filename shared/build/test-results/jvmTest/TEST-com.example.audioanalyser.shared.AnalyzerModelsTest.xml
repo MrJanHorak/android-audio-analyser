@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="AnalyzerModelsTest[jvm]" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-05-19T02:28:30.064Z" hostname="Jans-Mac-mini.local" time="0.004">
+<testsuite name="AnalyzerModelsTest[jvm]" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-05-19T02:59:51.034Z" hostname="Jans-Mac-mini.local" time="0.007">
   <properties/>
-  <testcase name="venueCategoryOptionsRemainStable[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.004"/>
+  <testcase name="venueCategoryOptionsRemainStable[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.007"/>
   <testcase name="targetCurveFrequenciesStayInExpectedOrder[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

@@ -7,6 +7,7 @@ struct LiveAudioCaptureStartInfo {
     let sessionSampleRate: Double
     let sessionBufferDuration: TimeInterval
     let inputFormatSampleRate: Double
+    let analysisFrameSize: Int
     let channelCount: Int
 }
 
@@ -15,6 +16,7 @@ struct LiveAudioCaptureSnapshot {
     let sampleRate: Double
     let frameLength: Int
     let channelCount: Int
+    let analysisSamples: [Float]
 }
 
 enum LiveAudioCaptureError: LocalizedError {
@@ -111,6 +113,7 @@ final class LiveAudioCaptureController {
             sessionSampleRate: activeSession.actualSampleRate,
             sessionBufferDuration: activeSession.actualBufferDuration,
             inputFormatSampleRate: sampleRate,
+            analysisFrameSize: Int(requestedBufferSize),
             channelCount: channelCount
         )
     }
@@ -136,6 +139,13 @@ final class LiveAudioCaptureController {
             return
         }
 
+        let now = DispatchTime.now().uptimeNanoseconds
+        guard now - lastUiUpdateTime >= uiUpdateIntervalNanoseconds else {
+            return
+        }
+
+        lastUiUpdateTime = now
+
         guard let channelData = buffer.floatChannelData else {
             reportTapFailureOnce("Live capture is receiving an unsupported microphone buffer.")
             return
@@ -143,26 +153,23 @@ final class LiveAudioCaptureController {
 
         let primaryChannel = channelData[0]
         var sumSquares: Float = 0
+        let analysisSampleCount = min(frameLength, Int(requestedBufferSize))
+        var analysisSamples = Array(repeating: Float.zero, count: analysisSampleCount)
 
         for index in 0..<frameLength {
             let sample = primaryChannel[index]
             sumSquares += sample * sample
+            if index < analysisSampleCount {
+                analysisSamples[index] = sample
+            }
         }
-
-        let rms = sqrt(sumSquares / Float(frameLength))
-        let now = DispatchTime.now().uptimeNanoseconds
-
-        guard now - lastUiUpdateTime >= uiUpdateIntervalNanoseconds else {
-            return
-        }
-
-        lastUiUpdateTime = now
 
         let snapshot = LiveAudioCaptureSnapshot(
-            pcm16EquivalentRms: rms * Float(Int16.max),
+            pcm16EquivalentRms: sqrt(sumSquares / Float(frameLength)) * Float(Int16.max),
             sampleRate: sampleRate,
             frameLength: frameLength,
-            channelCount: channelCount
+            channelCount: channelCount,
+            analysisSamples: analysisSamples
         )
 
         DispatchQueue.main.async { [weak self] in

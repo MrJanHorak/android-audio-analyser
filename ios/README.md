@@ -22,7 +22,8 @@ open ios/AudioAnalyser.xcodeproj
 - Shared Kotlin framework is linked through a generated XCFramework copy in `ios/Frameworks/`.
 - Microphone permission and measurement-mode audio-session setup are scaffolded in native Swift.
 - Live microphone capture now runs through an `AVAudioEngine` input tap.
+- Shared frame analysis now drives live dominant-frequency and weighted-level status from iOS input.
 
 ## Next step
 
-Move FFT, dominant-frequency, and weighted-SPL analysis into shared code, then feed the live iOS capture buffers into that shared pipeline.
+Render live spectrum / analyzer UI from the shared frame-analysis results and feed those results into iOS feedback tracking.

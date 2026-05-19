@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import com.example.audioanalyser.shared.AnalyzerFftProcessor
+import com.example.audioanalyser.shared.AnalyzerFrameAnalyzer
 import com.example.audioanalyser.shared.AnalyzerMath
 import com.example.audioanalyser.shared.FeedbackPeak
 import com.example.audioanalyser.shared.FeedbackPeakTracker
@@ -11,9 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import kotlin.math.cos
-import kotlin.math.sqrt
-import kotlin.math.PI
 
 class AudioAnalyzer {
     private val sampleRate = 44100
@@ -26,12 +25,24 @@ class AudioAnalyzer {
 
     // Reusable buffers to reduce GC pressure
     private val audioBuffer = ShortArray(fftSize)
-    private val window = DoubleArray(fftSize).apply {
-        for (i in indices) this[i] = 0.5 * (1.0 - cos(2.0 * PI * i / (fftSize - 1)))
-    }
-    private val real = DoubleArray(fftSize)
-    private val imag = DoubleArray(fftSize)
-    private val magnitudes = FloatArray(fftSize / 2)
+    private val frameAnalyzer = AnalyzerFrameAnalyzer.createWithFftProcessor(
+        sampleRate = sampleRate,
+        fftSize = fftSize,
+        fftProcessor = object : AnalyzerFftProcessor {
+            override fun transform(real: DoubleArray, imag: DoubleArray, size: Int): Boolean {
+                if (!NativeFFT.available) {
+                    return false
+                }
+
+                return try {
+                    NativeFFT.nativeFft(real, imag, size)
+                    true
+                } catch (_: Throwable) {
+                    false
+                }
+            }
+        }
+    )
 
     private val _dbLevel = MutableStateFlow(0f)
     val dbLevel: StateFlow<Float> = _dbLevel
@@ -205,49 +216,10 @@ class AudioAnalyzer {
                     _dbHistory.value = currentHistory
                 }
 
-                // Apply window and populate real/imag arrays
-                for (i in 0 until fftSize) {
-                    val sample = if (i < read) audioBuffer[i].toDouble() else 0.0
-                    real[i] = sample * window[i]
-                    imag[i] = 0.0
-                }
+                val frameAnalysis = frameAnalyzer.analyzePcm16(audioBuffer, read)
 
-                // In-place iterative FFT
-                fftInPlace(real, imag)
-
-                // Magnitudes and smoothing
-                var maxMag = 1e-12f
-                var maxIndex = 0
-                for (i in magnitudes.indices) {
-                    val mag = sqrt(real[i] * real[i] + imag[i] * imag[i]).toFloat()
-                    magnitudes[i] = mag
-                    if (mag > maxMag) {
-                        maxMag = mag
-                        maxIndex = i
-                    }
-                }
-
-                // Compute weighted SPLs (A, C, Z) by applying frequency weighting to the spectrum
-                var spectralPower = 0.0
-                var weightedPowerA = 0.0
-                var weightedPowerC = 0.0
-                for (i in 1 until magnitudes.size) {
-                    val mag = magnitudes[i].toDouble()
-                    val freq = i * binSize.toDouble()
-                    val wA = AnalyzerMath.aWeightingLinear(freq)
-                    val wC = AnalyzerMath.cWeightingLinear(freq)
-                    val power = mag * mag
-                    spectralPower += power
-                    weightedPowerA += power * (wA * wA)
-                    weightedPowerC += power * (wC * wC)
-                }
-
-                val weightAdjA = if (spectralPower > 0.0) 10.0 * kotlin.math.log10(weightedPowerA / spectralPower) else 0.0
-                val weightAdjC = if (spectralPower > 0.0) 10.0 * kotlin.math.log10(weightedPowerC / spectralPower) else 0.0
-
-
-                for (i in magnitudes.indices) {
-                    val mag = if (currentDb > 0) magnitudes[i] else 0f
+                for (i in frameAnalysis.magnitudes.indices) {
+                    val mag = if (currentDb > 0) frameAnalysis.magnitudes[i] else 0f
                     smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + mag * smoothingFactor
                 }
                 _frequencies.value = smoothedFrequencies.copyOf()
@@ -258,11 +230,17 @@ class AudioAnalyzer {
                 }
 
                 // Dominant frequency in Hz
-                _dominantFrequency.value = maxIndex * binSize
+                _dominantFrequency.value = frameAnalysis.dominantFrequencyHz
                 // Publish weighted SPLs (apply dbOffset and noise threshold similar to unweighted meter)
-                val dbAvalue = ((calibratedDb + weightAdjA).toFloat()).let { if (it > _noiseThreshold.value) it.coerceAtLeast(0f) else 0f }
-                val dbCvalue = ((calibratedDb + weightAdjC).toFloat()).let { if (it > _noiseThreshold.value) it.coerceAtLeast(0f) else 0f }
-                val dbZvalue = ((calibratedDb).toFloat()).let { if (it > _noiseThreshold.value) it.coerceAtLeast(0f) else 0f }
+                val dbAvalue = AnalyzerMath.applyNoiseGate(
+                    calibratedDb = (calibratedDb + frameAnalysis.aWeightingAdjustmentDb).coerceAtLeast(0f),
+                    noiseThreshold = _noiseThreshold.value
+                )
+                val dbCvalue = AnalyzerMath.applyNoiseGate(
+                    calibratedDb = (calibratedDb + frameAnalysis.cWeightingAdjustmentDb).coerceAtLeast(0f),
+                    noiseThreshold = _noiseThreshold.value
+                )
+                val dbZvalue = currentDb
 
                 _dbLevelA.value = dbAvalue
                 _dbLevelC.value = dbCvalue
@@ -304,71 +282,5 @@ class AudioAnalyzer {
     private fun clearFeedbackPeaks() {
         feedbackPeakTracker.clear()
         _feedbackPeaks.value = emptyList()
-    }
-
-    // Iterative in-place radix-2 FFT
-    private fun fftInPlace(real: DoubleArray, imag: DoubleArray) {
-        val n = real.size
-
-        // If a native FFT is available, prefer it for performance.
-        if (NativeFFT.available) {
-            try {
-                NativeFFT.nativeFft(real, imag, n)
-                return
-            } catch (t: Throwable) {
-                // If native call fails for any reason, fall back to managed implementation.
-            }
-        }
-
-        var j = 0
-        for (i in 1 until n) {
-            var bit = n shr 1
-            while (j >= bit) {
-                j -= bit
-                bit = bit shr 1
-            }
-            j += bit
-            if (i < j) {
-                val tr = real[i]
-                real[i] = real[j]
-                real[j] = tr
-                val ti = imag[i]
-                imag[i] = imag[j]
-                imag[j] = ti
-            }
-        }
-
-        var len = 2
-        while (len <= n) {
-            val half = len / 2
-            val theta = -2.0 * PI / len
-            val wlenR = kotlin.math.cos(theta)
-            val wlenI = kotlin.math.sin(theta)
-            var i = 0
-            while (i < n) {
-                var wr = 1.0
-                var wi = 0.0
-                var k = 0
-                while (k < half) {
-                    val idx = i + k
-                    val idy = idx + half
-                    val ur = real[idx]
-                    val ui = imag[idx]
-                    val vr = real[idy] * wr - imag[idy] * wi
-                    val vi = real[idy] * wi + imag[idy] * wr
-                    real[idx] = ur + vr
-                    imag[idx] = ui + vi
-                    real[idy] = ur - vr
-                    imag[idy] = ui - vi
-                    val nextWr = wr * wlenR - wi * wlenI
-                    val nextWi = wr * wlenI + wi * wlenR
-                    wr = nextWr
-                    wi = nextWi
-                    k++
-                }
-                i += len
-            }
-            len = len shl 1
-        }
     }
 }

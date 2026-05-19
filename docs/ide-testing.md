@@ -5,7 +5,7 @@ This document covers the current Android workflow and the current Xcode workflow
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, and a first live `AVAudioEngine` capture path.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, and shared frame analysis wired into the shell.
 
 ## Android Studio
 
@@ -95,7 +95,7 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - on first run, confirm the system permission prompt appears
     - after granting access, confirm the audio-session row updates
     - after denying access, confirm the button switches to the Settings path
-    - after starting live capture, confirm the status row begins showing live dB, sample rate, and frame length updates
+    - after starting live capture, confirm the status row begins showing live Z/A/C levels, dominant frequency, sample rate, and frame length updates
 7. Verify parity in this order:
     - live SPL meter
     - live spectrum
@@ -111,13 +111,14 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
 3. Confirm microphone permission prompt behavior.
 4. Check that the audio session is configured for measurement-oriented capture.
 5. Start live capture and confirm the UI reports:
-   - a running live capture state
-   - negotiated sample rate
-   - changing frame size / live level text
-6. Once shared FFT analysis lands, feed a known test tone and compare:
-   - dominant frequency
-   - SPL trend
-   - A/C/Z relative behavior
+    - a running live capture state
+    - negotiated sample rate
+    - changing frame size / live Z/A/C level text
+    - dominant frequency updates
+6. Feed a known test tone and compare:
+    - dominant frequency
+    - SPL trend
+    - A/C/Z relative behavior
 7. Confirm app behavior after route changes:
    - speakers
    - headphones

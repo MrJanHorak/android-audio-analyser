@@ -16,6 +16,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private let liveAudioCaptureController: LiveAudioCaptureController
     private let dbOffset: Float = 30
     private let noiseThreshold: Float = 25
+    private var liveFrameAnalyzer: AnalyzerFrameAnalyzer?
 
     init(
         audioSessionController: AudioSessionController = .shared,
@@ -148,20 +149,25 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
         do {
             let startInfo = try liveAudioCaptureController.startCapture()
+            liveFrameAnalyzer = AnalyzerFrameAnalyzer(
+                sampleRate: Int32(startInfo.inputFormatSampleRate.rounded()),
+                fftSize: Int32(startInfo.analysisFrameSize)
+            )
             isCapturing = true
             audioSessionSummary = "Active measurement capture"
             audioSessionDetail = String(
-                format: "Category %@, mode %@, session %.0f Hz, %.1f ms buffer. The negotiated input format is %.0f Hz with %d channel%@.",
+                format: "Category %@, mode %@, session %.0f Hz, %.1f ms buffer. The negotiated input format is %.0f Hz with %d analysis samples and %d channel%@.",
                 startInfo.categoryDescription,
                 startInfo.modeDescription,
                 startInfo.sessionSampleRate,
                 startInfo.sessionBufferDuration * 1_000,
                 startInfo.inputFormatSampleRate,
+                startInfo.analysisFrameSize,
                 startInfo.channelCount,
                 startInfo.channelCount == 1 ? "" : "s"
             )
             liveCaptureSummary = "Capturing live microphone input"
-            liveCaptureDetail = "Waiting for the first throttled AVAudioEngine tap update."
+            liveCaptureDetail = "Waiting for the first shared frame-analysis update."
         } catch {
             handleCaptureFailure(error.localizedDescription)
         }
@@ -169,6 +175,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     private func stopLiveCaptureWithoutRefreshing() {
         liveAudioCaptureController.stopCapture()
+        liveFrameAnalyzer = nil
         isCapturing = false
         liveCaptureSummary = "Live capture is idle"
         liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
@@ -185,14 +192,40 @@ final class AnalyzerSetupViewModel: ObservableObject {
             noiseThreshold: noiseThreshold
         )
 
-        let liveLevelDescription = currentDb > 0
-            ? String(format: "%.1f dB", currentDb)
-            : "below the \(Int(noiseThreshold)) dB gate"
+        guard let liveFrameAnalyzer else {
+            liveCaptureSummary = "Capturing live microphone input"
+            liveCaptureDetail = String(
+                format: "Live level %.1f dB, %.0f Hz, %d frames, %d channel%@.",
+                currentDb,
+                snapshot.sampleRate,
+                snapshot.frameLength,
+                snapshot.channelCount,
+                snapshot.channelCount == 1 ? "" : "s"
+            )
+            return
+        }
+
+        let kotlinSamples = makeKotlinFloatArray(from: snapshot.analysisSamples)
+        let frameAnalysis = liveFrameAnalyzer.analyzeFloat(
+            buffer: kotlinSamples,
+            read: Int32(snapshot.analysisSamples.count)
+        )
+        let weightedDbA = AnalyzerMath.shared.applyNoiseGate(
+            calibratedDb: (calibratedDb + frameAnalysis.aWeightingAdjustmentDb).clampedToZero(),
+            noiseThreshold: noiseThreshold
+        )
+        let weightedDbC = AnalyzerMath.shared.applyNoiseGate(
+            calibratedDb: (calibratedDb + frameAnalysis.cWeightingAdjustmentDb).clampedToZero(),
+            noiseThreshold: noiseThreshold
+        )
 
         liveCaptureSummary = "Capturing live microphone input"
         liveCaptureDetail = String(
-            format: "Live level %@, %.0f Hz, %d frames, %d channel%@.",
-            liveLevelDescription,
+            format: "Z %.1f dB, A %.1f dB, C %.1f dB, %.0f Hz dominant, %.0f Hz sample rate, %d frames, %d channel%@.",
+            currentDb,
+            weightedDbA,
+            weightedDbC,
+            frameAnalysis.dominantFrequencyHz,
             snapshot.sampleRate,
             snapshot.frameLength,
             snapshot.channelCount,
@@ -227,5 +260,19 @@ final class AnalyzerSetupViewModel: ObservableObject {
             audioSessionSummary = "Audio session configuration failed"
             audioSessionDetail = error.localizedDescription
         }
+    }
+
+    private func makeKotlinFloatArray(from samples: [Float]) -> KotlinFloatArray {
+        let kotlinArray = KotlinFloatArray(size: Int32(samples.count))
+        for (index, sample) in samples.enumerated() {
+            kotlinArray.set(index: Int32(index), value: sample)
+        }
+        return kotlinArray
+    }
+}
+
+private extension Float {
+    func clampedToZero() -> Float {
+        max(self, 0)
     }
 }

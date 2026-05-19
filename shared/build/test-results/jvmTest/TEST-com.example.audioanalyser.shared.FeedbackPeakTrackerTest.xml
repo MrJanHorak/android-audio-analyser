@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="FeedbackPeakTrackerTest[jvm]" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-05-19T02:28:30.069Z" hostname="Jans-Mac-mini.local" time="0.006">
+<testsuite name="FeedbackPeakTrackerTest[jvm]" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-05-19T02:59:51.042Z" hostname="Jans-Mac-mini.local" time="0.007">
   <properties/>
   <testcase name="clearResetsTrackedState[jvm]" classname="com.example.audioanalyser.shared.FeedbackPeakTrackerTest" time="0.004"/>
   <testcase name="decaysPeaksAwayAfterRepeatedNoSignalUpdates[jvm]" classname="com.example.audioanalyser.shared.FeedbackPeakTrackerTest" time="0.001"/>
   <testcase name="keepsSeparatePeaksOutsideMatchTolerance[jvm]" classname="com.example.audioanalyser.shared.FeedbackPeakTrackerTest" time="0.0"/>
   <testcase name="smoothsMatchedFrequencyAcrossUpdates[jvm]" classname="com.example.audioanalyser.shared.FeedbackPeakTrackerTest" time="0.001"/>
-  <testcase name="emitsPeakForClearCandidate[jvm]" classname="com.example.audioanalyser.shared.FeedbackPeakTrackerTest" time="0.0"/>
+  <testcase name="emitsPeakForClearCandidate[jvm]" classname="com.example.audioanalyser.shared.FeedbackPeakTrackerTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>
