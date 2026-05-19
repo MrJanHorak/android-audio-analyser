@@ -1,35 +1,140 @@
-# iOS Shell
+# iOS App Shell
 
-This directory contains the first native SwiftUI shell for the iOS port.
+This directory contains the native SwiftUI iOS shell for the shared audio-analyzer core.
 
-## Generate the Xcode project
+## Prerequisites
 
-```bash
-./scripts/prepare-ios-framework.sh
-cd ios && xcodegen generate
-open ios/AudioAnalyser.xcodeproj
-```
+- macOS
+- Xcode with an iOS 17 simulator runtime or a physical iPhone
+- XcodeGen (`brew install xcodegen`)
+- JDK 17+ or Android Studio installed so Gradle can build the shared XCFramework
 
-## Build from the command line
+## Launch in Xcode
+
+From the repository root:
+
+1. Prepare the shared framework:
+
+   ```bash
+   ./scripts/prepare-ios-framework.sh
+   ```
+
+2. Generate the Xcode project:
+
+   ```bash
+   cd ios
+   xcodegen generate
+   ```
+
+3. Open the project:
+
+   ```bash
+   open AudioAnalyser.xcodeproj
+   ```
+
+4. In Xcode:
+   - select the **AudioAnalyser** scheme
+   - select an iPhone simulator or a signed physical device
+   - press **Run**
+
+5. On first launch:
+   - grant microphone permission
+   - start live capture from the analyzer screen
+
+For a physical device, configure a signing team first. The generated project uses the example bundle identifier `com.example.audioanalyser.ios`.
+
+If you run in the **iOS Simulator**, also set **Simulator > I/O > Audio Input** to a Mac microphone or other host input device. If Simulator has no usable audio input route, the app can launch normally but live capture will fail.
+
+## Fast command-line build
 
 ```bash
 ./scripts/build-ios-shell.sh
 ```
 
-## Current scope
+This performs the same prep flow automatically:
 
-- A real Xcode-openable SwiftUI app shell.
-- Shared Kotlin framework is linked through a generated XCFramework copy in `ios/Frameworks/`.
-- Microphone permission and measurement-mode audio-session setup are scaffolded in native Swift.
-- Live microphone capture now runs through an `AVAudioEngine` input tap.
-- Shared frame analysis now drives live dominant-frequency and weighted-level status from iOS input.
-- The iOS analyzer UI now renders live metric cards, min/avg/max level stats, a recent dB(Z) history sparkline, a compact spectrum view, and a spectrum-history waterfall from shared analysis results.
-- Shared feedback tracking now surfaces live cut suggestions in the iOS analyzer UI.
-- iOS can now capture a live spectrum snapshot, compare it against matching live input, and prepare/share CSV decibel logs from the analyzer session.
-- iOS now adds richer analyzer tools: shared feedback-stability tiers, configurable spectrum feedback markers, and versioned JSON analyzer sample export.
-- iOS can now also export a dedicated waterfall-session JSON with per-row timestamps and full-precision waterfall rows for external analysis.
-- Shared label formatting now comes from Kotlin so Android and iOS use the same frequency/delta formatting rules, and iOS can now share a human-readable Markdown session report.
+1. builds `Shared.xcframework` from `:shared`
+2. copies it into `ios/Frameworks/`
+3. regenerates `AudioAnalyser.xcodeproj`
+4. runs an unsigned simulator build with `xcodebuild`
 
-## Next step
+## What is implemented in the iOS shell
 
-The next substantial migration work is any broader shared reactive analyzer-state layer beyond the now-shared `SpectrogramHistoryBuffer`. Android still owns `StateFlow` publication and synchronization for `SpectrogramBuffer`, which keeps the current UI behavior stable on both platforms.
+- live microphone capture via `AVAudioEngine`
+- shared Kotlin frame analysis for Z/A/C levels and dominant frequency
+- live metric cards and spectrum display
+- recent dB(Z) sparkline and compact spectrum-history waterfall
+- shared feedback suggestion tracking and configurable feedback markers
+- spectrum snapshot capture / compare
+- CSV decibel log export
+- analyzer-sample JSON export
+- waterfall-session JSON export
+- Markdown session report export
+
+## Manual smoke test
+
+1. Launch the app in Xcode.
+2. Confirm the main analyzer screen opens.
+3. Grant microphone permission.
+4. Start live capture and verify:
+   - live Z/A/C readings change
+   - dominant frequency changes with a test tone or voice
+   - the spectrum and history views update
+   - feedback suggestions appear after a stable tone
+5. Exercise the analyzer tools:
+   - capture / clear a snapshot
+   - toggle compare mode
+   - start / stop logging and share the CSV
+   - prepare each export type and confirm the share sheet appears
+
+For microphone behavior, a physical iPhone is the most reliable test target. The simulator is still useful for launch/build validation and non-audio UI testing.
+
+## When to regenerate
+
+Regenerate the framework and Xcode project whenever one of these changes:
+
+- Kotlin code in `shared/`
+- `ios/project.yml`
+- framework linkage or build settings
+
+Typical refresh flow:
+
+```bash
+./scripts/prepare-ios-framework.sh
+cd ios
+xcodegen generate
+```
+
+## Troubleshooting
+
+### `xcodegen: command not found`
+
+Install it with Homebrew:
+
+```bash
+brew install xcodegen
+```
+
+### `JAVA_HOME is not set to a usable JDK`
+
+Install JDK 17+ or Android Studio, then rerun `./scripts/prepare-ios-framework.sh`.
+
+### Xcode opens but `Shared` symbols are stale or missing
+
+Rerun:
+
+```bash
+./scripts/prepare-ios-framework.sh
+cd ios
+xcodegen generate
+```
+
+Then reopen `AudioAnalyser.xcodeproj`.
+
+### Live capture fails in the simulator
+
+1. In Simulator, choose **I/O > Audio Input** and select your Mac microphone.
+2. In macOS **System Settings > Privacy & Security > Microphone**, allow access for **Simulator** if prompted.
+3. Relaunch the app and try **Start live capture** again.
+
+For reliable microphone testing, prefer a physical iPhone.

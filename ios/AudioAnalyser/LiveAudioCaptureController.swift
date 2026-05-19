@@ -23,18 +23,23 @@ enum LiveAudioCaptureError: LocalizedError {
     case microphonePermissionRequired
     case inputUnavailable
     case invalidInputFormat
-    case unsupportedInputFormat
 
     var errorDescription: String? {
         switch self {
         case .microphonePermissionRequired:
             return "Grant microphone access before starting live capture."
         case .inputUnavailable:
+#if targetEnvironment(simulator)
+            return "No microphone input is currently available in the iOS Simulator. Choose Simulator > I/O > Audio Input and select a Mac microphone, then retry, or use a physical iPhone."
+#else
             return "No microphone input is currently available on this iOS target."
+#endif
         case .invalidInputFormat:
+#if targetEnvironment(simulator)
+            return "AVAudioEngine did not negotiate a valid microphone input format in the iOS Simulator. Choose Simulator > I/O > Audio Input and select a Mac microphone, then retry, or use a physical iPhone."
+#else
             return "AVAudioEngine did not negotiate a valid microphone input format."
-        case .unsupportedInputFormat:
-            return "This build currently expects float32 microphone input buffers."
+#endif
         }
     }
 }
@@ -66,16 +71,9 @@ final class LiveAudioCaptureController {
         }
 
         let inputNode = audioEngine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-
-        guard inputFormat.channelCount > 0, inputFormat.sampleRate > 0 else {
+        guard let inputFormat = resolvedInputFormat(for: inputNode) else {
             try? audioSessionController.deactivateAfterCapture()
             throw LiveAudioCaptureError.invalidInputFormat
-        }
-
-        guard inputFormat.commonFormat == .pcmFormatFloat32 else {
-            try? audioSessionController.deactivateAfterCapture()
-            throw LiveAudioCaptureError.unsupportedInputFormat
         }
 
         inputNode.removeTap(onBus: 0)
@@ -135,35 +133,106 @@ final class LiveAudioCaptureController {
             return
         }
 
-        guard let channelData = buffer.floatChannelData else {
+        let analysisSampleCount = min(frameLength, Int(requestedBufferSize))
+        guard let extractedBuffer = extractPrimaryChannelBuffer(
+            from: buffer,
+            frameLength: frameLength,
+            analysisSampleCount: analysisSampleCount
+        ) else {
             reportTapFailureOnce("Live capture is receiving an unsupported microphone buffer.")
             return
         }
 
-        let primaryChannel = channelData[0]
+        let snapshot = LiveAudioCaptureSnapshot(
+            pcm16EquivalentRms: extractedBuffer.pcm16EquivalentRms,
+            sampleRate: sampleRate,
+            frameLength: frameLength,
+            channelCount: channelCount,
+            analysisSamples: extractedBuffer.analysisSamples
+        )
+
+        DispatchQueue.main.async { [weak self] in
+            self?.onSnapshot?(snapshot)
+        }
+    }
+
+    private func resolvedInputFormat(for inputNode: AVAudioInputNode) -> AVAudioFormat? {
+        for attempt in 0..<3 {
+            let inputFormat = inputNode.outputFormat(forBus: 0)
+            if inputFormat.channelCount > 0, inputFormat.sampleRate > 0 {
+                return inputFormat
+            }
+
+            if attempt < 2 {
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+        }
+
+        return nil
+    }
+
+    private func extractPrimaryChannelBuffer(
+        from buffer: AVAudioPCMBuffer,
+        frameLength: Int,
+        analysisSampleCount: Int
+    ) -> (pcm16EquivalentRms: Float, analysisSamples: [Float])? {
+        switch buffer.format.commonFormat {
+        case .pcmFormatFloat32:
+            guard let channelData = buffer.floatChannelData else {
+                return nil
+            }
+
+            return buildPrimaryChannelSnapshot(
+                frameLength: frameLength,
+                analysisSampleCount: analysisSampleCount
+            ) { index in
+                channelData[0][index]
+            }
+        case .pcmFormatInt16:
+            guard let channelData = buffer.int16ChannelData else {
+                return nil
+            }
+
+            return buildPrimaryChannelSnapshot(
+                frameLength: frameLength,
+                analysisSampleCount: analysisSampleCount
+            ) { index in
+                Float(channelData[0][index]) / Float(Int16.max)
+            }
+        case .pcmFormatInt32:
+            guard let channelData = buffer.int32ChannelData else {
+                return nil
+            }
+
+            return buildPrimaryChannelSnapshot(
+                frameLength: frameLength,
+                analysisSampleCount: analysisSampleCount
+            ) { index in
+                Float(channelData[0][index]) / Float(Int32.max)
+            }
+        default:
+            return nil
+        }
+    }
+
+    private func buildPrimaryChannelSnapshot(
+        frameLength: Int,
+        analysisSampleCount: Int,
+        sampleAt indexReader: (Int) -> Float
+    ) -> (pcm16EquivalentRms: Float, analysisSamples: [Float]) {
         var sumSquares: Float = 0
-        let analysisSampleCount = min(frameLength, Int(requestedBufferSize))
         var analysisSamples = Array(repeating: Float.zero, count: analysisSampleCount)
 
         for index in 0..<frameLength {
-            let sample = primaryChannel[index]
+            let sample = indexReader(index)
             sumSquares += sample * sample
             if index < analysisSampleCount {
                 analysisSamples[index] = sample
             }
         }
 
-        let snapshot = LiveAudioCaptureSnapshot(
-            pcm16EquivalentRms: sqrt(sumSquares / Float(frameLength)) * Float(Int16.max),
-            sampleRate: sampleRate,
-            frameLength: frameLength,
-            channelCount: channelCount,
-            analysisSamples: analysisSamples
-        )
-
-        DispatchQueue.main.async { [weak self] in
-            self?.onSnapshot?(snapshot)
-        }
+        let rms = sqrt(sumSquares / Float(frameLength)) * Float(Int16.max)
+        return (pcm16EquivalentRms: rms, analysisSamples: analysisSamples)
     }
 
     private func reportTapFailureOnce(_ message: String) {

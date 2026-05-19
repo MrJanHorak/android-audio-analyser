@@ -5,335 +5,81 @@ struct ContentView: View {
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
     @AppStorage("ios-feedback-markers-enabled") private var feedbackMarkersEnabled = true
     @AppStorage("ios-feedback-display-count") private var feedbackDisplayCount = 3
-    private let suggestedCutHz = AnalyzerMath.shared.suggestCutFrequency(frequencyHz: Float(440))
+    @AppStorage("ios-show-waterfall") private var showWaterfall = false
+    @State private var selectedWeighting = "Z"
+    @State private var showAnalyzerTools = false
+
+    private var isCaptureFailure: Bool {
+        setupViewModel.liveCaptureSummary.localizedCaseInsensitiveContains("failed")
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("iOS port in progress")
-                            .font(.largeTitle.weight(.bold))
-                        Text("This SwiftUI shell now links the shared Kotlin core, handles microphone setup, starts live AVAudioEngine capture, and renders a richer analyzer UI with shared metrics, history, spectrum, and feedback guidance.")
-                            .foregroundStyle(.secondary)
-                    }
+                VStack(spacing: 16) {
+                    CaptureControlCard(
+                        setupViewModel: setupViewModel,
+                        isCaptureFailure: isCaptureFailure
+                    )
 
-                    GroupBox("Live analyzer") {
-                        if let liveAnalyzerSnapshot = setupViewModel.liveAnalyzerSnapshot {
-                            VStack(alignment: .leading, spacing: 16) {
-                                LiveAnalyzerMetricsView(snapshot: liveAnalyzerSnapshot)
-                                LevelHistorySection(snapshot: liveAnalyzerSnapshot)
-                                SpectrumBarsView(
-                                    bars: liveAnalyzerSnapshot.spectrumBars,
-                                    snapshotOverlayBars: setupViewModel.snapshotOverlayBars,
-                                    feedbackMarkers: visibleFeedbackMarkers(from: liveAnalyzerSnapshot)
-                                )
-                                SpectrumLegendView(sampleRateHz: liveAnalyzerSnapshot.sampleRateHz)
-                                SpectrumHistoryWaterfallView(rows: liveAnalyzerSnapshot.spectrumHistoryRows)
-                                FeedbackFocusSection(
-                                    primarySuggestion: visibleFeedbackSuggestions(from: liveAnalyzerSnapshot).first,
-                                    feedbackMarkerCount: max(1, feedbackDisplayCount),
-                                    markersEnabled: feedbackMarkersEnabled
-                                )
-                                FeedbackSuggestionsView(
-                                    suggestions: visibleFeedbackSuggestions(from: liveAnalyzerSnapshot)
-                                )
-                            }
-                        } else {
-                            AnalyzerPlaceholderView(isCapturing: setupViewModel.isCapturing)
+                    LiveMeterCard(
+                        snapshot: setupViewModel.liveAnalyzerSnapshot,
+                        selectedWeighting: $selectedWeighting
+                    )
+
+                    AnalyzerVisualizerCard(
+                        snapshot: setupViewModel.liveAnalyzerSnapshot,
+                        isCapturing: setupViewModel.isCapturing,
+                        showWaterfall: $showWaterfall,
+                        snapshotOverlayBars: setupViewModel.snapshotOverlayBars,
+                        feedbackMarkers: setupViewModel.liveAnalyzerSnapshot.map {
+                            visibleFeedbackMarkers(from: $0)
+                        } ?? [],
+                        feedbackSuggestions: setupViewModel.liveAnalyzerSnapshot.map {
+                            visibleFeedbackSuggestions(from: $0)
+                        } ?? [],
+                        feedbackMarkerCount: max(1, feedbackDisplayCount),
+                        feedbackMarkersEnabled: feedbackMarkersEnabled,
+                        snapshotActionTitle: setupViewModel.snapshotActionTitle,
+                        isSnapshotCaptureDisabled: setupViewModel.isSnapshotCaptureDisabled,
+                        isSnapshotCompareEnabled: setupViewModel.isSnapshotCompareEnabled,
+                        canToggleSnapshotCompare: setupViewModel.canToggleSnapshotCompare,
+                        canClearSnapshot: setupViewModel.canClearSnapshot,
+                        onCaptureSnapshot: {
+                            setupViewModel.captureSpectrumSnapshot()
+                        },
+                        onToggleSnapshotCompare: {
+                            setupViewModel.toggleSnapshotCompare()
+                        },
+                        onClearSnapshot: {
+                            setupViewModel.clearSpectrumSnapshot()
                         }
-                    }
-
-                    GroupBox("Analyzer tools") {
-                        VStack(alignment: .leading, spacing: 18) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Feedback guidance")
-                                    .font(.headline)
-
-                                Toggle(
-                                    "Show feedback markers on the live spectrum",
-                                    isOn: $feedbackMarkersEnabled
-                                )
-
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Feedback focus")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-
-                                    Picker("Feedback focus", selection: $feedbackDisplayCount) {
-                                        Text("Top 1").tag(1)
-                                        Text("Top 3").tag(3)
-                                    }
-                                    .pickerStyle(.segmented)
-                                }
-
-                                Text(
-                                    feedbackMarkersEnabled
-                                        ? "Markers and suggestion cards now follow the strongest \(feedbackDisplayCount == 1 ? "shared feedback peak" : "shared feedback peaks")."
-                                        : "Feedback guidance stays available in the cards below even while spectrum markers are hidden."
-                                )
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Spectrum snapshot")
-                                    .font(.headline)
-
-                                HStack(spacing: 10) {
-                                    Button(setupViewModel.snapshotActionTitle) {
-                                        setupViewModel.captureSpectrumSnapshot()
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(setupViewModel.isSnapshotCaptureDisabled)
-
-                                    Button(
-                                        setupViewModel.isSnapshotCompareEnabled
-                                            ? "Compare on"
-                                            : "Compare off"
-                                    ) {
-                                        setupViewModel.toggleSnapshotCompare()
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .disabled(!setupViewModel.canToggleSnapshotCompare)
-
-                                    Button("Clear") {
-                                        setupViewModel.clearSpectrumSnapshot()
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .disabled(!setupViewModel.canClearSnapshot)
-                                }
-
-                                Text(setupViewModel.snapshotStatusText)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Decibel logger")
-                                    .font(.headline)
-
-                                HStack(spacing: 10) {
-                                    Button(setupViewModel.loggingActionTitle) {
-                                        setupViewModel.toggleLogging()
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(setupViewModel.isLoggingActionDisabled)
-
-                                    if let exportedAnalyzerLog = setupViewModel.exportedAnalyzerLog {
-                                        ShareLink(item: exportedAnalyzerLog.fileURL) {
-                                            Label("Share CSV", systemImage: "square.and.arrow.up")
-                                        }
-                                        .buttonStyle(.bordered)
-                                    }
-                                }
-
-                                Text(setupViewModel.loggingStatusText)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
-                                if let exportedAnalyzerLog = setupViewModel.exportedAnalyzerLog {
-                                    Text(
-                                        "Prepared \(exportedAnalyzerLog.rowCount) samples on \(exportedAnalyzerLog.exportedAt.formatted(date: .abbreviated, time: .shortened))."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                }
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Analyzer sample export")
-                                    .font(.headline)
-
-                                HStack(spacing: 10) {
-                                    Button("Prepare JSON sample") {
-                                        setupViewModel.prepareAnalyzerSampleExport(
-                                            feedbackMarkersEnabled: feedbackMarkersEnabled,
-                                            feedbackDisplayCount: feedbackDisplayCount
-                                        )
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(setupViewModel.isAnalyzerSampleExportDisabled)
-
-                                    if let exportedAnalyzerSample = setupViewModel.exportedAnalyzerSample {
-                                        ShareLink(item: exportedAnalyzerSample.fileURL) {
-                                            Label("Share JSON", systemImage: "square.and.arrow.up")
-                                        }
-                                        .buttonStyle(.bordered)
-                                    }
-                                }
-
-                                Text(setupViewModel.analyzerSampleStatusText)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
-                                if let exportedAnalyzerSample = setupViewModel.exportedAnalyzerSample {
-                                    Text(
-                                        "Prepared analyzer sample on \(exportedAnalyzerSample.exportedAt.formatted(date: .abbreviated, time: .shortened))."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                }
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Waterfall export")
-                                    .font(.headline)
-
-                                HStack(spacing: 10) {
-                                    Button("Prepare waterfall JSON") {
-                                        setupViewModel.prepareWaterfallExport()
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(setupViewModel.isWaterfallExportDisabled)
-
-                                    if let exportedWaterfallSample = setupViewModel.exportedWaterfallSample {
-                                        ShareLink(item: exportedWaterfallSample.fileURL) {
-                                            Label("Share waterfall", systemImage: "square.and.arrow.up")
-                                        }
-                                        .buttonStyle(.bordered)
-                                    }
-                                }
-
-                                Text(setupViewModel.waterfallExportStatusText)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
-                                if let exportedWaterfallSample = setupViewModel.exportedWaterfallSample {
-                                    Text(
-                                        "Prepared \(exportedWaterfallSample.rowCount) waterfall rows on \(exportedWaterfallSample.exportedAt.formatted(date: .abbreviated, time: .shortened))."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                }
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Session report")
-                                    .font(.headline)
-
-                                HStack(spacing: 10) {
-                                    Button("Prepare Markdown report") {
-                                        setupViewModel.prepareAnalyzerReport(
-                                            feedbackMarkersEnabled: feedbackMarkersEnabled,
-                                            feedbackDisplayCount: feedbackDisplayCount
-                                        )
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(setupViewModel.isAnalyzerReportDisabled)
-
-                                    if let exportedAnalyzerReport = setupViewModel.exportedAnalyzerReport {
-                                        ShareLink(item: exportedAnalyzerReport.fileURL) {
-                                            Label("Share report", systemImage: "square.and.arrow.up")
-                                        }
-                                        .buttonStyle(.bordered)
-                                    }
-                                }
-
-                                Text(setupViewModel.analyzerReportStatusText)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
-                                if let exportedAnalyzerReport = setupViewModel.exportedAnalyzerReport {
-                                    Text(
-                                        "Prepared session report on \(exportedAnalyzerReport.exportedAt.formatted(date: .abbreviated, time: .shortened))."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    GroupBox("iOS setup and capture") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Button(setupViewModel.primaryActionTitle) {
-                                setupViewModel.performPrimaryAction()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(setupViewModel.isWorking)
-
-                            Button(setupViewModel.captureActionTitle) {
-                                setupViewModel.toggleLiveCapture()
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(setupViewModel.isCaptureActionDisabled)
-
-                            if setupViewModel.isWorking {
-                                ProgressView("Updating microphone access...")
-                            } else {
-                                Text(
-                                    setupViewModel.isCapturing
-                                        ? "Live capture keeps the measurement-mode audio session active only while the AVAudioEngine tap is running."
-                                        : "The audio session stays inactive until you explicitly start live capture from this screen."
-                                )
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    GroupBox("Current status") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            StatusRow(
-                                title: "Shared analyzer math",
-                                detail: "AnalyzerMath is linked from Kotlin. Suggested cut for 440 Hz: \(Int(suggestedCutHz)) Hz"
-                            )
-                            StatusRow(title: "Shared models", detail: "Feedback and target-curve models moved to shared code")
-                            StatusRow(title: "Shared feedback tracker", detail: "Peak tracking logic now lives in shared code")
-                            StatusRow(
-                                title: "Microphone permission",
-                                detail: "\(setupViewModel.microphonePermissionState.title) - \(setupViewModel.microphonePermissionState.detail)"
-                            )
-                            StatusRow(
-                                title: "Audio session",
-                                detail: "\(setupViewModel.audioSessionSummary). \(setupViewModel.audioSessionDetail)"
-                            )
-                            StatusRow(
-                                title: "Live capture",
-                                detail: "\(setupViewModel.liveCaptureSummary). \(setupViewModel.liveCaptureDetail)"
-                            )
-                            StatusRow(
-                                title: "Analyzer history",
-                                detail: "iOS now shows live min/avg/max stats, a recent dB(Z) sparkline, and a compact spectrum history waterfall."
-                            )
-                            StatusRow(
-                                title: "Analyzer tools",
-                                detail: "iOS can save live spectrum snapshots, compare them against matching live input, export CSV logs, prepare JSON artifacts, export waterfall sessions, and share a Markdown session report."
-                            )
-                            StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    GroupBox("Next milestones") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Move more pure analyzer helpers, defaults, and comparison logic into shared code")
-                            BulletRow(text: "Expand saved-session tooling beyond JSON/CSV with additional export targets if needed")
-                            BulletRow(text: "Revisit larger shared analyzer state only after multiplatform-safe concurrency is designed")
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    )
                 }
-                .padding(24)
+                .padding(16)
             }
             .navigationTitle("AudioAnalyser")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAnalyzerTools = true
+                    } label: {
+                        Label("Tools", systemImage: "slider.horizontal.3")
+                    }
+                }
+            }
+            .sheet(isPresented: $showAnalyzerTools) {
+                NavigationStack {
+                    AnalyzerToolsSheet(
+                        setupViewModel: setupViewModel,
+                        feedbackMarkersEnabled: $feedbackMarkersEnabled,
+                        feedbackDisplayCount: $feedbackDisplayCount,
+                        showWaterfall: $showWaterfall
+                    )
+                }
+                .presentationDetents([.medium, .large])
+            }
         }
     }
 
@@ -347,6 +93,490 @@ struct ContentView: View {
         }
 
         return Array(snapshot.feedbackMarkers.prefix(max(1, feedbackDisplayCount)))
+    }
+}
+
+private struct AnalyzerCard<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
+    }
+}
+
+private struct StatusPill: View {
+    let text: String
+    let tint: Color
+
+    init(text: String, tint: Color = .accentColor) {
+        self.text = text
+        self.tint = tint
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(tint.opacity(0.14))
+            )
+            .foregroundStyle(tint)
+    }
+}
+
+private struct CaptureControlCard: View {
+    @ObservedObject var setupViewModel: AnalyzerSetupViewModel
+    let isCaptureFailure: Bool
+
+    private var stateTint: Color {
+        if isCaptureFailure {
+            return .orange
+        }
+
+        return setupViewModel.isCapturing ? .green : .secondary
+    }
+
+    private var secondaryStatusText: String {
+        if isCaptureFailure {
+            return setupViewModel.liveCaptureDetail
+        }
+
+        if setupViewModel.isWorking {
+            return "Updating microphone access..."
+        }
+
+        if setupViewModel.isCapturing {
+            return "Listening to live microphone input."
+        }
+
+        switch setupViewModel.microphonePermissionState {
+        case .granted:
+            return "Tap Start live capture."
+        case .undetermined:
+            return "Allow microphone access to begin."
+        case .denied:
+            return "Microphone access is blocked."
+        }
+    }
+
+    var body: some View {
+        AnalyzerCard {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(setupViewModel.isCapturing ? "Live capture" : "Analyzer ready")
+                        .font(.headline)
+
+                    HStack(spacing: 8) {
+                        StatusPill(
+                            text: "Mic \(setupViewModel.microphonePermissionState.title)",
+                            tint: setupViewModel.microphonePermissionState == .granted ? .green : .secondary
+                        )
+                        StatusPill(
+                            text: setupViewModel.isCapturing ? "Running" : (isCaptureFailure ? "Failed" : "Idle"),
+                            tint: stateTint
+                        )
+                    }
+                }
+
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                if setupViewModel.microphonePermissionState != .granted {
+                    Button(setupViewModel.primaryActionTitle) {
+                        setupViewModel.performPrimaryAction()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(setupViewModel.isWorking)
+                }
+
+                Button(setupViewModel.captureActionTitle) {
+                    setupViewModel.toggleLiveCapture()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(setupViewModel.isCaptureActionDisabled)
+            }
+
+            if setupViewModel.isWorking {
+                ProgressView("Updating microphone access...")
+            } else {
+                Text(secondaryStatusText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(isCaptureFailure ? 4 : 2)
+            }
+        }
+    }
+}
+
+private struct LiveMeterCard: View {
+    let snapshot: LiveAnalyzerSnapshot?
+    @Binding var selectedWeighting: String
+
+    private var displayDbValue: Float? {
+        guard let snapshot else {
+            return nil
+        }
+
+        switch selectedWeighting {
+        case "A":
+            return snapshot.aLevelDb
+        case "C":
+            return snapshot.cLevelDb
+        default:
+            return snapshot.zLevelDb
+        }
+    }
+
+    private var displayDbColor: Color {
+        guard let displayDbValue else {
+            return .primary
+        }
+
+        if displayDbValue > 90 {
+            return .red
+        }
+
+        if displayDbValue > 80 {
+            return Color(red: 0.96, green: 0.66, blue: 0.14)
+        }
+
+        return .accentColor
+    }
+
+    private var displayDbText: String {
+        guard let displayDbValue else {
+            return "-- dB(\(selectedWeighting))"
+        }
+
+        return sharedDecibelLabel(displayDbValue, unitSuffix: "dB(\(selectedWeighting))")
+    }
+
+    var body: some View {
+        AnalyzerCard {
+            Text("Sound level")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            Text(displayDbText)
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .foregroundStyle(displayDbColor)
+                .monospacedDigit()
+
+            HStack(spacing: 8) {
+                WeightingChip(
+                    title: "A",
+                    value: snapshot?.aLevelDb,
+                    isSelected: selectedWeighting == "A"
+                ) {
+                    selectedWeighting = "A"
+                }
+                WeightingChip(
+                    title: "C",
+                    value: snapshot?.cLevelDb,
+                    isSelected: selectedWeighting == "C"
+                ) {
+                    selectedWeighting = "C"
+                }
+                WeightingChip(
+                    title: "Z",
+                    value: snapshot?.zLevelDb,
+                    isSelected: selectedWeighting == "Z"
+                ) {
+                    selectedWeighting = "Z"
+                }
+            }
+
+            HStack(spacing: 10) {
+                LevelStatChip(title: "Min", value: snapshot?.minZLevelDb)
+                LevelStatChip(title: "Avg", value: snapshot?.avgZLevelDb)
+                LevelStatChip(title: "Max", value: snapshot?.maxZLevelDb)
+            }
+
+            HistorySparklineView(history: snapshot?.zLevelHistory ?? [])
+        }
+    }
+}
+
+private struct WeightingChip: View {
+    let title: String
+    let value: Float?
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("dB(\(title))")
+                    .font(.caption2.weight(.semibold))
+                Text(value.map(sharedDecibelNumber) ?? "--")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.black.opacity(0.06))
+            )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+    }
+}
+
+private struct AnalyzerVisualizerCard: View {
+    let snapshot: LiveAnalyzerSnapshot?
+    let isCapturing: Bool
+    @Binding var showWaterfall: Bool
+    let snapshotOverlayBars: [Float]?
+    let feedbackMarkers: [LiveFeedbackMarker]
+    let feedbackSuggestions: [LiveFeedbackSuggestion]
+    let feedbackMarkerCount: Int
+    let feedbackMarkersEnabled: Bool
+    let snapshotActionTitle: String
+    let isSnapshotCaptureDisabled: Bool
+    let isSnapshotCompareEnabled: Bool
+    let canToggleSnapshotCompare: Bool
+    let canClearSnapshot: Bool
+    let onCaptureSnapshot: () -> Void
+    let onToggleSnapshotCompare: () -> Void
+    let onClearSnapshot: () -> Void
+
+    var body: some View {
+        AnalyzerCard {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Frequency spectrum")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text(snapshot.map { sharedFrequencyLabel($0.dominantFrequencyHz) } ?? "--")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+
+                    if let snapshot {
+                        Text("Cut \(sharedFrequencyLabel(snapshot.suggestedCutFrequencyHz))")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button(snapshotActionTitle, action: onCaptureSnapshot)
+                        .buttonStyle(.bordered)
+                        .disabled(isSnapshotCaptureDisabled)
+
+                    Button(isSnapshotCompareEnabled ? "Compare on" : "Compare off", action: onToggleSnapshotCompare)
+                        .buttonStyle(.bordered)
+                        .disabled(!canToggleSnapshotCompare)
+
+                    Button("Clear", action: onClearSnapshot)
+                        .buttonStyle(.bordered)
+                        .disabled(!canClearSnapshot)
+
+                    Button(showWaterfall ? "Waterfall on" : "Waterfall off") {
+                        showWaterfall.toggle()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            if let snapshot {
+                if showWaterfall {
+                    SpectrumHistoryWaterfallView(rows: snapshot.spectrumHistoryRows, showsLabels: false)
+                } else {
+                    SpectrumBarsView(
+                        bars: snapshot.spectrumBars,
+                        snapshotOverlayBars: snapshotOverlayBars,
+                        feedbackMarkers: feedbackMarkers
+                    )
+                    SpectrumLegendView(sampleRateHz: snapshot.sampleRateHz)
+                }
+
+                if feedbackSuggestions.first != nil {
+                    FeedbackFocusSection(
+                        primarySuggestion: feedbackSuggestions.first,
+                        feedbackMarkerCount: feedbackMarkerCount,
+                        markersEnabled: feedbackMarkersEnabled
+                    )
+                    FeedbackSuggestionsView(suggestions: feedbackSuggestions)
+                }
+            } else {
+                AnalyzerChartPlaceholder(
+                    isCapturing: isCapturing,
+                    showingWaterfall: showWaterfall
+                )
+            }
+        }
+    }
+}
+
+private struct AnalyzerChartPlaceholder: View {
+    let isCapturing: Bool
+    let showingWaterfall: Bool
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: showingWaterfall ? "square.grid.3x3.square" : "waveform.path.ecg")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text(isCapturing ? "Waiting for live audio…" : "Start live capture")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: showingWaterfall ? 150 : 170)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.08))
+        )
+    }
+}
+
+private struct AnalyzerToolsSheet: View {
+    @ObservedObject var setupViewModel: AnalyzerSetupViewModel
+    @Binding var feedbackMarkersEnabled: Bool
+    @Binding var feedbackDisplayCount: Int
+    @Binding var showWaterfall: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List {
+            Section("Display") {
+                Toggle("Show feedback markers", isOn: $feedbackMarkersEnabled)
+
+                Picker("Feedback focus", selection: $feedbackDisplayCount) {
+                    Text("Top 1").tag(1)
+                    Text("Top 3").tag(3)
+                }
+                .pickerStyle(.segmented)
+
+                Toggle("Show waterfall", isOn: $showWaterfall)
+            }
+
+            Section("Spectrum snapshot") {
+                Button(setupViewModel.snapshotActionTitle) {
+                    setupViewModel.captureSpectrumSnapshot()
+                }
+                .disabled(setupViewModel.isSnapshotCaptureDisabled)
+
+                Button(setupViewModel.isSnapshotCompareEnabled ? "Turn compare off" : "Turn compare on") {
+                    setupViewModel.toggleSnapshotCompare()
+                }
+                .disabled(!setupViewModel.canToggleSnapshotCompare)
+
+                Button("Clear snapshot", role: .destructive) {
+                    setupViewModel.clearSpectrumSnapshot()
+                }
+                .disabled(!setupViewModel.canClearSnapshot)
+
+                if setupViewModel.canClearSnapshot || setupViewModel.canToggleSnapshotCompare {
+                    Text(setupViewModel.snapshotStatusText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Decibel logger") {
+                Button(setupViewModel.loggingActionTitle) {
+                    setupViewModel.toggleLogging()
+                }
+                .disabled(setupViewModel.isLoggingActionDisabled)
+
+                if let exportedAnalyzerLog = setupViewModel.exportedAnalyzerLog {
+                    ShareLink(item: exportedAnalyzerLog.fileURL) {
+                        Label("Share CSV", systemImage: "square.and.arrow.up")
+                    }
+
+                    Text("Prepared \(exportedAnalyzerLog.rowCount) samples.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Analyzer sample export") {
+                Button("Prepare JSON sample") {
+                    setupViewModel.prepareAnalyzerSampleExport(
+                        feedbackMarkersEnabled: feedbackMarkersEnabled,
+                        feedbackDisplayCount: feedbackDisplayCount
+                    )
+                }
+                .disabled(setupViewModel.isAnalyzerSampleExportDisabled)
+
+                if let exportedAnalyzerSample = setupViewModel.exportedAnalyzerSample {
+                    ShareLink(item: exportedAnalyzerSample.fileURL) {
+                        Label("Share JSON", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+
+            Section("Waterfall export") {
+                Button("Prepare waterfall JSON") {
+                    setupViewModel.prepareWaterfallExport()
+                }
+                .disabled(setupViewModel.isWaterfallExportDisabled)
+
+                if let exportedWaterfallSample = setupViewModel.exportedWaterfallSample {
+                    ShareLink(item: exportedWaterfallSample.fileURL) {
+                        Label("Share waterfall JSON", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+
+            Section("Session report") {
+                Button("Prepare Markdown report") {
+                    setupViewModel.prepareAnalyzerReport(
+                        feedbackMarkersEnabled: feedbackMarkersEnabled,
+                        feedbackDisplayCount: feedbackDisplayCount
+                    )
+                }
+                .disabled(setupViewModel.isAnalyzerReportDisabled)
+
+                if let exportedAnalyzerReport = setupViewModel.exportedAnalyzerReport {
+                    ShareLink(item: exportedAnalyzerReport.fileURL) {
+                        Label("Share report", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+
+            if setupViewModel.liveCaptureSummary.localizedCaseInsensitiveContains("failed") {
+                Section("Capture status") {
+                    Text(setupViewModel.liveCaptureDetail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Tools")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") {
+                    dismiss()
+                }
+            }
+        }
     }
 }
 
@@ -372,14 +602,14 @@ private struct LevelHistorySection: View {
 
 private struct LevelStatChip: View {
     let title: String
-    let value: Float
+    let value: Float?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(sharedDecibelLabel(value))
+            Text(value.map { sharedDecibelLabel($0) } ?? "--")
                 .font(.headline.weight(.semibold))
                 .monospacedDigit()
         }
@@ -612,11 +842,14 @@ private struct SpectrumLegendView: View {
 
 private struct SpectrumHistoryWaterfallView: View {
     let rows: [[Float]]
+    var showsLabels = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Spectrum history")
-                .font(.headline)
+            if showsLabels {
+                Text("Spectrum history")
+                    .font(.headline)
+            }
 
             Canvas { context, size in
                 guard let firstRow = rows.first, !firstRow.isEmpty else {
@@ -650,9 +883,11 @@ private struct SpectrumHistoryWaterfallView: View {
             )
             .animation(nil, value: rows)
 
-            Text("Older frames at the top, newest frames at the bottom.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if showsLabels {
+                Text("Older frames at the top, newest frames at the bottom.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -664,44 +899,42 @@ private struct FeedbackFocusSection: View {
     let markersEnabled: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Feedback focus")
-                .font(.headline)
-
+        Group {
             if let primarySuggestion {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .center) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(sharedFrequencyLabel(primarySuggestion.frequencyHz))
-                                .font(.title3.weight(.semibold))
-                            Text("Cut \(sharedFrequencyLabel(primarySuggestion.suggestedCutHz))")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        FeedbackTierBadge(stabilityKey: primarySuggestion.stabilityKey)
-                    }
+                    Text("Feedback focus")
+                        .font(.headline)
 
-                    Text(
-                        feedbackFocusDetail(
-                            for: primarySuggestion,
-                            feedbackMarkerCount: feedbackMarkerCount,
-                            markersEnabled: markersEnabled
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(sharedFrequencyLabel(primarySuggestion.frequencyHz))
+                                    .font(.title3.weight(.semibold))
+                                Text("Cut \(sharedFrequencyLabel(primarySuggestion.suggestedCutHz))")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            FeedbackTierBadge(stabilityKey: primarySuggestion.stabilityKey)
+                        }
+
+                        Text(
+                            feedbackFocusDetail(
+                                for: primarySuggestion,
+                                feedbackMarkerCount: feedbackMarkerCount,
+                                markersEnabled: markersEnabled
+                            )
                         )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.secondary.opacity(0.08))
                     )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.secondary.opacity(0.08))
-                )
-            } else {
-                Text("No stable feedback focus yet. Sustain a ringing source and the strongest shared peak will be summarized here.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -731,18 +964,16 @@ private struct FeedbackSuggestionsView: View {
     let suggestions: [LiveFeedbackSuggestion]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Feedback suggestions")
-                .font(.headline)
+        Group {
+            if !suggestions.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Feedback suggestions")
+                        .font(.headline)
 
-            if suggestions.isEmpty {
-                Text("No stable feedback peaks detected yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(suggestions) { suggestion in
-                        FeedbackSuggestionRow(suggestion: suggestion)
+                    VStack(spacing: 10) {
+                        ForEach(suggestions) { suggestion in
+                            FeedbackSuggestionRow(suggestion: suggestion)
+                        }
                     }
                 }
             }
@@ -839,18 +1070,6 @@ private struct StatusRow: View {
     }
 }
 
-private struct BulletRow: View {
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("•")
-            Text(text)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 private func waterfallColor(for value: Float) -> Color {
     let clamped = Double(min(max(value, 0), 1))
     let stops: [(red: Double, green: Double, blue: Double)] = [
@@ -904,17 +1123,21 @@ private func feedbackFocusDetail(
     markersEnabled: Bool
 ) -> String {
     let markerDetail = markersEnabled
-        ? "Spectrum markers track the top \(feedbackMarkerCount == 1 ? "shared peak" : "\(feedbackMarkerCount) shared peaks")."
-        : "Spectrum markers are hidden right now."
+        ? "Tracking top \(feedbackMarkerCount == 1 ? "peak" : "\(feedbackMarkerCount) peaks")."
+        : "Markers hidden."
 
     switch suggestion.stabilityKey {
     case "stable":
-        return "This resonance is holding consistently. Cut near \(sharedFrequencyLabel(suggestion.suggestedCutHz)) first and verify the live bars settle. \(markerDetail)"
+        return "Most stable resonance. Cut near \(sharedFrequencyLabel(suggestion.suggestedCutHz)). \(markerDetail)"
     case "building":
-        return "This hotspot is strengthening over consecutive frames. Keep an eye on \(sharedFrequencyLabel(suggestion.frequencyHz)) and be ready to trim around \(sharedFrequencyLabel(suggestion.suggestedCutHz)). \(markerDetail)"
+        return "This hotspot is building near \(sharedFrequencyLabel(suggestion.frequencyHz)). Watch \(sharedFrequencyLabel(suggestion.suggestedCutHz)). \(markerDetail)"
     default:
-        return "A possible feedback hotspot is emerging around \(sharedFrequencyLabel(suggestion.frequencyHz)). Watch for it to build before making a deeper cut. \(markerDetail)"
+        return "Early hotspot near \(sharedFrequencyLabel(suggestion.frequencyHz)). \(markerDetail)"
     }
+}
+
+private func sharedDecibelNumber(_ value: Float) -> String {
+    AnalyzerTextFormatter.shared.formatDecibelValue(valueDb: value)
 }
 
 private func sharedFrequencyLabel(_ value: Float) -> String {
@@ -926,7 +1149,7 @@ private func sharedFrequencyLabel(_ value: Float) -> String {
 }
 
 private func sharedDecibelLabel(_ value: Float, unitSuffix: String = "dB") -> String {
-    let numericValue = AnalyzerTextFormatter.shared.formatDecibelValue(valueDb: value)
+    let numericValue = sharedDecibelNumber(value)
     guard numericValue != "--" else {
         return "--"
     }
