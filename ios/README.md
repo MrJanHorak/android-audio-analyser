@@ -23,9 +23,9 @@ open ios/AudioAnalyser.xcodeproj
 - Microphone permission and measurement-mode audio-session setup are scaffolded in native Swift.
 - Live microphone capture now runs through an `AVAudioEngine` input tap.
 - Shared frame analysis now drives live dominant-frequency and weighted-level status from iOS input.
-- The first real iOS analyzer UI now renders live metric cards and a compact spectrum view from shared analysis results.
+- The iOS analyzer UI now renders live metric cards, min/avg/max level stats, a recent dB(Z) history sparkline, a compact spectrum view, and a spectrum-history waterfall from shared analysis results.
 - Shared feedback tracking now surfaces live cut suggestions in the iOS analyzer UI.
 
 ## Next step
 
-Expand the analyzer view with richer history/spectrum presentation and continue extracting remaining non-UI shared helpers.
+Add iOS snapshot/logging/export flows and continue extracting remaining non-UI shared helpers.

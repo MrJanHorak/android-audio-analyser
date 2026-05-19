@@ -12,7 +12,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("iOS port in progress")
                             .font(.largeTitle.weight(.bold))
-                        Text("This SwiftUI shell now links the shared Kotlin core, handles microphone setup, starts live AVAudioEngine capture, and renders a first real analyzer UI from shared frame analysis.")
+                        Text("This SwiftUI shell now links the shared Kotlin core, handles microphone setup, starts live AVAudioEngine capture, and renders a richer analyzer UI with shared metrics, history, spectrum, and feedback guidance.")
                             .foregroundStyle(.secondary)
                     }
 
@@ -20,8 +20,10 @@ struct ContentView: View {
                         if let liveAnalyzerSnapshot = setupViewModel.liveAnalyzerSnapshot {
                             VStack(alignment: .leading, spacing: 16) {
                                 LiveAnalyzerMetricsView(snapshot: liveAnalyzerSnapshot)
+                                LevelHistorySection(snapshot: liveAnalyzerSnapshot)
                                 SpectrumBarsView(bars: liveAnalyzerSnapshot.spectrumBars)
                                 SpectrumLegendView(sampleRateHz: liveAnalyzerSnapshot.sampleRateHz)
+                                SpectrumHistoryWaterfallView(rows: liveAnalyzerSnapshot.spectrumHistoryRows)
                                 FeedbackSuggestionsView(suggestions: liveAnalyzerSnapshot.feedbackSuggestions)
                             }
                         } else {
@@ -78,6 +80,10 @@ struct ContentView: View {
                                 title: "Live capture",
                                 detail: "\(setupViewModel.liveCaptureSummary). \(setupViewModel.liveCaptureDetail)"
                             )
+                            StatusRow(
+                                title: "Analyzer history",
+                                detail: "iOS now shows live min/avg/max stats, a recent dB(Z) sparkline, and a compact spectrum history waterfall."
+                            )
                             StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -85,9 +91,9 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Expand the iOS analyzer UI with a denser live spectrum and history views")
+                            BulletRow(text: "Add iOS snapshot, logging, and export parity for captured analyzer sessions")
                             BulletRow(text: "Refine the iOS feedback workflow with richer confidence and cut controls")
-                            BulletRow(text: "Move more pure analyzer helpers and defaults into shared code")
+                            BulletRow(text: "Move more pure analyzer helpers, defaults, and comparison overlays into shared code")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -96,6 +102,108 @@ struct ContentView: View {
             }
             .navigationTitle("AudioAnalyser")
         }
+    }
+}
+
+private struct LevelHistorySection: View {
+    let snapshot: LiveAnalyzerSnapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Level history")
+                .font(.headline)
+
+            HStack(spacing: 10) {
+                LevelStatChip(title: "Min", value: snapshot.minZLevelDb)
+                LevelStatChip(title: "Avg", value: snapshot.avgZLevelDb)
+                LevelStatChip(title: "Max", value: snapshot.maxZLevelDb)
+            }
+
+            HistorySparklineView(history: snapshot.zLevelHistory)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct LevelStatChip: View {
+    let title: String
+    let value: Float
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(String(format: "%.1f dB", value))
+                .font(.headline.weight(.semibold))
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
+    }
+}
+
+private struct HistorySparklineView: View {
+    let history: [Float]
+
+    var body: some View {
+        Canvas { context, size in
+            guard history.count > 1 else {
+                return
+            }
+
+            let maximum = max(history.max() ?? 0, 1)
+            let stepX = size.width / CGFloat(history.count - 1)
+
+            var linePath = Path()
+            var fillPath = Path()
+
+            for (index, value) in history.enumerated() {
+                let x = CGFloat(index) * stepX
+                let y = size.height - CGFloat(value / maximum) * size.height
+                let point = CGPoint(x: x, y: y)
+
+                if index == 0 {
+                    linePath.move(to: point)
+                    fillPath.move(to: CGPoint(x: x, y: size.height))
+                    fillPath.addLine(to: point)
+                } else {
+                    linePath.addLine(to: point)
+                    fillPath.addLine(to: point)
+                }
+            }
+
+            fillPath.addLine(to: CGPoint(x: size.width, y: size.height))
+            fillPath.closeSubpath()
+
+            context.fill(
+                fillPath,
+                with: .linearGradient(
+                    Gradient(colors: [
+                        Color.accentColor.opacity(0.22),
+                        Color.accentColor.opacity(0.02)
+                    ]),
+                    startPoint: CGPoint(x: size.width / 2, y: 0),
+                    endPoint: CGPoint(x: size.width / 2, y: size.height)
+                )
+            )
+            context.stroke(
+                linePath,
+                with: .color(Color.accentColor.opacity(0.85)),
+                style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+            )
+        }
+        .frame(height: 72)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.08))
+        )
+        .animation(nil, value: history)
     }
 }
 
@@ -205,6 +313,54 @@ private struct SpectrumLegendView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .monospacedDigit()
+    }
+}
+
+private struct SpectrumHistoryWaterfallView: View {
+    let rows: [[Float]]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Spectrum history")
+                .font(.headline)
+
+            Canvas { context, size in
+                guard let firstRow = rows.first, !firstRow.isEmpty else {
+                    return
+                }
+
+                let rowHeight = size.height / CGFloat(rows.count)
+                let columnWidth = size.width / CGFloat(firstRow.count)
+
+                for (rowIndex, row) in rows.enumerated() {
+                    let y = CGFloat(rowIndex) * rowHeight
+                    for (columnIndex, value) in row.enumerated() {
+                        let x = CGFloat(columnIndex) * columnWidth
+                        let rect = CGRect(
+                            x: x,
+                            y: y,
+                            width: columnWidth + 0.5,
+                            height: rowHeight + 0.5
+                        )
+                        context.fill(
+                            Path(rect),
+                            with: .color(waterfallColor(for: value))
+                        )
+                    }
+                }
+            }
+            .frame(height: 150)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.black.opacity(0.08))
+            )
+            .animation(nil, value: rows)
+
+            Text("Older frames at the top, newest frames at the bottom.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -330,6 +486,31 @@ private struct BulletRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
+
+private func waterfallColor(for value: Float) -> Color {
+    let clamped = Double(min(max(value, 0), 1))
+    let stops: [(red: Double, green: Double, blue: Double)] = [
+        (0.0, 0.0, 0.02),
+        (0.16, 0.10, 0.35),
+        (0.36, 0.07, 0.57),
+        (0.60, 0.23, 0.42),
+        (0.87, 0.42, 0.15),
+        (0.99, 0.65, 0.05),
+        (0.99, 0.99, 0.64)
+    ]
+    let scaled = clamped * Double(stops.count - 1)
+    let startIndex = min(Int(scaled), stops.count - 2)
+    let endIndex = startIndex + 1
+    let fraction = scaled - Double(startIndex)
+    let start = stops[startIndex]
+    let end = stops[endIndex]
+
+    return Color(
+        red: start.red + (end.red - start.red) * fraction,
+        green: start.green + (end.green - start.green) * fraction,
+        blue: start.blue + (end.blue - start.blue) * fraction
+    )
 }
 
 #Preview {

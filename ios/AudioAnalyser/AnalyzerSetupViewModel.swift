@@ -6,12 +6,17 @@ struct LiveAnalyzerSnapshot {
     let zLevelDb: Float
     let aLevelDb: Float
     let cLevelDb: Float
+    let minZLevelDb: Float
+    let avgZLevelDb: Float
+    let maxZLevelDb: Float
     let dominantFrequencyHz: Float
     let suggestedCutFrequencyHz: Float
     let sampleRateHz: Double
     let frameLength: Int
     let channelCount: Int
+    let zLevelHistory: [Float]
     let spectrumBars: [Float]
+    let spectrumHistoryRows: [[Float]]
     let feedbackSuggestions: [LiveFeedbackSuggestion]
 }
 
@@ -42,7 +47,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private let liveAudioCaptureController: LiveAudioCaptureController
     private let dbOffset: Float = 30
     private let noiseThreshold: Float = 25
-    private let spectrumBarCount = 40
+    private let spectrumBarCount = 48
+    private let zLevelHistoryLimit = 90
+    private let spectrumHistoryLimit = 72
     private let fullSpectrumSmoothingFactor: Float = 0.2
     private let uiPublishIntervalNanoseconds: UInt64 = 100_000_000
     private var liveFrameAnalyzer: AnalyzerFrameAnalyzer?
@@ -50,6 +57,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var reusableAnalysisInputBuffer: KotlinFloatArray?
     private var reusableTrackerSpectrumBuffer: KotlinFloatArray?
     private var smoothedSpectrum: [Float] = []
+    private var zLevelHistory: [Float] = []
+    private var spectrumHistoryRows: [[Float]] = []
+    private var minObservedZLevelDb: Float = Float.greatestFiniteMagnitude
+    private var maxObservedZLevelDb: Float = 0
+    private var zLevelSum = 0.0
+    private var zLevelSampleCount = 0
     private var lastUiPublishTimeNanoseconds: UInt64 = 0
 
     init(
@@ -192,6 +205,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             reusableAnalysisInputBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize))
             reusableTrackerSpectrumBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize / 2))
             smoothedSpectrum = Array(repeating: 0, count: startInfo.analysisFrameSize / 2)
+            resetLiveHistory()
             lastUiPublishTimeNanoseconds = 0
             isCapturing = true
             audioSessionSummary = "Active measurement capture"
@@ -221,6 +235,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
         reusableAnalysisInputBuffer = nil
         reusableTrackerSpectrumBuffer = nil
         smoothedSpectrum = []
+        resetLiveHistory()
         lastUiPublishTimeNanoseconds = 0
         liveAnalyzerSnapshot = nil
         isCapturing = false
@@ -277,6 +292,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             currentDb: currentDb,
             binSizeHz: frameAnalysis.binSize
         )
+        updateLevelStats(with: currentDb)
 
         if liveCaptureDetail == "Waiting for the first shared frame-analysis update." {
             liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
@@ -294,11 +310,16 @@ final class AnalyzerSetupViewModel: ObservableObject {
             from: smoothedSpectrum,
             binSizeHz: frameAnalysis.binSize
         )
+        appendHistorySample(levelDb: currentDb, spectrumBars: spectrumBars)
+        let levelStats = currentLevelStats()
 
         liveAnalyzerSnapshot = LiveAnalyzerSnapshot(
             zLevelDb: currentDb,
             aLevelDb: weightedDbA,
             cLevelDb: weightedDbC,
+            minZLevelDb: levelStats.min,
+            avgZLevelDb: levelStats.avg,
+            maxZLevelDb: levelStats.max,
             dominantFrequencyHz: frameAnalysis.dominantFrequencyHz,
             suggestedCutFrequencyHz: AnalyzerMath.shared.suggestCutFrequency(
                 frequencyHz: frameAnalysis.dominantFrequencyHz
@@ -306,7 +327,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
             sampleRateHz: snapshot.sampleRate,
             frameLength: snapshot.frameLength,
             channelCount: snapshot.channelCount,
+            zLevelHistory: zLevelHistory,
             spectrumBars: spectrumBars,
+            spectrumHistoryRows: spectrumHistoryRows,
             feedbackSuggestions: feedbackSuggestions
         )
     }
@@ -434,6 +457,50 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
 
         return bars
+    }
+
+    private func resetLiveHistory() {
+        zLevelHistory = []
+        spectrumHistoryRows = []
+        minObservedZLevelDb = Float.greatestFiniteMagnitude
+        maxObservedZLevelDb = 0
+        zLevelSum = 0
+        zLevelSampleCount = 0
+    }
+
+    private func updateLevelStats(with levelDb: Float) {
+        guard levelDb > 0 else {
+            return
+        }
+
+        minObservedZLevelDb = min(minObservedZLevelDb, levelDb)
+        maxObservedZLevelDb = max(maxObservedZLevelDb, levelDb)
+        zLevelSum += Double(levelDb)
+        zLevelSampleCount += 1
+    }
+
+    private func currentLevelStats() -> (min: Float, avg: Float, max: Float) {
+        guard zLevelSampleCount > 0 else {
+            return (0, 0, 0)
+        }
+
+        return (
+            minObservedZLevelDb,
+            Float(zLevelSum / Double(zLevelSampleCount)),
+            maxObservedZLevelDb
+        )
+    }
+
+    private func appendHistorySample(levelDb: Float, spectrumBars: [Float]) {
+        zLevelHistory.append(levelDb)
+        if zLevelHistory.count > zLevelHistoryLimit {
+            zLevelHistory.removeFirst(zLevelHistory.count - zLevelHistoryLimit)
+        }
+
+        spectrumHistoryRows.append(spectrumBars)
+        if spectrumHistoryRows.count > spectrumHistoryLimit {
+            spectrumHistoryRows.removeFirst(spectrumHistoryRows.count - spectrumHistoryLimit)
+        }
     }
 
     private func normalizeSpectrumMagnitude(_ magnitude: Float) -> Float {

@@ -5,7 +5,7 @@ This document covers the current Android workflow and the current Xcode workflow
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a real live analyzer UI, and shared feedback-cut suggestions.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a richer live analyzer UI with level history/spectrum history, and shared feedback-cut suggestions.
 
 ## Android Studio
 
@@ -91,7 +91,7 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - the microphone permission state
     - the configured measurement-mode audio-session summary
     - the live capture status row
-    - a live analyzer section with metric cards and a compact spectrum area
+    - a live analyzer section with metric cards, min/avg/max level stats, a dB(Z) sparkline, a compact spectrum area, and a spectrum-history waterfall
     - a feedback suggestion area that can populate once stable peaks are present
 6. Tap the microphone action buttons:
     - on first run, confirm the system permission prompt appears
@@ -99,12 +99,12 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - after denying access, confirm the button switches to the Settings path
     - after starting live capture, confirm the analyzer cards and spectrum begin updating with live data
 7. Verify parity in this order:
-    - live SPL meter
-    - live spectrum
+    - live SPL meter/history
+    - live spectrum/history
     - dominant frequency
-   - snapshots/logging
-   - signal generator
-   - waterfall
+    - snapshots/logging
+    - signal generator
+    - fuller waterfall/overlay controls
 
 ### Current iOS smoke test
 
@@ -116,8 +116,11 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - a running live capture state
     - negotiated sample rate
     - changing frame size / live Z/A/C level text
+    - min/avg/max level stats that accumulate after non-zero readings
+    - a recent dB(Z) history sparkline
     - dominant frequency updates
     - a changing live spectrum visualization
+    - a compact spectrum-history waterfall that fills from top to bottom over time
     - feedback suggestions appearing when a stable resonant peak is sustained
 6. Feed a known test tone and compare:
     - dominant frequency
