@@ -63,6 +63,9 @@ This performs the same prep flow automatically:
 - live microphone capture via `AVAudioEngine`
 - shared Kotlin frame analysis for Z/A/C levels and dominant frequency
 - live metric cards and spectrum display
+- source overlay selection with on-graph guide bands
+- room-curve selection with on-graph target-curve overlay
+- feedback-hunt controls and analyzer info/help sheet
 - recent dB(Z) sparkline and compact spectrum-history waterfall
 - shared feedback suggestion tracking and configurable feedback markers
 - spectrum snapshot capture / compare
@@ -77,15 +80,19 @@ This performs the same prep flow automatically:
 2. Confirm the main analyzer screen opens.
 3. Grant microphone permission.
 4. Start live capture and verify:
-   - live Z/A/C readings change
-   - dominant frequency changes with a test tone or voice
-   - the spectrum and history views update
-   - feedback suggestions appear after a stable tone
+    - live Z/A/C readings change
+    - dominant frequency changes with a test tone or voice
+    - the spectrum and history views update
+    - source overlay bands and room-curve guide lines appear when selected in **Tools**
+    - feedback suggestions appear after a stable tone when feedback hunt is enabled
 5. Exercise the analyzer tools:
-   - capture / clear a snapshot
-   - toggle compare mode
-   - start / stop logging and share the CSV
-   - prepare each export type and confirm the share sheet appears
+    - switch source overlays and room curves
+    - toggle feedback hunt and waterfall mode
+    - capture / clear a snapshot
+    - toggle compare mode
+    - start / stop logging and share the CSV
+    - prepare each export type and confirm the share sheet appears
+6. Open the **Info** button and confirm the help sheet lists overlays, room curves, EQ starting points, and capture notes.
 
 For microphone behavior, a physical iPhone is the most reliable test target. The simulator is still useful for launch/build validation and non-audio UI testing.
 

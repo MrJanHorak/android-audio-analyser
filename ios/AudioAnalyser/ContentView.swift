@@ -3,14 +3,47 @@ import Shared
 
 struct ContentView: View {
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
-    @AppStorage("ios-feedback-markers-enabled") private var feedbackMarkersEnabled = true
+    @AppStorage("ios-feedback-hunt-enabled") private var feedbackHuntEnabled = true
     @AppStorage("ios-feedback-display-count") private var feedbackDisplayCount = 3
     @AppStorage("ios-show-waterfall") private var showWaterfall = false
+    @AppStorage("ios-selected-overlay-id") private var selectedOverlayId = "off"
+    @AppStorage("ios-selected-target-curve-id") private var selectedTargetCurveId = "off"
     @State private var selectedWeighting = "Z"
     @State private var showAnalyzerTools = false
+    @State private var showInfoSheet = false
 
     private var isCaptureFailure: Bool {
         setupViewModel.liveCaptureSummary.localizedCaseInsensitiveContains("failed")
+    }
+
+    private var overlayProfiles: [IOSOverlayProfile] {
+        IOSAnalyzerReferenceCatalog.overlayProfiles
+    }
+
+    private var selectedOverlay: IOSOverlayProfile {
+        overlayProfiles.first(where: { $0.id == selectedOverlayId }) ?? overlayProfiles.first ?? IOSOverlayProfile(
+            id: "off",
+            label: "Off",
+            description: "No guide overlay selected.",
+            bands: []
+        )
+    }
+
+    private var targetCurveProfiles: [IOSTargetCurveProfile] {
+        IOSAnalyzerReferenceCatalog.targetCurveProfiles
+    }
+
+    private var selectedTargetCurve: IOSTargetCurveProfile {
+        targetCurveProfiles.first(where: { $0.id == selectedTargetCurveId }) ?? targetCurveProfiles.first ?? IOSTargetCurveProfile(
+            id: "off",
+            label: "Off",
+            badge: "None",
+            description: "No target curve selected.",
+            useCase: "Use only the live spectrum and source focus bands.",
+            caution: "",
+            color: .green,
+            points: []
+        )
     }
 
     var body: some View {
@@ -30,6 +63,8 @@ struct ContentView: View {
                     AnalyzerVisualizerCard(
                         snapshot: setupViewModel.liveAnalyzerSnapshot,
                         isCapturing: setupViewModel.isCapturing,
+                        selectedOverlay: selectedOverlay,
+                        selectedTargetCurve: selectedTargetCurve,
                         showWaterfall: $showWaterfall,
                         snapshotOverlayBars: setupViewModel.snapshotOverlayBars,
                         feedbackMarkers: setupViewModel.liveAnalyzerSnapshot.map {
@@ -39,7 +74,7 @@ struct ContentView: View {
                             visibleFeedbackSuggestions(from: $0)
                         } ?? [],
                         feedbackMarkerCount: max(1, feedbackDisplayCount),
-                        feedbackMarkersEnabled: feedbackMarkersEnabled,
+                        feedbackHuntEnabled: feedbackHuntEnabled,
                         snapshotActionTitle: setupViewModel.snapshotActionTitle,
                         isSnapshotCaptureDisabled: setupViewModel.isSnapshotCaptureDisabled,
                         isSnapshotCompareEnabled: setupViewModel.isSnapshotCompareEnabled,
@@ -61,6 +96,14 @@ struct ContentView: View {
             .navigationTitle("AudioAnalyser")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showInfoSheet = true
+                    } label: {
+                        Label("Info", systemImage: "info.circle")
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAnalyzerTools = true
@@ -73,22 +116,38 @@ struct ContentView: View {
                 NavigationStack {
                     AnalyzerToolsSheet(
                         setupViewModel: setupViewModel,
-                        feedbackMarkersEnabled: $feedbackMarkersEnabled,
+                        selectedOverlayId: $selectedOverlayId,
+                        selectedTargetCurveId: $selectedTargetCurveId,
+                        feedbackHuntEnabled: $feedbackHuntEnabled,
                         feedbackDisplayCount: $feedbackDisplayCount,
-                        showWaterfall: $showWaterfall
+                        showWaterfall: $showWaterfall,
+                        overlayProfiles: overlayProfiles,
+                        targetCurveProfiles: targetCurveProfiles,
+                        selectedOverlay: selectedOverlay,
+                        selectedTargetCurve: selectedTargetCurve
                     )
                 }
                 .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showInfoSheet) {
+                NavigationStack {
+                    AnalyzerInfoSheet()
+                }
+                .presentationDetents([.large])
             }
         }
     }
 
     private func visibleFeedbackSuggestions(from snapshot: LiveAnalyzerSnapshot) -> [LiveFeedbackSuggestion] {
-        Array(snapshot.feedbackSuggestions.prefix(max(1, feedbackDisplayCount)))
+        guard feedbackHuntEnabled else {
+            return []
+        }
+
+        return Array(snapshot.feedbackSuggestions.prefix(max(1, feedbackDisplayCount)))
     }
 
     private func visibleFeedbackMarkers(from snapshot: LiveAnalyzerSnapshot) -> [LiveFeedbackMarker] {
-        guard feedbackMarkersEnabled else {
+        guard feedbackHuntEnabled else {
             return []
         }
 
@@ -343,12 +402,14 @@ private struct WeightingChip: View {
 private struct AnalyzerVisualizerCard: View {
     let snapshot: LiveAnalyzerSnapshot?
     let isCapturing: Bool
+    let selectedOverlay: IOSOverlayProfile
+    let selectedTargetCurve: IOSTargetCurveProfile
     @Binding var showWaterfall: Bool
     let snapshotOverlayBars: [Float]?
     let feedbackMarkers: [LiveFeedbackMarker]
     let feedbackSuggestions: [LiveFeedbackSuggestion]
     let feedbackMarkerCount: Int
-    let feedbackMarkersEnabled: Bool
+    let feedbackHuntEnabled: Bool
     let snapshotActionTitle: String
     let isSnapshotCaptureDisabled: Bool
     let isSnapshotCompareEnabled: Bool
@@ -381,6 +442,20 @@ private struct AnalyzerVisualizerCard: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
+                    StatusPill(text: "Source \(selectedOverlay.label)", tint: .accentColor)
+                    StatusPill(
+                        text: selectedTargetCurve.isEnabled ? "Curve \(selectedTargetCurve.label)" : "Curve off",
+                        tint: selectedTargetCurve.isEnabled ? selectedTargetCurve.color : .secondary
+                    )
+                    StatusPill(
+                        text: feedbackHuntEnabled ? "Feedback on" : "Feedback off",
+                        tint: feedbackHuntEnabled ? .orange : .secondary
+                    )
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
                     Button(snapshotActionTitle, action: onCaptureSnapshot)
                         .buttonStyle(.bordered)
                         .disabled(isSnapshotCaptureDisabled)
@@ -406,17 +481,28 @@ private struct AnalyzerVisualizerCard: View {
                 } else {
                     SpectrumBarsView(
                         bars: snapshot.spectrumBars,
+                        sampleRateHz: snapshot.sampleRateHz,
+                        overlayBands: selectedOverlay.bands,
+                        targetCurve: selectedTargetCurve,
                         snapshotOverlayBars: snapshotOverlayBars,
                         feedbackMarkers: feedbackMarkers
                     )
                     SpectrumLegendView(sampleRateHz: snapshot.sampleRateHz)
                 }
 
-                if feedbackSuggestions.first != nil {
+                if !selectedOverlay.bands.isEmpty {
+                    OverlayBandStrip(bands: selectedOverlay.bands)
+                }
+
+                if selectedTargetCurve.isEnabled {
+                    CurveSummaryView(targetCurve: selectedTargetCurve)
+                }
+
+                if feedbackHuntEnabled, feedbackSuggestions.first != nil {
                     FeedbackFocusSection(
                         primarySuggestion: feedbackSuggestions.first,
                         feedbackMarkerCount: feedbackMarkerCount,
-                        markersEnabled: feedbackMarkersEnabled
+                        markersEnabled: feedbackHuntEnabled
                     )
                     FeedbackSuggestionsView(suggestions: feedbackSuggestions)
                 }
@@ -455,23 +541,87 @@ private struct AnalyzerChartPlaceholder: View {
 
 private struct AnalyzerToolsSheet: View {
     @ObservedObject var setupViewModel: AnalyzerSetupViewModel
-    @Binding var feedbackMarkersEnabled: Bool
+    @Binding var selectedOverlayId: String
+    @Binding var selectedTargetCurveId: String
+    @Binding var feedbackHuntEnabled: Bool
     @Binding var feedbackDisplayCount: Int
     @Binding var showWaterfall: Bool
+    let overlayProfiles: [IOSOverlayProfile]
+    let targetCurveProfiles: [IOSTargetCurveProfile]
+    let selectedOverlay: IOSOverlayProfile
+    let selectedTargetCurve: IOSTargetCurveProfile
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
-            Section("Display") {
-                Toggle("Show feedback markers", isOn: $feedbackMarkersEnabled)
+            Section("Source overlay") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(overlayProfiles) { profile in
+                            Button(profile.label) {
+                                selectedOverlayId = profile.id
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(profile.id == selectedOverlayId ? .accentColor : .secondary.opacity(0.35))
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Text(selectedOverlay.description)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if !selectedOverlay.bands.isEmpty {
+                    OverlayBandStrip(bands: selectedOverlay.bands)
+                }
+
+                Toggle("Feedback hunt", isOn: $feedbackHuntEnabled)
 
                 Picker("Feedback focus", selection: $feedbackDisplayCount) {
                     Text("Top 1").tag(1)
                     Text("Top 3").tag(3)
                 }
                 .pickerStyle(.segmented)
+            }
 
+            Section("Room curve") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(targetCurveProfiles) { profile in
+                            Button(profile.label) {
+                                selectedTargetCurveId = profile.id
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(profile.id == selectedTargetCurveId ? profile.color : .secondary.opacity(0.35))
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Text(selectedTargetCurve.description)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if selectedTargetCurve.isEnabled {
+                    CurveSummaryView(targetCurve: selectedTargetCurve)
+                    Text("Best for: \(selectedTargetCurve.useCase)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text("Caution: \(selectedTargetCurve.caution)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Display") {
                 Toggle("Show waterfall", isOn: $showWaterfall)
+
+                if setupViewModel.liveCaptureSummary.localizedCaseInsensitiveContains("failed") {
+                    Text(setupViewModel.liveCaptureDetail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Spectrum snapshot") {
@@ -517,7 +667,7 @@ private struct AnalyzerToolsSheet: View {
             Section("Analyzer sample export") {
                 Button("Prepare JSON sample") {
                     setupViewModel.prepareAnalyzerSampleExport(
-                        feedbackMarkersEnabled: feedbackMarkersEnabled,
+                        feedbackMarkersEnabled: feedbackHuntEnabled,
                         feedbackDisplayCount: feedbackDisplayCount
                     )
                 }
@@ -546,7 +696,7 @@ private struct AnalyzerToolsSheet: View {
             Section("Session report") {
                 Button("Prepare Markdown report") {
                     setupViewModel.prepareAnalyzerReport(
-                        feedbackMarkersEnabled: feedbackMarkersEnabled,
+                        feedbackMarkersEnabled: feedbackHuntEnabled,
                         feedbackDisplayCount: feedbackDisplayCount
                     )
                 }
@@ -559,13 +709,6 @@ private struct AnalyzerToolsSheet: View {
                 }
             }
 
-            if setupViewModel.liveCaptureSummary.localizedCaseInsensitiveContains("failed") {
-                Section("Capture status") {
-                    Text(setupViewModel.liveCaptureDetail)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Tools")
@@ -577,6 +720,54 @@ private struct AnalyzerToolsSheet: View {
                 }
             }
         }
+    }
+}
+
+struct OverlayBandStrip: View {
+    let bands: [IOSOverlayBand]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(bands) { band in
+                    Text("\(band.label) \(sharedFrequencyRange(band.startHz, band.endHz))")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(band.color.opacity(0.16))
+                        )
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+}
+
+struct CurveSummaryView: View {
+    let targetCurve: IOSTargetCurveProfile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(targetCurve.color)
+                    .frame(width: 10, height: 10)
+                Text("\(targetCurve.label) \(targetCurve.badge)")
+                    .font(.subheadline.weight(.semibold))
+            }
+
+            Text(targetCurve.description)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(targetCurve.color.opacity(0.10))
+        )
     }
 }
 
@@ -735,6 +926,9 @@ private struct MetricCard: View {
 
 private struct SpectrumBarsView: View {
     let bars: [Float]
+    let sampleRateHz: Double
+    let overlayBands: [IOSOverlayBand]
+    let targetCurve: IOSTargetCurveProfile
     let snapshotOverlayBars: [Float]?
     let feedbackMarkers: [LiveFeedbackMarker]
 
@@ -747,6 +941,23 @@ private struct SpectrumBarsView: View {
             let spacing: CGFloat = 3
             let count = CGFloat(bars.count)
             let barWidth = max(2, (size.width - spacing * (count - 1)) / count)
+            let nyquistHz = max(Float(sampleRateHz / 2), 1)
+
+            for band in overlayBands {
+                let startX = xPosition(for: band.startHz, nyquistHz: nyquistHz, width: size.width)
+                let endX = xPosition(for: band.endHz, nyquistHz: nyquistHz, width: size.width)
+                let rect = CGRect(
+                    x: min(startX, endX),
+                    y: 0,
+                    width: max(abs(endX - startX), 2),
+                    height: size.height
+                )
+
+                context.fill(
+                    Path(roundedRect: rect, cornerRadius: 8),
+                    with: .color(band.color.opacity(0.16))
+                )
+            }
 
             for (index, bar) in bars.enumerated() {
                 let normalizedBar = CGFloat(min(max(bar, 0), 1))
@@ -754,12 +965,36 @@ private struct SpectrumBarsView: View {
                 let x = CGFloat(index) * (barWidth + spacing)
                 let rect = CGRect(x: x, y: size.height - height, width: barWidth, height: height)
                 let path = Path(roundedRect: rect, cornerRadius: min(barWidth / 2, 4))
+                let frequencyHz = frequency(for: index, nyquistHz: nyquistHz)
+                let overlayTint = overlayBands.first(where: { $0.contains(frequencyHz) })?.color
                 let color = Color(
                     hue: 0.58 - Double(normalizedBar) * 0.12,
                     saturation: 0.70,
                     brightness: 0.78 + Double(normalizedBar) * 0.18
                 )
-                context.fill(path, with: .color(color))
+                context.fill(path, with: .color(overlayTint?.opacity(0.88) ?? color))
+            }
+
+            if targetCurve.isEnabled, targetCurve.points.count > 1 {
+                var targetPath = Path()
+
+                for (index, point) in targetCurve.points.enumerated() {
+                    let x = xPosition(for: point.frequencyHz, nyquistHz: nyquistHz, width: size.width)
+                    let y = yPosition(for: point.relativeDb, height: size.height)
+                    let curvePoint = CGPoint(x: x, y: y)
+
+                    if index == 0 {
+                        targetPath.move(to: curvePoint)
+                    } else {
+                        targetPath.addLine(to: curvePoint)
+                    }
+                }
+
+                context.stroke(
+                    targetPath,
+                    with: .color(targetCurve.color.opacity(0.92)),
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round, dash: [7, 5])
+                )
             }
 
             if let snapshotOverlayBars, snapshotOverlayBars.count == bars.count {
@@ -818,8 +1053,30 @@ private struct SpectrumBarsView: View {
                 .fill(Color.black.opacity(0.08))
         )
         .animation(nil, value: bars)
+        .animation(nil, value: overlayBands)
+        .animation(nil, value: targetCurve.points)
         .animation(nil, value: snapshotOverlayBars ?? [])
         .animation(nil, value: feedbackMarkers)
+    }
+
+    private func frequency(for index: Int, nyquistHz: Float) -> Float {
+        guard bars.count > 1 else {
+            return 0
+        }
+
+        return (Float(index) / Float(bars.count - 1)) * nyquistHz
+    }
+
+    private func xPosition(for frequencyHz: Float, nyquistHz: Float, width: CGFloat) -> CGFloat {
+        let normalized = CGFloat(min(max(frequencyHz / nyquistHz, 0), 1))
+        return normalized * width
+    }
+
+    private func yPosition(for relativeDb: Float, height: CGFloat) -> CGFloat {
+        let minDb: Float = -12
+        let maxDb: Float = 6
+        let normalized = CGFloat(min(max((relativeDb - minDb) / (maxDb - minDb), 0), 1))
+        return height - (normalized * height)
     }
 }
 
@@ -1146,6 +1403,10 @@ private func sharedFrequencyLabel(_ value: Float) -> String {
     }
 
     return AnalyzerTextFormatter.shared.formatFrequencyLabel(frequencyHz: value)
+}
+
+private func sharedFrequencyRange(_ startHz: Float, _ endHz: Float) -> String {
+    AnalyzerTextFormatter.shared.formatFrequencyRange(startHz: startHz, endHz: endHz)
 }
 
 private func sharedDecibelLabel(_ value: Float, unitSuffix: String = "dB") -> String {
