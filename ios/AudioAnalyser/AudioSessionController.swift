@@ -136,13 +136,22 @@ final class AudioSessionController {
     }
 
     func requestMicrophoneAccess(completion: @escaping (MicrophonePermissionState) -> Void) {
-        requestRecordPermission { [weak self] granted in
-            guard let self else {
-                completion(granted ? .granted : .denied)
-                return
-            }
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            completion(.granted)
+        case .denied, .restricted:
+            completion(.denied)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                guard let self else {
+                    completion(granted ? .granted : .denied)
+                    return
+                }
 
-            completion(granted ? .granted : self.permissionState())
+                completion(granted ? .granted : self.permissionState())
+            }
+        @unknown default:
+            completion(.denied)
         }
     }
 
@@ -264,39 +273,18 @@ final class AudioSessionController {
     }
 
     private func currentMicrophonePermissionState() -> MicrophonePermissionState {
-        if #available(iOS 17.0, *) {
-            switch AVAudioApplication.shared.recordPermission {
-            case .undetermined:
-                return .undetermined
-            case .denied:
-                return .denied
-            case .granted:
-                return .granted
-            @unknown default:
-                return .denied
-            }
-        }
-
-        return microphonePermissionState(for: audioSession.recordPermission)
-    }
-
-    private func requestRecordPermission(completion: @escaping (Bool) -> Void) {
-        if #available(iOS 17.0, *) {
-            AVAudioApplication.requestRecordPermission(completionHandler: completion)
-        } else {
-            audioSession.requestRecordPermission(completion)
-        }
+        microphonePermissionState(for: AVCaptureDevice.authorizationStatus(for: .audio))
     }
 
     private func microphonePermissionState(
-        for recordPermission: AVAudioSession.RecordPermission
+        for authorizationStatus: AVAuthorizationStatus
     ) -> MicrophonePermissionState {
-        switch recordPermission {
-        case .undetermined:
+        switch authorizationStatus {
+        case .notDetermined:
             return .undetermined
-        case .denied:
+        case .denied, .restricted:
             return .denied
-        case .granted:
+        case .authorized:
             return .granted
         @unknown default:
             return .denied

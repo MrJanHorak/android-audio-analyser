@@ -102,6 +102,7 @@ This performs the same prep flow automatically:
 5. Exercise the analyzer tools:
     - switch source overlays and room curves
     - toggle feedback hunt and waterfall mode
+    - stop live capture, then start / stop the sine, white-noise, and pink-noise generator modes
     - capture / clear a snapshot
     - toggle compare mode
     - start / stop logging and share the CSV

@@ -20,7 +20,7 @@ struct IOSOverlayBand: Identifiable, Equatable {
 struct IOSOverlayProfile: Identifiable, Equatable {
     let id: String
     let label: String
-    let description: String
+    let summary: String
     let bands: [IOSOverlayBand]
 
     func band(for frequencyHz: Float) -> IOSOverlayBand? {
@@ -37,7 +37,7 @@ struct IOSTargetCurveProfile: Identifiable, Equatable {
     let id: String
     let label: String
     let badge: String
-    let description: String
+    let summary: String
     let useCase: String
     let caution: String
     let color: Color
@@ -97,7 +97,7 @@ enum IOSAnalyzerReferenceCatalog {
                 IOSOverlayProfile(
                     id: profile.id,
                     label: profile.label,
-                    description: profile.description,
+                    summary: profile.summary,
                     bands: bands
                 )
             )
@@ -128,7 +128,7 @@ enum IOSAnalyzerReferenceCatalog {
                     id: profile.id,
                     label: profile.label,
                     badge: profile.badge,
-                    description: profile.description,
+                    summary: profile.summary,
                     useCase: profile.useCase,
                     caution: profile.caution,
                     color: Color(

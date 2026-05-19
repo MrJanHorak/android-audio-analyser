@@ -3,6 +3,7 @@ import Shared
 
 struct ContentView: View {
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
+    @StateObject private var signalGenerator = SignalGeneratorController()
     @AppStorage("ios-feedback-hunt-enabled") private var feedbackHuntEnabled = true
     @AppStorage("ios-feedback-display-count") private var feedbackDisplayCount = 3
     @AppStorage("ios-show-waterfall") private var showWaterfall = false
@@ -24,7 +25,7 @@ struct ContentView: View {
         overlayProfiles.first(where: { $0.id == selectedOverlayId }) ?? overlayProfiles.first ?? IOSOverlayProfile(
             id: "off",
             label: "Off",
-            description: "No guide overlay selected.",
+            summary: "No guide overlay selected.",
             bands: []
         )
     }
@@ -38,7 +39,7 @@ struct ContentView: View {
             id: "off",
             label: "Off",
             badge: "None",
-            description: "No target curve selected.",
+            summary: "No target curve selected.",
             useCase: "Use only the live spectrum and source focus bands.",
             caution: "",
             color: .green,
@@ -52,7 +53,10 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     CaptureControlCard(
                         setupViewModel: setupViewModel,
-                        isCaptureFailure: isCaptureFailure
+                        isCaptureFailure: isCaptureFailure,
+                        isSignalGeneratorRunning: signalGenerator.isRunning,
+                        onPrimaryAction: performPrimaryAction,
+                        onToggleCapture: toggleLiveCapture
                     )
 
                     LiveMeterCard(
@@ -116,6 +120,7 @@ struct ContentView: View {
                 NavigationStack {
                     AnalyzerToolsSheet(
                         setupViewModel: setupViewModel,
+                        signalGenerator: signalGenerator,
                         selectedOverlayId: $selectedOverlayId,
                         selectedTargetCurveId: $selectedTargetCurveId,
                         feedbackHuntEnabled: $feedbackHuntEnabled,
@@ -152,6 +157,22 @@ struct ContentView: View {
         }
 
         return Array(snapshot.feedbackMarkers.prefix(max(1, feedbackDisplayCount)))
+    }
+
+    private func performPrimaryAction() {
+        if signalGenerator.isRunning {
+            signalGenerator.stop(status: "Signal generator stopped while updating microphone access.")
+        }
+
+        setupViewModel.performPrimaryAction()
+    }
+
+    private func toggleLiveCapture() {
+        if signalGenerator.isRunning {
+            signalGenerator.stop(status: "Signal generator stopped for live capture.")
+        }
+
+        setupViewModel.toggleLiveCapture()
     }
 }
 
@@ -200,6 +221,9 @@ private struct StatusPill: View {
 private struct CaptureControlCard: View {
     @ObservedObject var setupViewModel: AnalyzerSetupViewModel
     let isCaptureFailure: Bool
+    let isSignalGeneratorRunning: Bool
+    let onPrimaryAction: () -> Void
+    let onToggleCapture: () -> Void
 
     private var stateTint: Color {
         if isCaptureFailure {
@@ -220,6 +244,10 @@ private struct CaptureControlCard: View {
 
         if setupViewModel.isCapturing {
             return "Listening to live microphone input."
+        }
+
+        if isSignalGeneratorRunning {
+            return "The onboard signal generator is playing. Starting capture will stop playback first."
         }
 
         switch setupViewModel.microphonePermissionState {
@@ -257,14 +285,14 @@ private struct CaptureControlCard: View {
             HStack(spacing: 10) {
                 if setupViewModel.microphonePermissionState == .denied {
                     Button(setupViewModel.primaryActionTitle) {
-                        setupViewModel.performPrimaryAction()
+                        onPrimaryAction()
                     }
                     .buttonStyle(.bordered)
                     .disabled(setupViewModel.isWorking)
                 }
 
                 Button(setupViewModel.captureActionTitle) {
-                    setupViewModel.toggleLiveCapture()
+                    onToggleCapture()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(setupViewModel.isCaptureActionDisabled)
@@ -487,7 +515,6 @@ private struct AnalyzerVisualizerCard: View {
                         snapshotOverlayBars: snapshotOverlayBars,
                         feedbackMarkers: feedbackMarkers
                     )
-                    SpectrumLegendView(sampleRateHz: snapshot.sampleRateHz)
                 }
 
                 if !selectedOverlay.bands.isEmpty {
@@ -541,6 +568,7 @@ private struct AnalyzerChartPlaceholder: View {
 
 private struct AnalyzerToolsSheet: View {
     @ObservedObject var setupViewModel: AnalyzerSetupViewModel
+    @ObservedObject var signalGenerator: SignalGeneratorController
     @Binding var selectedOverlayId: String
     @Binding var selectedTargetCurveId: String
     @Binding var feedbackHuntEnabled: Bool
@@ -551,6 +579,19 @@ private struct AnalyzerToolsSheet: View {
     let selectedOverlay: IOSOverlayProfile
     let selectedTargetCurve: IOSTargetCurveProfile
     @Environment(\.dismiss) private var dismiss
+
+    private var frequencySliderBinding: Binding<Double> {
+        Binding {
+            let minLog = log10(20.0)
+            let maxLog = log10(20_000.0)
+            let clampedFrequency = min(max(signalGenerator.frequencyHz, 20), 20_000)
+            return (log10(clampedFrequency) - minLog) / (maxLog - minLog)
+        } set: { normalizedValue in
+            let minLog = log10(20.0)
+            let maxLog = log10(20_000.0)
+            signalGenerator.frequencyHz = pow(10.0, minLog + (maxLog - minLog) * normalizedValue)
+        }
+    }
 
     var body: some View {
         List {
@@ -568,7 +609,7 @@ private struct AnalyzerToolsSheet: View {
                     .padding(.vertical, 4)
                 }
 
-                Text(selectedOverlay.description)
+                Text(selectedOverlay.summary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -599,7 +640,7 @@ private struct AnalyzerToolsSheet: View {
                     .padding(.vertical, 4)
                 }
 
-                Text(selectedTargetCurve.description)
+                Text(selectedTargetCurve.summary)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -612,6 +653,52 @@ private struct AnalyzerToolsSheet: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section("Signal generator") {
+                Picker("Mode", selection: $signalGenerator.selectedMode) {
+                    ForEach(SignalGeneratorMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(signalGenerator.isRunning)
+
+                Text(signalGenerator.selectedMode.summary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if signalGenerator.selectedMode.supportsFrequencyControl {
+                    Text("Frequency \(sharedFrequencyLabel(Float(signalGenerator.frequencyHz)))")
+                        .font(.footnote.weight(.semibold))
+                    Slider(value: frequencySliderBinding, in: 0...1)
+                        .disabled(signalGenerator.isRunning)
+                }
+
+                Text("Level \(Int(min(max(signalGenerator.level, 0), 1) * 100))%")
+                    .font(.footnote.weight(.semibold))
+                Slider(value: $signalGenerator.level, in: 0...1)
+                    .disabled(signalGenerator.isRunning)
+
+                HStack(spacing: 12) {
+                    Button("Start") {
+                        signalGenerator.start()
+                    }
+                    .disabled(signalGenerator.isRunning || setupViewModel.isCaptureSessionActiveOrPending || setupViewModel.isWorking)
+
+                    Button("Stop") {
+                        signalGenerator.stop()
+                    }
+                    .disabled(!signalGenerator.isRunning)
+                }
+
+                Text(
+                    setupViewModel.isCaptureSessionActiveOrPending
+                        ? "Stop live capture to use the onboard iOS signal generator."
+                        : signalGenerator.statusText
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
 
             Section("Display") {
@@ -758,7 +845,7 @@ struct CurveSummaryView: View {
                     .font(.subheadline.weight(.semibold))
             }
 
-            Text(targetCurve.description)
+            Text(targetCurve.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -938,19 +1025,42 @@ private struct SpectrumBarsView: View {
                 return
             }
 
+            let axis = SpectrumDisplayAxis(sampleRateHz: sampleRateHz)
+            let labelAreaHeight: CGFloat = 26
+            let drawHeight = max(size.height - labelAreaHeight, 1)
             let spacing: CGFloat = 3
             let count = CGFloat(bars.count)
             let barWidth = max(2, (size.width - spacing * (count - 1)) / count)
-            let nyquistHz = max(Float(sampleRateHz / 2), 1)
+
+            context.fill(
+                Path(
+                    CGRect(
+                        x: 0,
+                        y: drawHeight,
+                        width: size.width,
+                        height: labelAreaHeight
+                    )
+                ),
+                with: .color(Color.secondary.opacity(0.10))
+            )
+
+            context.stroke(
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: drawHeight))
+                    path.addLine(to: CGPoint(x: size.width, y: drawHeight))
+                },
+                with: .color(Color.secondary.opacity(0.25)),
+                style: StrokeStyle(lineWidth: 1)
+            )
 
             for band in overlayBands {
-                let startX = xPosition(for: band.startHz, nyquistHz: nyquistHz, width: size.width)
-                let endX = xPosition(for: band.endHz, nyquistHz: nyquistHz, width: size.width)
+                let startX = xPosition(for: band.startHz, axis: axis, width: size.width)
+                let endX = xPosition(for: band.endHz, axis: axis, width: size.width)
                 let rect = CGRect(
                     x: min(startX, endX),
                     y: 0,
                     width: max(abs(endX - startX), 2),
-                    height: size.height
+                    height: drawHeight
                 )
 
                 context.fill(
@@ -959,13 +1069,35 @@ private struct SpectrumBarsView: View {
                 )
             }
 
+            for tickFrequencyHz in axis.tickFrequenciesHz {
+                let x = xPosition(for: tickFrequencyHz, axis: axis, width: size.width)
+                context.stroke(
+                    Path { path in
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: drawHeight))
+                    },
+                    with: .color(Color.secondary.opacity(0.18)),
+                    style: StrokeStyle(lineWidth: 1)
+                )
+
+                let labelX = min(max(x, 14), size.width - 14)
+                context.draw(
+                    Text(axisLabel(for: tickFrequencyHz))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.secondary)
+                        .monospacedDigit(),
+                    at: CGPoint(x: labelX, y: drawHeight + 6),
+                    anchor: .top
+                )
+            }
+
             for (index, bar) in bars.enumerated() {
                 let normalizedBar = CGFloat(min(max(bar, 0), 1))
-                let height = max(2, size.height * normalizedBar)
+                let height = max(2, drawHeight * normalizedBar)
                 let x = CGFloat(index) * (barWidth + spacing)
-                let rect = CGRect(x: x, y: size.height - height, width: barWidth, height: height)
+                let rect = CGRect(x: x, y: drawHeight - height, width: barWidth, height: height)
                 let path = Path(roundedRect: rect, cornerRadius: min(barWidth / 2, 4))
-                let frequencyHz = frequency(for: index, nyquistHz: nyquistHz)
+                let frequencyHz = frequency(for: index, axis: axis)
                 let overlayTint = overlayBands.first(where: { $0.contains(frequencyHz) })?.color
                 let color = Color(
                     hue: 0.58 - Double(normalizedBar) * 0.12,
@@ -977,24 +1109,44 @@ private struct SpectrumBarsView: View {
 
             if targetCurve.isEnabled, targetCurve.points.count > 1 {
                 var targetPath = Path()
+                var curvePoints: [CGPoint] = []
 
-                for (index, point) in targetCurve.points.enumerated() {
-                    let x = xPosition(for: point.frequencyHz, nyquistHz: nyquistHz, width: size.width)
-                    let y = yPosition(for: point.relativeDb, height: size.height)
-                    let curvePoint = CGPoint(x: x, y: y)
+                for point in targetCurve.points {
+                    curvePoints.append(
+                        CGPoint(
+                            x: xPosition(for: point.frequencyHz, axis: axis, width: size.width),
+                            y: yPosition(for: point.relativeDb, height: drawHeight)
+                        )
+                    )
+                }
 
-                    if index == 0 {
-                        targetPath.move(to: curvePoint)
-                    } else {
-                        targetPath.addLine(to: curvePoint)
+                if let firstPoint = curvePoints.first, let lastPoint = curvePoints.last {
+                    targetPath.move(to: CGPoint(x: 0, y: firstPoint.y))
+                    for point in curvePoints {
+                        targetPath.addLine(to: point)
                     }
+                    targetPath.addLine(to: CGPoint(x: size.width, y: lastPoint.y))
                 }
 
                 context.stroke(
                     targetPath,
                     with: .color(targetCurve.color.opacity(0.92)),
-                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round, dash: [7, 5])
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
                 )
+
+                for point in curvePoints {
+                    context.fill(
+                        Path(
+                            ellipseIn: CGRect(
+                                x: point.x - 3,
+                                y: point.y - 3,
+                                width: 6,
+                                height: 6
+                            )
+                        ),
+                        with: .color(targetCurve.color)
+                    )
+                }
             }
 
             if let snapshotOverlayBars, snapshotOverlayBars.count == bars.count {
@@ -1002,9 +1154,9 @@ private struct SpectrumBarsView: View {
 
                 for (index, bar) in snapshotOverlayBars.enumerated() {
                     let normalizedBar = CGFloat(min(max(bar, 0), 1))
-                    let height = max(2, size.height * normalizedBar)
+                    let height = max(2, drawHeight * normalizedBar)
                     let x = CGFloat(index) * (barWidth + spacing) + (barWidth / 2)
-                    let point = CGPoint(x: x, y: size.height - height)
+                    let point = CGPoint(x: x, y: drawHeight - height)
 
                     if index == 0 {
                         overlayPath.move(to: point)
@@ -1027,7 +1179,7 @@ private struct SpectrumBarsView: View {
                 context.stroke(
                     Path { path in
                         path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x, y: size.height))
+                        path.addLine(to: CGPoint(x: x, y: drawHeight))
                     },
                     with: .color(markerColor.opacity(0.92)),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round)
@@ -1046,7 +1198,7 @@ private struct SpectrumBarsView: View {
                 )
             }
         }
-        .frame(height: 170)
+        .frame(height: 194)
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1059,17 +1211,15 @@ private struct SpectrumBarsView: View {
         .animation(nil, value: feedbackMarkers)
     }
 
-    private func frequency(for index: Int, nyquistHz: Float) -> Float {
-        guard bars.count > 1 else {
-            return 0
-        }
-
-        return (Float(index) / Float(bars.count - 1)) * nyquistHz
+    private func frequency(for index: Int, axis: SpectrumDisplayAxis) -> Float {
+        let barCount = max(bars.count, 1)
+        let startRatio = CGFloat(index) / CGFloat(barCount)
+        let endRatio = CGFloat(index + 1) / CGFloat(barCount)
+        return axis.frequency(forNormalizedRatio: (startRatio + endRatio) / 2)
     }
 
-    private func xPosition(for frequencyHz: Float, nyquistHz: Float, width: CGFloat) -> CGFloat {
-        let normalized = CGFloat(min(max(frequencyHz / nyquistHz, 0), 1))
-        return normalized * width
+    private func xPosition(for frequencyHz: Float, axis: SpectrumDisplayAxis, width: CGFloat) -> CGFloat {
+        axis.xPosition(for: frequencyHz, width: width)
     }
 
     private func yPosition(for relativeDb: Float, height: CGFloat) -> CGFloat {
@@ -1078,22 +1228,53 @@ private struct SpectrumBarsView: View {
         let normalized = CGFloat(min(max((relativeDb - minDb) / (maxDb - minDb), 0), 1))
         return height - (normalized * height)
     }
+
+    private func axisLabel(for frequencyHz: Float) -> String {
+        if frequencyHz >= 1_000 {
+            return "\(Int((frequencyHz / 1_000).rounded()))k"
+        }
+
+        return "\(Int(frequencyHz.rounded()))"
+    }
 }
 
-private struct SpectrumLegendView: View {
-    let sampleRateHz: Double
+private struct SpectrumDisplayAxis {
+    let minFrequencyHz: Float
+    let maxFrequencyHz: Float
+    let minLogFrequency: Float
+    let logRange: Float
+    let tickFrequenciesHz: [Float]
 
-    var body: some View {
-        HStack {
-            Text("30 Hz")
-            Spacer()
-            Text("1 kHz")
-            Spacer()
-            Text("\(Int(sampleRateHz / 2)) Hz")
+    init(sampleRateHz: Double) {
+        let nyquistHz = max(Float(sampleRateHz / 2), 60)
+        let minimumFrequencyHz = min(30, nyquistHz)
+        let maximumFrequencyHz = max(minimumFrequencyHz * 2, nyquistHz)
+        minFrequencyHz = minimumFrequencyHz
+        maxFrequencyHz = maximumFrequencyHz
+        minLogFrequency = log10(minimumFrequencyHz)
+        let maxLogFrequency = log10(maximumFrequencyHz)
+        logRange = max(maxLogFrequency - minLogFrequency, 0.001)
+
+        let preferredTicks: [Float] = [30, 63, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000]
+        tickFrequenciesHz = preferredTicks.filter { frequencyHz in
+            frequencyHz >= minimumFrequencyHz && frequencyHz <= maximumFrequencyHz
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .monospacedDigit()
+    }
+
+    func xPosition(for frequencyHz: Float, width: CGFloat) -> CGFloat {
+        normalizedX(for: frequencyHz) * width
+    }
+
+    func frequency(forNormalizedRatio normalizedRatio: CGFloat) -> Float {
+        let clampedRatio = min(max(normalizedRatio, 0), 1)
+        let frequencyHz = pow(10.0, Double(minLogFrequency) + Double(logRange) * Double(clampedRatio))
+        return Float(frequencyHz)
+    }
+
+    private func normalizedX(for frequencyHz: Float) -> CGFloat {
+        let clampedFrequencyHz = min(max(frequencyHz, minFrequencyHz), maxFrequencyHz)
+        let normalized = (log10(clampedFrequencyHz) - minLogFrequency) / logRange
+        return CGFloat(normalized)
     }
 }
 

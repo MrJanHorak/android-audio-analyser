@@ -186,15 +186,19 @@ final class AnalyzerSetupViewModel: ObservableObject {
     }
 
     var captureActionTitle: String {
-        (isCapturing || captureIntentIsActive) ? "Stop live capture" : "Start live capture"
+        isCaptureSessionActiveOrPending ? "Stop live capture" : "Start live capture"
     }
 
     var isCaptureActionDisabled: Bool {
-        if isCapturing || captureIntentIsActive {
+        if isCaptureSessionActiveOrPending {
             return false
         }
 
         return microphonePermissionState == .denied || isWorking
+    }
+
+    var isCaptureSessionActiveOrPending: Bool {
+        isCapturing || captureIntentIsActive
     }
 
     var snapshotActionTitle: String {
@@ -1043,6 +1047,8 @@ final class AnalyzerSetupViewModel: ObservableObject {
     }
 
     private func handleApplicationDidBecomeActive() {
+        refreshSetup()
+
         guard shouldResumeWhenAppBecomesActive, captureIntentIsActive else {
             return
         }
