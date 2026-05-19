@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, shared feedback presentation, shared target-curve helpers, shared formatting rules, and iOS now renders a richer live analyzer UI with spectrum snapshot compare, CSV logging/export, versioned JSON analyzer sample export, dedicated waterfall-session export, and a Markdown session report.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, shared feedback presentation, shared target-curve helpers, shared formatting rules, shared spectrogram-history ring-buffer logic, and iOS now renders a richer live analyzer UI with spectrum snapshot compare, CSV logging/export, versioned JSON analyzer sample export, dedicated waterfall-session export, and a Markdown session report.
 
 ## What landed in this phase
 
@@ -74,6 +74,10 @@
   - Android wrappers updated to delegate formatting through the shared formatter
   - iOS label rendering updated to use the shared formatter (with iOS-specific `--` handling for missing frequencies)
   - a Markdown session report export on iOS for human-readable sharing of live metrics, feedback suggestions, snapshot state, and waterfall-session availability
+- Split spectrogram history storage from Android publication by:
+  - adding `shared/src/commonMain/.../SpectrogramHistoryBuffer.kt` as a pure ring buffer with oldest-to-newest snapshots
+  - keeping Android `SpectrogramBuffer.kt` as the `StateFlow`-owning wrapper so current UI behavior and initial `emptyList()` semantics stay intact
+  - preserving platform-side synchronization/publication while leaving shared storage non-reactive and non-thread-safe by design
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
   - `./scripts/build-ios-shell.sh`
@@ -105,16 +109,15 @@ Still owns:
 
 ### `:shared`
 
-Owns the first pure helpers that can compile for Android, JVM, and iOS.
+Owns the first pure helpers and storage primitives that can compile for Android, JVM, and iOS.
 
 ## Recommended next extraction order
 
 1. Add more analyzer characterization tests before moving more logic.
-2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
-3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
-4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Revisit larger shared analyzer-state moves only after the concurrency design is agreed.
-6. If needed later, design the shared-state abstractions/tests before moving `SpectrogramBuffer` or other buffer-like analyzer state.
+2. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
+3. Replace Compose `Color` in shareable model files with a neutral type.
+4. Revisit larger shared analyzer-state publication only after an explicit coroutines/locking model is agreed.
+5. If needed later, design shared-state abstractions/tests before moving more reactive buffer wrappers or other mutable analyzer state.
 
 ## Guardrails for future sessions
 

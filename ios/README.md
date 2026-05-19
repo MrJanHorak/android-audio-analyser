@@ -32,4 +32,4 @@ open ios/AudioAnalyser.xcodeproj
 
 ## Next step
 
-The remaining substantial migration item is the shared analyzer-state/concurrency design needed before moving `SpectrogramBuffer` or similar stateful buffers into `:shared`.
+The next substantial migration work is any broader shared reactive analyzer-state layer beyond the now-shared `SpectrogramHistoryBuffer`. Android still owns `StateFlow` publication and synchronization for `SpectrogramBuffer`, which keeps the current UI behavior stable on both platforms.

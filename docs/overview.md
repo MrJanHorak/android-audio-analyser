@@ -26,12 +26,12 @@ New features
 
 - Built-in Signal Generator: `SignalGenerator.kt` provides SINE, WHITE, PINK, and PULSE playback modes via `AudioTrack`. This is accessible from Tools → Signal generator.
 - Weighted SPL readings: `AudioAnalyzer.kt` now computes A-, C-, and Z-weighted values and exposes them as `dbLevelA`, `dbLevelC`, `dbLevelZ` `StateFlow`s consumed by the UI.
-- Waterfall (Spectrogram): recent FFT frames are stored in a `SpectrogramBuffer` and rendered by `WaterfallVisualizer.kt`. The waterfall uses dB scaling with percentile-based autoscaling and an inferno-like colormap for better visibility.
+- Waterfall (Spectrogram): recent FFT frames are stored in a shared `SpectrogramHistoryBuffer`, surfaced on Android through the `SpectrogramBuffer` `StateFlow` wrapper, and rendered by `WaterfallVisualizer.kt`. The waterfall uses dB scaling with percentile-based autoscaling and an inferno-like colormap for better visibility.
 - Waterfall settings (min/max percentile, gamma) are adjustable from the Tools sheet and persisted in `SharedPreferences`.
 
 Data flow additions
 
-1. Smoothed spectrum frames are pushed into `SpectrogramBuffer` and emitted as a `StateFlow<List<FloatArray>>` for the UI.
+1. Smoothed spectrum frames are copied into the shared `SpectrogramHistoryBuffer` through `SpectrogramBuffer`, then emitted as a `StateFlow<List<FloatArray>>` for the UI.
 2. The waterfall visualizer converts magnitudes to dB, performs percentile autoscaling, applies gamma correction, and maps values to a perceptual colormap before blitting into a bitmap for efficient drawing.
 
 Data flow

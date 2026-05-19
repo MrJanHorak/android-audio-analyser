@@ -12,7 +12,7 @@ Where to change analysis parameters
 New development notes
 
 - `SignalGenerator.kt` implements audio playback via `AudioTrack`. Modes and playback code live here — adjust buffer sizes or generator algorithms as needed.
-- `SpectrogramBuffer.kt` stores a ring of recent FFT magnitude frames and exposes them as a `StateFlow<List<FloatArray>>` consumed by the UI.
+- `SpectrogramBuffer.kt` is the Android `StateFlow` wrapper around the shared `SpectrogramHistoryBuffer`, which stores the ring of recent FFT magnitude frames.
 - `WaterfallVisualizer.kt` converts magnitudes to dB, computes percentile-based autoscaling, applies gamma correction, and maps values through an inferno-like colormap. For performance it writes pixels into an Android `Bitmap` and blits that via Compose's `drawImage` to the canvas.
 - Preferences: waterfall settings are persisted in `SharedPreferences` with keys `waterfall_min_percentile`, `waterfall_max_percentile`, and `waterfall_gamma`.
 
