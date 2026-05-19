@@ -13,7 +13,7 @@ Android app that captures microphone audio, computes dB and frequency spectrum, 
 
 Prerequisites
 
-- JDK 11 or later
+- JDK 17 or later
 - Android SDK (matching the project's `compileSdk`)
 - Android device or emulator (min SDK 24)
 
@@ -38,6 +38,12 @@ Command line (macOS / Linux)
 ./gradlew installDebug
 ```
 
+## Migration and testing docs
+
+- [docs/ios-migration-handoff.md](docs/ios-migration-handoff.md) — current iOS migration status, decisions, and next steps.
+- [docs/ide-testing.md](docs/ide-testing.md) — Android Studio workflow now and planned Xcode workflow later.
+- [ios/README.md](ios/README.md) — XcodeGen-based iOS shell generation and build instructions.
+
 ## Permissions
 
 - The app requires microphone access. The permission is declared in [app/src/main/AndroidManifest.xml](app/src/main/AndroidManifest.xml#L1): `android.permission.RECORD_AUDIO`.
@@ -53,8 +59,12 @@ Command line (macOS / Linux)
 
 - [MainActivity.kt](app/src/main/java/com/example/audioanalyser/MainActivity.kt#L1) — Compose UI, permission flow, lifecycle hooks.
 - [AudioAnalyzer.kt](app/src/main/java/com/example/audioanalyser/AudioAnalyzer.kt#L1) — audio capture, FFT and smoothing logic.
+- [shared/src/commonMain/kotlin/com/example/audioanalyser/shared/AnalyzerMath.kt](shared/src/commonMain/kotlin/com/example/audioanalyser/shared/AnalyzerMath.kt#L1) — first shared multiplatform analyzer math helpers.
+- [shared/src/commonMain/kotlin/com/example/audioanalyser/shared/AnalyzerModels.kt](shared/src/commonMain/kotlin/com/example/audioanalyser/shared/AnalyzerModels.kt#L1) — shared domain models and target-curve constants for future iOS reuse.
+- [shared/src/commonMain/kotlin/com/example/audioanalyser/shared/FeedbackPeakTracker.kt](shared/src/commonMain/kotlin/com/example/audioanalyser/shared/FeedbackPeakTracker.kt#L1) — shared feedback-peak tracking logic reused by Android and ready for future iOS consumption.
 - [AndroidManifest.xml](app/src/main/AndroidManifest.xml#L1) — declares microphone permission and app metadata.
 - [app/build.gradle.kts](app/build.gradle.kts#L1) — module Gradle config (minSdk, targetSdk, Compose enabled).
+- [shared/build.gradle.kts](shared/build.gradle.kts#L1) — multiplatform shared module config for Android, JVM, and iOS targets.
 - [gradle/libs.versions.toml](gradle/libs.versions.toml#L1) — dependency versions and plugin refs.
 
 ## Development notes
@@ -65,7 +75,7 @@ Command line (macOS / Linux)
 
 ## Dependencies
 
-The project uses AndroidX and Jetpack Compose. See [gradle/libs.versions.toml](gradle/libs.versions.toml#L1) for versions (AGP, Kotlin, Compose BOM).
+The project uses AndroidX, Jetpack Compose, and an initial Kotlin Multiplatform `:shared` module. See [gradle/libs.versions.toml](gradle/libs.versions.toml#L1) for versions (AGP, Kotlin, Compose BOM, and plugin refs).
 
 ## Contributing
 

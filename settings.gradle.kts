@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Audio Analyser"
 include(":app")
+include(":shared")
  

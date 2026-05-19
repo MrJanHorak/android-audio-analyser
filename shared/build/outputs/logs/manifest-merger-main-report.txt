@@ -1,0 +1,11 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/janhorak/audio-analyser/shared/src/androidMain/AndroidManifest.xml:2:1-13
+INJECTED from /Users/janhorak/audio-analyser/shared/src/androidMain/AndroidManifest.xml:2:1-13
+	package
+		INJECTED from /Users/janhorak/audio-analyser/shared/src/androidMain/AndroidManifest.xml
+uses-sdk
+INJECTED from /Users/janhorak/audio-analyser/shared/src/androidMain/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/janhorak/audio-analyser/shared/src/androidMain/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/janhorak/audio-analyser/shared/src/androidMain/AndroidManifest.xml

@@ -59,6 +59,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.rememberCoroutineScope
+import com.example.audioanalyser.shared.CustomTargetCurveSettings
+import com.example.audioanalyser.shared.EqReferenceEntry
+import com.example.audioanalyser.shared.FeedbackPeak
+import com.example.audioanalyser.shared.SavedTargetCurvePreset
+import com.example.audioanalyser.shared.customTargetCurveFrequencies
+import com.example.audioanalyser.shared.venueCategoryOptions
 import kotlinx.coroutines.launch
 import com.example.audioanalyser.ui.theme.AudioAnalyserTheme
 import org.json.JSONArray

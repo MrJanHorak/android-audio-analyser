@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+ios/AudioAnalyser.xcodeproj/
+ios/build/
+ios/DerivedData/

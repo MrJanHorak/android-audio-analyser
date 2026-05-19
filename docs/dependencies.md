@@ -28,10 +28,14 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 ```
 
 Notes
 
 - Compose is managed via the BOM (`androidx-compose-bom`). Use the BOM to keep Compose artifacts consistent.
 - AGP (`agp`) is defined as `9.2.1` in the TOML and applied in module build scripts.
+- Kotlin Multiplatform is now enabled for the `:shared` module via `org.jetbrains.kotlin.multiplatform`.
+- The `:shared` module uses `com.android.kotlin.multiplatform.library`, which is the supported Android/KMP integration path on AGP 9.x.

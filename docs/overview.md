@@ -9,11 +9,17 @@ Architecture (high level)
 - Analysis: An in-JVM FFT converts the windowed samples to frequency magnitudes.
 - Smoothing: a simple exponential smoothing is applied to reduce flicker.
 - UI: Jetpack Compose consumes `StateFlow` values exposed by `AudioAnalyzer` and renders a db meter and frequency visualizer.
+- Shared core: low-risk platform-neutral analyzer helpers now live in the `:shared` Kotlin Multiplatform module so future iOS work can build on the same math.
+- Shared models: feedback peaks, target-curve models, EQ references, and target-curve constants can now be reused from `:shared` across Android and future iOS code.
+- Shared DSP state machine: feedback-peak detection/tracking now lives in `:shared` so Android and iOS can reuse the same ranking and decay behavior.
 
 Key components
 
 - `AudioAnalyzer.kt` — core audio capture and analysis (sampleRate=44100, fftSize=1024, smoothingFactor=0.2, dbOffset=50f, noiseFloor=10f).
 - `MainActivity.kt` — Compose UI, permission flow and lifecycle hooks (starts/stops analyzer).
+- `shared/src/commonMain/.../AnalyzerMath.kt` — shared RMS and weighting helpers extracted as the first multiplatform migration slice.
+- `shared/src/commonMain/.../AnalyzerModels.kt` — shared feedback and target-curve data models extracted for future iOS reuse.
+- `shared/src/commonMain/.../FeedbackPeakTracker.kt` — shared feedback-peak tracking algorithm extracted from `AudioAnalyzer.kt`.
 - Compose components: `DbMeterCard`, `VisualizerCard`, `FrequencyVisualizer`, `HistorySparkline`, and a Mixing Info dialog.
 
 New features

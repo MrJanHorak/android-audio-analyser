@@ -1,6 +1,12 @@
 package com.example.audioanalyser
 
 import androidx.compose.ui.graphics.Color
+import com.example.audioanalyser.shared.CUSTOM_TARGET_CURVE_ID_PREFIX
+import com.example.audioanalyser.shared.CustomTargetCurveSettings
+import com.example.audioanalyser.shared.EqReferenceEntry
+import com.example.audioanalyser.shared.SavedTargetCurvePreset
+import com.example.audioanalyser.shared.TargetCurvePoint
+import com.example.audioanalyser.shared.customTargetCurveFrequencies
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,29 +31,6 @@ data class AnalyzerOverlayProfile(
 ) {
     fun bandFor(frequencyHz: Float): AnalyzerRangeBand? = bands.firstOrNull { it.contains(frequencyHz) }
 }
-
-data class TargetCurvePoint(
-    val frequencyHz: Float,
-    val relativeDb: Float
-)
-
-data class CustomTargetCurveSettings(
-    val name: String,
-    val points: List<Float>
-)
-
-data class SavedTargetCurvePreset(
-    val id: String,
-    val settings: CustomTargetCurveSettings,
-    val venueName: String = "",
-    val venueCategory: String = "",
-    val deskName: String = "",
-    val paSystem: String = "",
-    val roomSize: String = "",
-    val problemBands: String = "",
-    val lastUsedAtEpochMillis: Long = 0L,
-    val notes: String = ""
-)
 
 fun SavedTargetCurvePreset.displayName(): String = buildString {
     if (venueCategory.isNotBlank()) {
@@ -94,21 +77,6 @@ fun SavedTargetCurvePreset.venueDetailRows(): List<Pair<String, String>> = build
     if (notes.isNotBlank()) add("Notes" to notes)
 }
 
-val venueCategoryOptions = listOf(
-    "Church",
-    "Club",
-    "Theatre",
-    "Corporate",
-    "School",
-    "Outdoor",
-    "Touring",
-    "Other"
-)
-
-const val CUSTOM_TARGET_CURVE_ID_PREFIX = "saved_curve_"
-
-val customTargetCurveFrequencies = listOf(31.5f, 63f, 125f, 250f, 1000f, 4000f, 8000f, 16000f)
-
 data class AnalyzerTargetCurveProfile(
     val id: String,
     val label: String,
@@ -121,16 +89,6 @@ data class AnalyzerTargetCurveProfile(
 ) {
     val isEnabled: Boolean = points.isNotEmpty()
 }
-
-data class EqReferenceEntry(
-    val title: String,
-    val role: String,
-    val highPass: String,
-    val body: String,
-    val presence: String,
-    val watchOut: String,
-    val startingMove: String
-)
 
 private val lowBandColor = Color(0xFF6D4C41)
 private val bodyBandColor = Color(0xFFD17B0F)

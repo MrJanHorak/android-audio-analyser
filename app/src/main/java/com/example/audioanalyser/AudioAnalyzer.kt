@@ -4,37 +4,17 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import com.example.audioanalyser.shared.AnalyzerMath
+import com.example.audioanalyser.shared.FeedbackPeak
+import com.example.audioanalyser.shared.FeedbackPeakTracker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.log10
-import kotlin.math.roundToInt
 import kotlin.math.sqrt
-import kotlin.math.pow
 import kotlin.math.PI
-
-data class FeedbackPeak(
-    val frequencyHz: Float,
-    val suggestedCutHz: Float,
-    val normalizedLevel: Float,
-    val stability: Float,
-    val holdFrames: Int
-)
-
-private data class FeedbackCandidate(
-    val frequencyHz: Float,
-    val normalizedLevel: Float
-)
-
-private data class TrackedFeedbackPeak(
-    var frequencyHz: Float,
-    var normalizedLevel: Float,
-    var holdFrames: Int,
-    var staleFrames: Int
-)
 
 class AudioAnalyzer {
     private val sampleRate = 44100
@@ -111,7 +91,7 @@ class AudioAnalyzer {
     val error: StateFlow<String?> = _error
 
     private var isRecording = false
-    private val trackedFeedbackPeaks = mutableListOf<TrackedFeedbackPeak>()
+    private val feedbackPeakTracker = FeedbackPeakTracker()
 
     private val _isLogging = MutableStateFlow(false)
     val isLogging: StateFlow<Boolean> = _isLogging
@@ -124,12 +104,6 @@ class AudioAnalyzer {
     }
 
     private val binSize = sampleRate.toFloat() / fftSize
-    private val feedbackCandidateLimit = 6
-    private val feedbackPeakLimit = 3
-    private val feedbackPeakMinFrequency = 80f
-    private val feedbackPeakMaxFrequency = 12000f
-    private val feedbackPeakDecayFrames = 10
-    private val feedbackPeakFloorRatio = 0.18f
 
     fun setDbOffset(value: Float) {
         _dbOffset.value = value
@@ -190,7 +164,7 @@ class AudioAnalyzer {
                 if (read <= 0) continue
 
                 // dB calculation (RMS)
-                val rms = calculateRMS(audioBuffer, read)
+                val rms = AnalyzerMath.calculateRms(audioBuffer, read)
                 val rawDb = if (rms > 1e-9) 20 * log10(rms.toDouble()).toFloat() else -120f
                 val calibratedDb = (rawDb + _dbOffset.value).coerceAtLeast(0f)
                 val currentDb = if (calibratedDb > _noiseThreshold.value) calibratedDb else 0f
@@ -261,8 +235,8 @@ class AudioAnalyzer {
                 for (i in 1 until magnitudes.size) {
                     val mag = magnitudes[i].toDouble()
                     val freq = i * binSize.toDouble()
-                    val wA = aWeightingLinear(freq)
-                    val wC = cWeightingLinear(freq)
+                    val wA = AnalyzerMath.aWeightingLinear(freq)
+                    val wC = AnalyzerMath.cWeightingLinear(freq)
                     val power = mag * mag
                     spectralPower += power
                     weightedPowerA += power * (wA * wA)
@@ -321,132 +295,16 @@ class AudioAnalyzer {
     }
 
     private fun updateFeedbackPeaks(currentDb: Float) {
-        val globalMax = smoothedFrequencies.maxOrNull() ?: 0f
-        if (currentDb <= 0f || globalMax <= 0f) {
-            decayFeedbackPeaks()
-            return
-        }
-
-        val candidates = mutableListOf<FeedbackCandidate>()
-        for (index in 2 until smoothedFrequencies.size - 2) {
-            val magnitude = smoothedFrequencies[index]
-            if (magnitude < globalMax * feedbackPeakFloorRatio) continue
-            if (magnitude < smoothedFrequencies[index - 1] || magnitude < smoothedFrequencies[index + 1]) continue
-
-            val frequencyHz = index * binSize
-            if (frequencyHz < feedbackPeakMinFrequency || frequencyHz > feedbackPeakMaxFrequency) continue
-
-            candidates += FeedbackCandidate(
-                frequencyHz = frequencyHz,
-                normalizedLevel = (magnitude / globalMax).coerceIn(0f, 1f)
-            )
-        }
-
-        if (candidates.isEmpty()) {
-            decayFeedbackPeaks()
-            return
-        }
-
-        trackedFeedbackPeaks.forEach { peak ->
-            peak.staleFrames += 1
-            peak.normalizedLevel *= 0.92f
-        }
-
-        val matchedPeaks = mutableSetOf<TrackedFeedbackPeak>()
-        candidates
-            .sortedByDescending { it.normalizedLevel }
-            .take(feedbackCandidateLimit)
-            .forEach { candidate ->
-                val matched = trackedFeedbackPeaks
-                    .filterNot { it in matchedPeaks }
-                    .minByOrNull { abs(it.frequencyHz - candidate.frequencyHz) }
-                    ?.takeIf {
-                        abs(it.frequencyHz - candidate.frequencyHz) <= maxOf(60f, candidate.frequencyHz * 0.05f)
-                    }
-
-                if (matched != null) {
-                    matched.frequencyHz = matched.frequencyHz * 0.7f + candidate.frequencyHz * 0.3f
-                    matched.normalizedLevel = maxOf(matched.normalizedLevel, candidate.normalizedLevel)
-                    matched.holdFrames += 1
-                    matched.staleFrames = 0
-                    matchedPeaks += matched
-                } else {
-                    val newPeak = TrackedFeedbackPeak(
-                        frequencyHz = candidate.frequencyHz,
-                        normalizedLevel = candidate.normalizedLevel,
-                        holdFrames = 1,
-                        staleFrames = 0
-                    )
-                    trackedFeedbackPeaks += newPeak
-                    matchedPeaks += newPeak
-                }
-            }
-
-        trackedFeedbackPeaks.removeAll { peak ->
-            if (peak.staleFrames == 0) return@removeAll false
-            peak.holdFrames = maxOf(1, peak.holdFrames - 1)
-            peak.staleFrames > feedbackPeakDecayFrames || peak.normalizedLevel < 0.08f
-        }
-
-        publishFeedbackPeaks()
-    }
-
-    private fun decayFeedbackPeaks() {
-        if (trackedFeedbackPeaks.isEmpty()) {
-            _feedbackPeaks.value = emptyList()
-            return
-        }
-
-        trackedFeedbackPeaks.removeAll { peak ->
-            peak.staleFrames += 1
-            peak.normalizedLevel *= 0.88f
-            peak.holdFrames = maxOf(1, peak.holdFrames - 1)
-            peak.staleFrames > feedbackPeakDecayFrames || peak.normalizedLevel < 0.08f
-        }
-
-        publishFeedbackPeaks()
-    }
-
-    private fun publishFeedbackPeaks() {
-        _feedbackPeaks.value = trackedFeedbackPeaks
-            .sortedByDescending { peak ->
-                val stability = peak.holdFrames.coerceAtMost(18) / 18f
-                peak.normalizedLevel * 0.55f + stability * 0.45f
-            }
-            .take(feedbackPeakLimit)
-            .map { peak ->
-                FeedbackPeak(
-                    frequencyHz = peak.frequencyHz,
-                    suggestedCutHz = suggestCutFrequency(peak.frequencyHz),
-                    normalizedLevel = peak.normalizedLevel.coerceIn(0f, 1f),
-                    stability = (peak.holdFrames.coerceAtMost(18) / 18f).coerceIn(0f, 1f),
-                    holdFrames = peak.holdFrames
-                )
-            }
-    }
-
-    private fun suggestCutFrequency(frequencyHz: Float): Float {
-        val step = when {
-            frequencyHz < 200f -> 5f
-            frequencyHz < 1000f -> 10f
-            frequencyHz < 4000f -> 25f
-            else -> 50f
-        }
-        return (frequencyHz / step).roundToInt() * step
+        _feedbackPeaks.value = feedbackPeakTracker.update(
+            spectrum = smoothedFrequencies,
+            currentDb = currentDb,
+            binSize = binSize
+        )
     }
 
     private fun clearFeedbackPeaks() {
-        trackedFeedbackPeaks.clear()
+        feedbackPeakTracker.clear()
         _feedbackPeaks.value = emptyList()
-    }
-
-    private fun calculateRMS(buffer: ShortArray, read: Int): Float {
-        var sum = 0.0
-        for (i in 0 until read) {
-            val v = buffer[i].toDouble()
-            sum += v * v
-        }
-        return sqrt(sum / read).toFloat()
     }
 
     // Iterative in-place radix-2 FFT
@@ -513,34 +371,5 @@ class AudioAnalyzer {
             }
             len = len shl 1
         }
-    }
-
-    // A-weighting (approx) linear scale factor for a given frequency (Hz)
-    private fun aWeightingLinear(freqHz: Double): Double {
-        val f = freqHz.coerceAtLeast(1.0)
-        val f2 = f * f
-        val raNum = 12194.217 * 12194.217
-        val raNumPow = raNum * raNum * f2 * f2 / (raNum * raNum) // kept for clarity
-
-        // Use the standard analog A-weighting approximation in dB, normalized at 1 kHz
-        val term1 = (f2 + 20.598997 * 20.598997)
-        val term2 = (f2 + 107.65265 * 107.65265)
-        val term3 = (f2 + 737.86223 * 737.86223)
-        val term4 = (f2 + 12194.217 * 12194.217)
-
-        val ra = (12194.217 * 12194.217 * f2 * f2) / (term1 * kotlin.math.sqrt(term2 * term3) * term4)
-        val aDb = 20.0 * kotlin.math.log10(ra) + 2.0
-        return 10.0.pow(aDb / 20.0)
-    }
-
-    // C-weighting (approx) linear scale factor for a given frequency (Hz)
-    private fun cWeightingLinear(freqHz: Double): Double {
-        val f = freqHz.coerceAtLeast(1.0)
-        val f2 = f * f
-        val term1 = (f2 + 20.598997 * 20.598997)
-        val term2 = (f2 + 12194.217 * 12194.217)
-        val rc = (12194.217 * 12194.217 * f2) / (term1 * term2)
-        val cDb = 20.0 * kotlin.math.log10(rc) + 0.06
-        return 10.0.pow(cDb / 20.0)
     }
 }
