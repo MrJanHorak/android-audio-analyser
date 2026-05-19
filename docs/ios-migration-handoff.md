@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a first real live analyzer UI.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a live analyzer UI with shared feedback-cut suggestions.
 
 ## What landed in this phase
 
@@ -49,6 +49,10 @@
   - metric cards for live Z/A/C, dominant frequency, suggested cut, sample rate, frame size, and channel count
   - a compact Canvas-based live spectrum driven by shared analyzer magnitudes
   - a cleaner separation between operational status rows and actual analyzer output
+- Wired shared `FeedbackPeakTracker` into the iOS analyzer loop:
+  - added Swift/Kotlin interop-friendly no-arg construction for `FeedbackPeakTracker`
+  - updated iOS feedback tracking on each analyzed frame while keeping UI publication throttled
+  - surfaced the top live feedback-cut suggestions in the SwiftUI analyzer screen
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
   - `./scripts/build-ios-shell.sh`
@@ -88,8 +92,8 @@ Owns the first pure helpers that can compile for Android, JVM, and iOS.
 2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
 3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
 4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Feed shared frame results into iOS feedback-peak tracking and richer analyzer visuals.
-6. Expand the iOS analyzer UI with denser spectrum/history views once the first live screen is stable.
+5. Expand the iOS analyzer UI with denser spectrum/history views once the first live screen is stable.
+6. Start extracting remaining non-UI helpers such as target-curve defaults and formatting seams.
 
 ## Guardrails for future sessions
 

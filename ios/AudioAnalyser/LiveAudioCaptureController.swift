@@ -46,9 +46,6 @@ final class LiveAudioCaptureController {
     private let audioSessionController: AudioSessionController
     private let audioEngine = AVAudioEngine()
     private let requestedBufferSize: AVAudioFrameCount = 1024
-    private let uiUpdateIntervalNanoseconds: UInt64 = 100_000_000
-
-    private var lastUiUpdateTime: UInt64 = 0
     private var didReportTapFailure = false
 
     init(audioSessionController: AudioSessionController) {
@@ -82,7 +79,6 @@ final class LiveAudioCaptureController {
         }
 
         inputNode.removeTap(onBus: 0)
-        lastUiUpdateTime = 0
         didReportTapFailure = false
 
         let sampleRate = inputFormat.sampleRate
@@ -138,13 +134,6 @@ final class LiveAudioCaptureController {
         guard frameLength > 0 else {
             return
         }
-
-        let now = DispatchTime.now().uptimeNanoseconds
-        guard now - lastUiUpdateTime >= uiUpdateIntervalNanoseconds else {
-            return
-        }
-
-        lastUiUpdateTime = now
 
         guard let channelData = buffer.floatChannelData else {
             reportTapFailureOnce("Live capture is receiving an unsupported microphone buffer.")

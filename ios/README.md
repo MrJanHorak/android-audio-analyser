@@ -24,7 +24,8 @@ open ios/AudioAnalyser.xcodeproj
 - Live microphone capture now runs through an `AVAudioEngine` input tap.
 - Shared frame analysis now drives live dominant-frequency and weighted-level status from iOS input.
 - The first real iOS analyzer UI now renders live metric cards and a compact spectrum view from shared analysis results.
+- Shared feedback tracking now surfaces live cut suggestions in the iOS analyzer UI.
 
 ## Next step
 
-Feed shared frame results into iOS feedback tracking and expand the analyzer view with richer history/spectrum presentation.
+Expand the analyzer view with richer history/spectrum presentation and continue extracting remaining non-UI shared helpers.

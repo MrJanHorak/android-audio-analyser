@@ -37,6 +37,8 @@ private data class TrackedFeedbackPeak(
 class FeedbackPeakTracker(
     private val config: FeedbackPeakTrackerConfig = FeedbackPeakTrackerConfig()
 ) {
+    constructor() : this(FeedbackPeakTrackerConfig())
+
     private val trackedFeedbackPeaks = mutableListOf<TrackedFeedbackPeak>()
 
     fun update(spectrum: FloatArray, currentDb: Float, binSize: Float): List<FeedbackPeak> {

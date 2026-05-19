@@ -22,6 +22,7 @@ struct ContentView: View {
                                 LiveAnalyzerMetricsView(snapshot: liveAnalyzerSnapshot)
                                 SpectrumBarsView(bars: liveAnalyzerSnapshot.spectrumBars)
                                 SpectrumLegendView(sampleRateHz: liveAnalyzerSnapshot.sampleRateHz)
+                                FeedbackSuggestionsView(suggestions: liveAnalyzerSnapshot.feedbackSuggestions)
                             }
                         } else {
                             AnalyzerPlaceholderView(isCapturing: setupViewModel.isCapturing)
@@ -84,8 +85,8 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Feed shared frame results into the existing feedback tracker on iOS")
                             BulletRow(text: "Expand the iOS analyzer UI with a denser live spectrum and history views")
+                            BulletRow(text: "Refine the iOS feedback workflow with richer confidence and cut controls")
                             BulletRow(text: "Move more pure analyzer helpers and defaults into shared code")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -221,6 +222,84 @@ private struct AnalyzerPlaceholderView: View {
             )
             .font(.subheadline)
             .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct FeedbackSuggestionsView: View {
+    let suggestions: [LiveFeedbackSuggestion]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Feedback suggestions")
+                .font(.headline)
+
+            if suggestions.isEmpty {
+                Text("No stable feedback peaks detected yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(suggestions) { suggestion in
+                        FeedbackSuggestionRow(suggestion: suggestion)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct FeedbackSuggestionRow: View {
+    let suggestion: LiveFeedbackSuggestion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(String(format: "%.0f Hz", suggestion.frequencyHz))
+                    .font(.headline)
+                Spacer()
+                Text(String(format: "Cut %.0f Hz", suggestion.suggestedCutHz))
+                    .font(.subheadline.weight(.semibold))
+            }
+
+            HStack(spacing: 12) {
+                SuggestionMeter(label: "Level", value: suggestion.normalizedLevel)
+                SuggestionMeter(label: "Stable", value: suggestion.stability)
+                Text("Hold \(suggestion.holdFrames)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
+    }
+}
+
+private struct SuggestionMeter: View {
+    let label: String
+    let value: Float
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.18))
+                    Capsule()
+                        .fill(Color.accentColor)
+                        .frame(width: geometry.size.width * CGFloat(min(max(value, 0), 1)))
+                }
+            }
+            .frame(height: 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

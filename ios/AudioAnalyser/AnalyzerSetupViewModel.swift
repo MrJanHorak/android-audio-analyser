@@ -12,6 +12,19 @@ struct LiveAnalyzerSnapshot {
     let frameLength: Int
     let channelCount: Int
     let spectrumBars: [Float]
+    let feedbackSuggestions: [LiveFeedbackSuggestion]
+}
+
+struct LiveFeedbackSuggestion: Identifiable {
+    let frequencyHz: Float
+    let suggestedCutHz: Float
+    let normalizedLevel: Float
+    let stability: Float
+    let holdFrames: Int
+
+    var id: String {
+        "\(Int(frequencyHz.rounded()))-\(Int(suggestedCutHz.rounded()))"
+    }
 }
 
 @MainActor
@@ -30,7 +43,14 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private let dbOffset: Float = 30
     private let noiseThreshold: Float = 25
     private let spectrumBarCount = 40
+    private let fullSpectrumSmoothingFactor: Float = 0.2
+    private let uiPublishIntervalNanoseconds: UInt64 = 100_000_000
     private var liveFrameAnalyzer: AnalyzerFrameAnalyzer?
+    private var liveFeedbackTracker: FeedbackPeakTracker?
+    private var reusableAnalysisInputBuffer: KotlinFloatArray?
+    private var reusableTrackerSpectrumBuffer: KotlinFloatArray?
+    private var smoothedSpectrum: [Float] = []
+    private var lastUiPublishTimeNanoseconds: UInt64 = 0
 
     init(
         audioSessionController: AudioSessionController = .shared,
@@ -168,6 +188,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 sampleRate: Int32(startInfo.inputFormatSampleRate.rounded()),
                 fftSize: Int32(startInfo.analysisFrameSize)
             )
+            liveFeedbackTracker = FeedbackPeakTracker()
+            reusableAnalysisInputBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize))
+            reusableTrackerSpectrumBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize / 2))
+            smoothedSpectrum = Array(repeating: 0, count: startInfo.analysisFrameSize / 2)
+            lastUiPublishTimeNanoseconds = 0
             isCapturing = true
             audioSessionSummary = "Active measurement capture"
             audioSessionDetail = String(
@@ -190,7 +215,13 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     private func stopLiveCaptureWithoutRefreshing() {
         liveAudioCaptureController.stopCapture()
+        liveFeedbackTracker?.clear()
         liveFrameAnalyzer = nil
+        liveFeedbackTracker = nil
+        reusableAnalysisInputBuffer = nil
+        reusableTrackerSpectrumBuffer = nil
+        smoothedSpectrum = []
+        lastUiPublishTimeNanoseconds = 0
         liveAnalyzerSnapshot = nil
         isCapturing = false
         liveCaptureSummary = "Live capture is idle"
@@ -221,10 +252,17 @@ final class AnalyzerSetupViewModel: ObservableObject {
             return
         }
 
-        let kotlinSamples = makeKotlinFloatArray(from: snapshot.analysisSamples)
+        let kotlinSamples = reusableAnalysisInputBuffer ?? KotlinFloatArray(size: Int32(snapshot.analysisSamples.count))
+        reusableAnalysisInputBuffer = kotlinSamples
+        copy(snapshot.analysisSamples, into: kotlinSamples)
         let frameAnalysis = liveFrameAnalyzer.analyzeFloat(
             buffer: kotlinSamples,
             read: Int32(snapshot.analysisSamples.count)
+        )
+        smoothedSpectrum = makeSmoothedSpectrum(
+            from: frameAnalysis.magnitudes,
+            currentDb: currentDb,
+            previousSpectrum: smoothedSpectrum
         )
         let weightedDbA = AnalyzerMath.shared.applyNoiseGate(
             calibratedDb: (calibratedDb + frameAnalysis.aWeightingAdjustmentDb).clampedToZero(),
@@ -234,11 +272,27 @@ final class AnalyzerSetupViewModel: ObservableObject {
             calibratedDb: (calibratedDb + frameAnalysis.cWeightingAdjustmentDb).clampedToZero(),
             noiseThreshold: noiseThreshold
         )
+        let feedbackSuggestions = updateFeedbackSuggestions(
+            spectrum: smoothedSpectrum,
+            currentDb: currentDb,
+            binSizeHz: frameAnalysis.binSize
+        )
+
+        if liveCaptureDetail == "Waiting for the first shared frame-analysis update." {
+            liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
+        }
+
+        let now = DispatchTime.now().uptimeNanoseconds
+        let shouldPublishSnapshot = liveAnalyzerSnapshot == nil ||
+            now - lastUiPublishTimeNanoseconds >= uiPublishIntervalNanoseconds
+        guard shouldPublishSnapshot else {
+            return
+        }
+        lastUiPublishTimeNanoseconds = now
 
         let spectrumBars = makeSpectrumBars(
-            from: frameAnalysis.magnitudes,
-            binSizeHz: frameAnalysis.binSize,
-            previousBars: liveAnalyzerSnapshot?.spectrumBars
+            from: smoothedSpectrum,
+            binSizeHz: frameAnalysis.binSize
         )
 
         liveAnalyzerSnapshot = LiveAnalyzerSnapshot(
@@ -252,12 +306,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
             sampleRateHz: snapshot.sampleRate,
             frameLength: snapshot.frameLength,
             channelCount: snapshot.channelCount,
-            spectrumBars: spectrumBars
+            spectrumBars: spectrumBars,
+            feedbackSuggestions: feedbackSuggestions
         )
-
-        if liveCaptureDetail == "Waiting for the first shared frame-analysis update." {
-            liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
-        }
     }
 
     private func handleCaptureFailure(_ message: String) {
@@ -289,20 +340,70 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
     }
 
-    private func makeKotlinFloatArray(from samples: [Float]) -> KotlinFloatArray {
-        let kotlinArray = KotlinFloatArray(size: Int32(samples.count))
+    private func copy(_ samples: [Float], into kotlinArray: KotlinFloatArray) {
         for (index, sample) in samples.enumerated() {
             kotlinArray.set(index: Int32(index), value: sample)
         }
-        return kotlinArray
+    }
+
+    private func makeSmoothedSpectrum(
+        from magnitudes: KotlinFloatArray,
+        currentDb: Float,
+        previousSpectrum: [Float]
+    ) -> [Float] {
+        let magnitudeCount = Int(magnitudes.size)
+        guard magnitudeCount > 0 else {
+            return []
+        }
+
+        var nextSpectrum = previousSpectrum.count == magnitudeCount
+            ? previousSpectrum
+            : Array(repeating: 0, count: magnitudeCount)
+
+        for index in 0..<magnitudeCount {
+            let rawMagnitude = currentDb > 0 ? magnitudes.get(index: Int32(index)) : 0
+            let previousValue = nextSpectrum[index]
+            nextSpectrum[index] = previousValue * (1 - fullSpectrumSmoothingFactor) + rawMagnitude * fullSpectrumSmoothingFactor
+        }
+
+        return nextSpectrum
+    }
+
+    private func updateFeedbackSuggestions(
+        spectrum: [Float],
+        currentDb: Float,
+        binSizeHz: Float
+    ) -> [LiveFeedbackSuggestion] {
+        guard let liveFeedbackTracker else {
+            return []
+        }
+
+        let kotlinSpectrum = reusableTrackerSpectrumBuffer ?? KotlinFloatArray(size: Int32(spectrum.count))
+        reusableTrackerSpectrumBuffer = kotlinSpectrum
+        copy(spectrum, into: kotlinSpectrum)
+
+        let feedbackPeaks = liveFeedbackTracker.update(
+            spectrum: kotlinSpectrum,
+            currentDb: currentDb,
+            binSize: binSizeHz
+        )
+
+        return feedbackPeaks.map { peak in
+            LiveFeedbackSuggestion(
+                frequencyHz: peak.frequencyHz,
+                suggestedCutHz: peak.suggestedCutHz,
+                normalizedLevel: peak.normalizedLevel,
+                stability: peak.stability,
+                holdFrames: Int(peak.holdFrames)
+            )
+        }
     }
 
     private func makeSpectrumBars(
-        from magnitudes: KotlinFloatArray,
-        binSizeHz: Float,
-        previousBars: [Float]?
+        from smoothedMagnitudes: [Float],
+        binSizeHz: Float
     ) -> [Float] {
-        let magnitudeCount = Int(magnitudes.size)
+        let magnitudeCount = smoothedMagnitudes.count
         guard magnitudeCount > 1, binSizeHz > 0 else {
             return Array(repeating: 0, count: spectrumBarCount)
         }
@@ -326,13 +427,10 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
             var peakMagnitude: Float = 0
             for binIndex in startBin...endBin {
-                peakMagnitude = max(peakMagnitude, magnitudes.get(index: Int32(binIndex)))
+                peakMagnitude = max(peakMagnitude, smoothedMagnitudes[binIndex])
             }
 
-            let normalizedBar = normalizeSpectrumMagnitude(peakMagnitude)
-            let previousValue = previousBars?[safe: barIndex] ?? 0
-            let smoothingFactor: Float = normalizedBar > previousValue ? 0.55 : 0.18
-            bars[barIndex] = previousValue + (normalizedBar - previousValue) * smoothingFactor
+            bars[barIndex] = normalizeSpectrumMagnitude(peakMagnitude)
         }
 
         return bars
@@ -352,15 +450,5 @@ private extension Float {
 
     func clampedToUnit() -> Float {
         min(max(self, 0), 1)
-    }
-}
-
-private extension Array where Element == Float {
-    subscript(safe index: Int) -> Float? {
-        guard indices.contains(index) else {
-            return nil
-        }
-
-        return self[index]
     }
 }
