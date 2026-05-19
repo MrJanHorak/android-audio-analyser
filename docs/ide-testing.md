@@ -5,7 +5,7 @@ This document covers the current Android workflow and the current Xcode workflow
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a richer live analyzer UI with level history/spectrum history, and shared feedback-cut suggestions.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a richer live analyzer UI with level history/spectrum history, shared feedback-cut suggestions, and iOS snapshot/logging/export controls.
 
 ## Android Studio
 
@@ -92,6 +92,7 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - the configured measurement-mode audio-session summary
     - the live capture status row
     - a live analyzer section with metric cards, min/avg/max level stats, a dB(Z) sparkline, a compact spectrum area, and a spectrum-history waterfall
+    - a snapshot/logging section with spectrum snapshot controls and CSV log sharing
     - a feedback suggestion area that can populate once stable peaks are present
 6. Tap the microphone action buttons:
     - on first run, confirm the system permission prompt appears
@@ -102,7 +103,8 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - live SPL meter/history
     - live spectrum/history
     - dominant frequency
-    - snapshots/logging
+    - snapshot capture/compare
+    - logging/export
     - signal generator
     - fuller waterfall/overlay controls
 
@@ -122,14 +124,20 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - a changing live spectrum visualization
     - a compact spectrum-history waterfall that fills from top to bottom over time
     - feedback suggestions appearing when a stable resonant peak is sustained
-6. Feed a known test tone and compare:
+6. Exercise the new analyzer tools:
+    - capture a spectrum snapshot and confirm compare turns on automatically
+    - confirm the cyan snapshot overlay tracks above the live bars when the current axis matches
+    - clear the snapshot and confirm the overlay disappears
+    - start logging, let the analyzer run briefly, stop logging, and confirm a CSV share action appears
+    - share the CSV and inspect that it contains the Android-style columns `Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)`
+7. Feed a known test tone and compare:
     - dominant frequency
     - SPL trend
     - A/C/Z relative behavior
-7. Confirm app behavior after route changes:
-   - speakers
-   - headphones
-   - Bluetooth if supported later
+8. Confirm app behavior after route changes:
+    - speakers
+    - headphones
+    - Bluetooth if supported later
 
 ## Troubleshooting
 

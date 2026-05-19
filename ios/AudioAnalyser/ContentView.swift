@@ -21,7 +21,10 @@ struct ContentView: View {
                             VStack(alignment: .leading, spacing: 16) {
                                 LiveAnalyzerMetricsView(snapshot: liveAnalyzerSnapshot)
                                 LevelHistorySection(snapshot: liveAnalyzerSnapshot)
-                                SpectrumBarsView(bars: liveAnalyzerSnapshot.spectrumBars)
+                                SpectrumBarsView(
+                                    bars: liveAnalyzerSnapshot.spectrumBars,
+                                    snapshotOverlayBars: setupViewModel.snapshotOverlayBars
+                                )
                                 SpectrumLegendView(sampleRateHz: liveAnalyzerSnapshot.sampleRateHz)
                                 SpectrumHistoryWaterfallView(rows: liveAnalyzerSnapshot.spectrumHistoryRows)
                                 FeedbackSuggestionsView(suggestions: liveAnalyzerSnapshot.feedbackSuggestions)
@@ -29,6 +32,79 @@ struct ContentView: View {
                         } else {
                             AnalyzerPlaceholderView(isCapturing: setupViewModel.isCapturing)
                         }
+                    }
+
+                    GroupBox("Snapshots and logging") {
+                        VStack(alignment: .leading, spacing: 18) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Spectrum snapshot")
+                                    .font(.headline)
+
+                                HStack(spacing: 10) {
+                                    Button(setupViewModel.snapshotActionTitle) {
+                                        setupViewModel.captureSpectrumSnapshot()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(setupViewModel.isSnapshotCaptureDisabled)
+
+                                    Button(
+                                        setupViewModel.isSnapshotCompareEnabled
+                                            ? "Compare on"
+                                            : "Compare off"
+                                    ) {
+                                        setupViewModel.toggleSnapshotCompare()
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(!setupViewModel.canToggleSnapshotCompare)
+
+                                    Button("Clear") {
+                                        setupViewModel.clearSpectrumSnapshot()
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(!setupViewModel.canClearSnapshot)
+                                }
+
+                                Text(setupViewModel.snapshotStatusText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Decibel logger")
+                                    .font(.headline)
+
+                                HStack(spacing: 10) {
+                                    Button(setupViewModel.loggingActionTitle) {
+                                        setupViewModel.toggleLogging()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(setupViewModel.isLoggingActionDisabled)
+
+                                    if let exportedAnalyzerLog = setupViewModel.exportedAnalyzerLog {
+                                        ShareLink(item: exportedAnalyzerLog.fileURL) {
+                                            Label("Share CSV", systemImage: "square.and.arrow.up")
+                                        }
+                                        .buttonStyle(.bordered)
+                                    }
+                                }
+
+                                Text(setupViewModel.loggingStatusText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+
+                                if let exportedAnalyzerLog = setupViewModel.exportedAnalyzerLog {
+                                    Text(
+                                        "Prepared \(exportedAnalyzerLog.rowCount) samples on \(exportedAnalyzerLog.exportedAt.formatted(date: .abbreviated, time: .shortened))."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     GroupBox("iOS setup and capture") {
@@ -84,6 +160,10 @@ struct ContentView: View {
                                 title: "Analyzer history",
                                 detail: "iOS now shows live min/avg/max stats, a recent dB(Z) sparkline, and a compact spectrum history waterfall."
                             )
+                            StatusRow(
+                                title: "Snapshots and logging",
+                                detail: "iOS can now save a live spectrum snapshot, compare it against matching live input, and export a CSV decibel log."
+                            )
                             StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,8 +171,8 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Add iOS snapshot, logging, and export parity for captured analyzer sessions")
                             BulletRow(text: "Refine the iOS feedback workflow with richer confidence and cut controls")
+                            BulletRow(text: "Add iOS waterfall/sample export and richer analyzer tooling around saved sessions")
                             BulletRow(text: "Move more pure analyzer helpers, defaults, and comparison overlays into shared code")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,6 +344,7 @@ private struct MetricCard: View {
 
 private struct SpectrumBarsView: View {
     let bars: [Float]
+    let snapshotOverlayBars: [Float]?
 
     var body: some View {
         Canvas { context, size in
@@ -288,6 +369,29 @@ private struct SpectrumBarsView: View {
                 )
                 context.fill(path, with: .color(color))
             }
+
+            if let snapshotOverlayBars, snapshotOverlayBars.count == bars.count {
+                var overlayPath = Path()
+
+                for (index, bar) in snapshotOverlayBars.enumerated() {
+                    let normalizedBar = CGFloat(min(max(bar, 0), 1))
+                    let height = max(2, size.height * normalizedBar)
+                    let x = CGFloat(index) * (barWidth + spacing) + (barWidth / 2)
+                    let point = CGPoint(x: x, y: size.height - height)
+
+                    if index == 0 {
+                        overlayPath.move(to: point)
+                    } else {
+                        overlayPath.addLine(to: point)
+                    }
+                }
+
+                context.stroke(
+                    overlayPath,
+                    with: .color(Color(red: 0, green: 0.67, blue: 0.76)),
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
+                )
+            }
         }
         .frame(height: 170)
         .padding(.vertical, 6)
@@ -296,6 +400,7 @@ private struct SpectrumBarsView: View {
                 .fill(Color.black.opacity(0.08))
         )
         .animation(nil, value: bars)
+        .animation(nil, value: snapshotOverlayBars ?? [])
     }
 }
 

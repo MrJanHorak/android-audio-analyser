@@ -20,6 +20,21 @@ struct LiveAnalyzerSnapshot {
     let feedbackSuggestions: [LiveFeedbackSuggestion]
 }
 
+struct SavedSpectrumSnapshot {
+    let capturedAt: Date
+    let dominantFrequencyHz: Float
+    let zLevelDb: Float
+    let sampleRateHz: Double
+    let frameLength: Int
+    let spectrumBars: [Float]
+}
+
+struct ExportedAnalyzerLog {
+    let fileURL: URL
+    let rowCount: Int
+    let exportedAt: Date
+}
+
 struct LiveFeedbackSuggestion: Identifiable {
     let frequencyHz: Float
     let suggestedCutHz: Float
@@ -40,6 +55,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var liveCaptureSummary: String
     @Published private(set) var liveCaptureDetail: String
     @Published private(set) var liveAnalyzerSnapshot: LiveAnalyzerSnapshot?
+    @Published private(set) var savedSpectrumSnapshot: SavedSpectrumSnapshot?
+    @Published private(set) var isSnapshotCompareRequested = false
+    @Published private(set) var isLogging = false
+    @Published private(set) var exportedAnalyzerLog: ExportedAnalyzerLog?
+    @Published private(set) var logStatusMessage: String?
     @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
 
@@ -63,6 +83,8 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var maxObservedZLevelDb: Float = 0
     private var zLevelSum = 0.0
     private var zLevelSampleCount = 0
+    private var loggedCsvRows: [String] = []
+    private var loggedRowCount = 0
     private var lastUiPublishTimeNanoseconds: UInt64 = 0
 
     init(
@@ -80,6 +102,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
         liveCaptureSummary = "Live capture is idle"
         liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
         liveAnalyzerSnapshot = nil
+        savedSpectrumSnapshot = nil
+        exportedAnalyzerLog = nil
+        logStatusMessage = nil
         bindCaptureCallbacks()
         refreshSetup()
     }
@@ -105,6 +130,117 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
 
         return microphonePermissionState != .granted || isWorking
+    }
+
+    var snapshotActionTitle: String {
+        savedSpectrumSnapshot == nil ? "Capture snapshot" : "Refresh snapshot"
+    }
+
+    var isSnapshotCaptureDisabled: Bool {
+        liveAnalyzerSnapshot == nil
+    }
+
+    var canToggleSnapshotCompare: Bool {
+        guard savedSpectrumSnapshot != nil else {
+            return false
+        }
+
+        return isSavedSpectrumSnapshotComparable
+    }
+
+    var canClearSnapshot: Bool {
+        savedSpectrumSnapshot != nil
+    }
+
+    var isSnapshotCompareEnabled: Bool {
+        isSnapshotCompareRequested && isSavedSpectrumSnapshotComparable
+    }
+
+    var snapshotOverlayBars: [Float]? {
+        guard isSnapshotCompareEnabled else {
+            return nil
+        }
+
+        return savedSpectrumSnapshot?.spectrumBars
+    }
+
+    var snapshotStatusText: String {
+        guard let savedSpectrumSnapshot else {
+            return "No snapshot saved yet. Capture one to overlay a cyan reference line on the live bars."
+        }
+
+        let summary = "Saved snapshot at \(frequencyString(savedSpectrumSnapshot.dominantFrequencyHz)) and \(decibelString(savedSpectrumSnapshot.zLevelDb)) on \(captureDateString(savedSpectrumSnapshot.capturedAt))."
+
+        guard liveAnalyzerSnapshot != nil else {
+            return "\(summary) Resume live capture to compare it against the current spectrum."
+        }
+
+        guard isSavedSpectrumSnapshotComparable else {
+            return "\(summary) Compare is temporarily unavailable because the current live axis does not match the saved snapshot."
+        }
+
+        if isSnapshotCompareEnabled {
+            return "\(summary) Snapshot compare is active. The cyan line shows the saved reference over the live bars."
+        }
+
+        return "\(summary) Compare is ready."
+    }
+
+    var loggingActionTitle: String {
+        isLogging ? "Stop logging" : "Start logging"
+    }
+
+    var isLoggingActionDisabled: Bool {
+        !isCapturing && !isLogging
+    }
+
+    var loggingStatusText: String {
+        if isLogging {
+            return "Logging timestamp, dB(Z), dB(A), dB(C), and dominant frequency at live analyzer cadence. Stop logging to prepare a CSV."
+        }
+
+        if let logStatusMessage {
+            return logStatusMessage
+        }
+
+        return "Start live capture, then log a session to prepare a CSV you can share from iOS."
+    }
+
+    func captureSpectrumSnapshot() {
+        guard let liveAnalyzerSnapshot else {
+            return
+        }
+
+        savedSpectrumSnapshot = SavedSpectrumSnapshot(
+            capturedAt: Date(),
+            dominantFrequencyHz: liveAnalyzerSnapshot.dominantFrequencyHz,
+            zLevelDb: liveAnalyzerSnapshot.zLevelDb,
+            sampleRateHz: liveAnalyzerSnapshot.sampleRateHz,
+            frameLength: liveAnalyzerSnapshot.frameLength,
+            spectrumBars: liveAnalyzerSnapshot.spectrumBars
+        )
+        isSnapshotCompareRequested = true
+    }
+
+    func toggleSnapshotCompare() {
+        guard savedSpectrumSnapshot != nil else {
+            return
+        }
+
+        isSnapshotCompareRequested.toggle()
+    }
+
+    func clearSpectrumSnapshot() {
+        savedSpectrumSnapshot = nil
+        isSnapshotCompareRequested = false
+    }
+
+    func toggleLogging() {
+        if isLogging {
+            stopLoggingAndPrepareExport()
+        } else {
+            startLogging()
+        }
     }
 
     func refreshSetup() {
@@ -229,6 +365,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     private func stopLiveCaptureWithoutRefreshing() {
         liveAudioCaptureController.stopCapture()
+        finalizeLoggingIfNeeded()
         liveFeedbackTracker?.clear()
         liveFrameAnalyzer = nil
         liveFeedbackTracker = nil
@@ -293,6 +430,13 @@ final class AnalyzerSetupViewModel: ObservableObject {
             binSizeHz: frameAnalysis.binSize
         )
         updateLevelStats(with: currentDb)
+        appendLoggingRowIfNeeded(
+            timestampMilliseconds: Int64(Date().timeIntervalSince1970 * 1_000),
+            zLevelDb: currentDb,
+            aLevelDb: weightedDbA,
+            cLevelDb: weightedDbC,
+            dominantFrequencyHz: frameAnalysis.dominantFrequencyHz
+        )
 
         if liveCaptureDetail == "Waiting for the first shared frame-analysis update." {
             liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
@@ -459,6 +603,16 @@ final class AnalyzerSetupViewModel: ObservableObject {
         return bars
     }
 
+    private var isSavedSpectrumSnapshotComparable: Bool {
+        guard let savedSpectrumSnapshot, let liveAnalyzerSnapshot else {
+            return false
+        }
+
+        return savedSpectrumSnapshot.spectrumBars.count == liveAnalyzerSnapshot.spectrumBars.count &&
+            Int(savedSpectrumSnapshot.sampleRateHz.rounded()) == Int(liveAnalyzerSnapshot.sampleRateHz.rounded()) &&
+            savedSpectrumSnapshot.frameLength == liveAnalyzerSnapshot.frameLength
+    }
+
     private func resetLiveHistory() {
         zLevelHistory = []
         spectrumHistoryRows = []
@@ -503,10 +657,98 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
     }
 
+    private func startLogging() {
+        guard isCapturing else {
+            logStatusMessage = "Start live capture before logging a session."
+            return
+        }
+
+        loggedCsvRows = ["Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)"]
+        loggedRowCount = 0
+        exportedAnalyzerLog = nil
+        logStatusMessage = nil
+        isLogging = true
+    }
+
+    private func stopLoggingAndPrepareExport() {
+        finalizeLoggingIfNeeded()
+    }
+
+    private func appendLoggingRowIfNeeded(
+        timestampMilliseconds: Int64,
+        zLevelDb: Float,
+        aLevelDb: Float,
+        cLevelDb: Float,
+        dominantFrequencyHz: Float
+    ) {
+        guard isLogging else {
+            return
+        }
+
+        loggedCsvRows.append(
+            "\(timestampMilliseconds),\(zLevelDb),\(aLevelDb),\(cLevelDb),\(dominantFrequencyHz)"
+        )
+        loggedRowCount += 1
+    }
+
+    private func finalizeLoggingIfNeeded() {
+        guard isLogging else {
+            return
+        }
+
+        isLogging = false
+
+        let csvContents = loggedCsvRows.joined(separator: "\n")
+        guard !csvContents.isEmpty else {
+            logStatusMessage = "No iOS log data was captured."
+            return
+        }
+
+        let exportUrl = makeAnalyzerLogExportUrl()
+
+        do {
+            try csvContents.write(to: exportUrl, atomically: true, encoding: .utf8)
+            exportedAnalyzerLog = ExportedAnalyzerLog(
+                fileURL: exportUrl,
+                rowCount: loggedRowCount,
+                exportedAt: Date()
+            )
+            logStatusMessage = "CSV log ready with \(loggedRowCount) samples: \(exportUrl.lastPathComponent)"
+        } catch {
+            exportedAnalyzerLog = nil
+            logStatusMessage = "Couldn't prepare the CSV export: \(error.localizedDescription)"
+        }
+    }
+
+    private func makeAnalyzerLogExportUrl() -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970 * 1_000)
+        let filename = "audio-analyser-log-\(timestamp).csv"
+        return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+    }
+
     private func normalizeSpectrumMagnitude(_ magnitude: Float) -> Float {
         let magnitudeDb = 20.0 * log10(max(Double(magnitude), 1e-9))
         let normalized = Float((magnitudeDb + 80.0) / 80.0)
         return normalized.clampedToUnit()
+    }
+
+    private func frequencyString(_ value: Float) -> String {
+        guard value > 0 else {
+            return "--"
+        }
+
+        return String(format: "%.0f Hz", value)
+    }
+
+    private func decibelString(_ value: Float) -> String {
+        String(format: "%.1f dB(Z)", value)
+    }
+
+    private func captureDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 

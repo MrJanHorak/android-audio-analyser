@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a richer live analyzer UI with shared feedback-cut suggestions, live level history, and a compact spectrum-history waterfall.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a richer live analyzer UI with shared feedback-cut suggestions, live level history, a compact spectrum-history waterfall, spectrum snapshot compare, and CSV logging/export.
 
 ## What landed in this phase
 
@@ -57,6 +57,10 @@
   - live min/avg/max dB(Z) stats that ignore gated zero readings
   - a recent dB(Z) history sparkline
   - a compact spectrum-history waterfall built from normalized log-binned spectrum bars
+- Added iOS analyzer-tool parity with Android for:
+  - saved spectrum snapshots that can overlay a matching live spectrum as a cyan reference line
+  - in-memory decibel logging with CSV export/share using the same `Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)` column set
+  - automatic log finalization when live capture stops so the current session can still be exported
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
   - `./scripts/build-ios-shell.sh`
@@ -96,7 +100,7 @@ Owns the first pure helpers that can compile for Android, JVM, and iOS.
 2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
 3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
 4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Add iOS snapshot/logging/export flows on top of the richer live analyzer screen.
+5. Add richer iOS analyzer tooling around saved sessions, such as additional export/sample flows and denser compare controls.
 6. Start extracting remaining non-UI helpers such as target-curve defaults and formatting seams.
 
 ## Guardrails for future sessions

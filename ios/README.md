@@ -25,7 +25,8 @@ open ios/AudioAnalyser.xcodeproj
 - Shared frame analysis now drives live dominant-frequency and weighted-level status from iOS input.
 - The iOS analyzer UI now renders live metric cards, min/avg/max level stats, a recent dB(Z) history sparkline, a compact spectrum view, and a spectrum-history waterfall from shared analysis results.
 - Shared feedback tracking now surfaces live cut suggestions in the iOS analyzer UI.
+- iOS can now capture a live spectrum snapshot, compare it against matching live input, and prepare/share CSV decibel logs from the analyzer session.
 
 ## Next step
 
-Add iOS snapshot/logging/export flows and continue extracting remaining non-UI shared helpers.
+Expand the iOS analyzer tools with richer feedback controls, additional export paths, and more non-UI helper extraction into shared code.
