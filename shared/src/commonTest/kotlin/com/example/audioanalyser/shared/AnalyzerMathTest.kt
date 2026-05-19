@@ -21,6 +21,20 @@ class AnalyzerMathTest {
     }
 
     @Test
+    fun dbConversionHelpersMatchCurrentAnalyzerThresholding() {
+        assertClose(
+            expected = 60.0,
+            actual = AnalyzerMath.rawDbFromRms(1000f).toDouble(),
+            tolerance = 1e-6
+        )
+        assertEquals(-120f, AnalyzerMath.rawDbFromRms(0f))
+        assertEquals(40f, AnalyzerMath.applyDbOffset(rawDb = 10f, dbOffset = 30f))
+        assertEquals(0f, AnalyzerMath.applyDbOffset(rawDb = -80f, dbOffset = 30f))
+        assertEquals(40f, AnalyzerMath.applyNoiseGate(calibratedDb = 40f, noiseThreshold = 25f))
+        assertEquals(0f, AnalyzerMath.applyNoiseGate(calibratedDb = 25f, noiseThreshold = 25f))
+    }
+
+    @Test
     fun weightingCurvesMatchCurrentReferenceValues() {
         assertClose(
             expected = 1.0000396587558529,

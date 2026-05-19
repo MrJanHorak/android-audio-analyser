@@ -5,7 +5,7 @@ This document covers the current Android workflow and the current Xcode workflow
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, and the first native microphone/audio-session scaffolding.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, and a first live `AVAudioEngine` capture path.
 
 ## Android Studio
 
@@ -87,17 +87,19 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
 3. Open `ios/AudioAnalyser.xcodeproj` in Xcode.
 4. Run on an iPhone simulator or device.
 5. The current shell screen should open and show:
-   - the shared Kotlin analyzer math status row
-   - the microphone permission state
-   - the configured measurement-mode audio-session summary
-6. Tap the microphone action button:
-   - on first run, confirm the system permission prompt appears
-   - after granting access, confirm the audio-session row updates
-   - after denying access, confirm the button switches to the Settings path
+    - the shared Kotlin analyzer math status row
+    - the microphone permission state
+    - the configured measurement-mode audio-session summary
+    - the live capture status row
+6. Tap the microphone action buttons:
+    - on first run, confirm the system permission prompt appears
+    - after granting access, confirm the audio-session row updates
+    - after denying access, confirm the button switches to the Settings path
+    - after starting live capture, confirm the status row begins showing live dB, sample rate, and frame length updates
 7. Verify parity in this order:
-   - live SPL meter
-   - live spectrum
-   - dominant frequency
+    - live SPL meter
+    - live spectrum
+    - dominant frequency
    - snapshots/logging
    - signal generator
    - waterfall
@@ -108,11 +110,15 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
 2. Launch the iOS shell and confirm the shared Kotlin status row renders.
 3. Confirm microphone permission prompt behavior.
 4. Check that the audio session is configured for measurement-oriented capture.
-5. Once live capture lands, feed a known test tone and compare:
+5. Start live capture and confirm the UI reports:
+   - a running live capture state
+   - negotiated sample rate
+   - changing frame size / live level text
+6. Once shared FFT analysis lands, feed a known test tone and compare:
    - dominant frequency
    - SPL trend
    - A/C/Z relative behavior
-6. Confirm app behavior after route changes:
+7. Confirm app behavior after route changes:
    - speakers
    - headphones
    - Bluetooth if supported later

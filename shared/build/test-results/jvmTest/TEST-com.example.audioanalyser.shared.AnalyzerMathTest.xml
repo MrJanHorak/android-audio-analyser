@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="AnalyzerMathTest[jvm]" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-05-19T01:29:22.286Z" hostname="Jans-Mac-mini.local" time="0.014">
+<testsuite name="AnalyzerMathTest[jvm]" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-05-19T02:28:30.050Z" hostname="Jans-Mac-mini.local" time="0.012">
   <properties/>
-  <testcase name="weightingCurvesMatchCurrentReferenceValues[jvm]" classname="com.example.audioanalyser.shared.AnalyzerMathTest" time="0.012"/>
+  <testcase name="dbConversionHelpersMatchCurrentAnalyzerThresholding[jvm]" classname="com.example.audioanalyser.shared.AnalyzerMathTest" time="0.01"/>
+  <testcase name="weightingCurvesMatchCurrentReferenceValues[jvm]" classname="com.example.audioanalyser.shared.AnalyzerMathTest" time="0.0"/>
   <testcase name="calculateRmsMatchesCurrentAnalyzerBehavior[jvm]" classname="com.example.audioanalyser.shared.AnalyzerMathTest" time="0.0"/>
-  <testcase name="suggestCutFrequencyKeepsExistingBucketRules[jvm]" classname="com.example.audioanalyser.shared.AnalyzerMathTest" time="0.001"/>
+  <testcase name="suggestCutFrequencyKeepsExistingBucketRules[jvm]" classname="com.example.audioanalyser.shared.AnalyzerMathTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

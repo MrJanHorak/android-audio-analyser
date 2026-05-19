@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a minimal native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, and the SwiftUI shell now imports shared Kotlin code.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, and live microphone capture now runs through an `AVAudioEngine` input tap.
 
 ## What landed in this phase
 
@@ -33,6 +33,11 @@
   - microphone permission state via `AVAudioApplication`
   - measurement-mode audio-session configuration via `AVAudioSession`
   - explicit denied/open-settings handling in the SwiftUI shell
+- Added the first live iOS audio path in Swift:
+  - `AVAudioEngine` microphone capture with an input tap
+  - audio-session activation only while capture is running
+  - throttled live level / sample-rate / frame-length reporting in SwiftUI
+  - shared Kotlin dB conversion helpers now reused by both Android and iOS
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
   - `./scripts/build-ios-shell.sh`
@@ -72,8 +77,8 @@ Owns the first pure helpers that can compile for Android, JVM, and iOS.
 2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
 3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
 4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Start live microphone capture with `AVAudioEngine` and confirm buffer format/sample-rate behavior.
-6. Begin the first iOS analyzer screen backed by shared logic.
+5. Move FFT, dominant-frequency, and weighted-SPL frame analysis into shared code.
+6. Begin the first iOS analyzer screen backed by shared logic and the live capture feed.
 
 ## Guardrails for future sessions
 

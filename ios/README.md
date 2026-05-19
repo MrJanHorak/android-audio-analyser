@@ -21,8 +21,8 @@ open ios/AudioAnalyser.xcodeproj
 - A real Xcode-openable SwiftUI app shell.
 - Shared Kotlin framework is linked through a generated XCFramework copy in `ios/Frameworks/`.
 - Microphone permission and measurement-mode audio-session setup are scaffolded in native Swift.
-- No audio capture yet.
+- Live microphone capture now runs through an `AVAudioEngine` input tap.
 
 ## Next step
 
-Start live microphone capture with `AVAudioEngine`, then feed those buffers into the shared analyzer pipeline.
+Move FFT, dominant-frequency, and weighted-SPL analysis into shared code, then feed the live iOS capture buffers into that shared pipeline.

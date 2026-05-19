@@ -18,6 +18,24 @@ object AnalyzerMath {
         return sqrt(sum / read).toFloat()
     }
 
+    fun rawDbFromRms(rms: Float, floorDb: Float = -120f): Float {
+        require(rms >= 0f) { "rms must not be negative" }
+
+        return if (rms > 1e-9f) {
+            (20.0 * log10(rms.toDouble())).toFloat()
+        } else {
+            floorDb
+        }
+    }
+
+    fun applyDbOffset(rawDb: Float, dbOffset: Float): Float {
+        return (rawDb + dbOffset).coerceAtLeast(0f)
+    }
+
+    fun applyNoiseGate(calibratedDb: Float, noiseThreshold: Float): Float {
+        return if (calibratedDb > noiseThreshold) calibratedDb else 0f
+    }
+
     fun suggestCutFrequency(frequencyHz: Float): Float {
         val step = when {
             frequencyHz < 200f -> 5f

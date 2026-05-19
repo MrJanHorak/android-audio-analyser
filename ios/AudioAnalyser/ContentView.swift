@@ -12,7 +12,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("iOS port in progress")
                             .font(.largeTitle.weight(.bold))
-                        Text("This SwiftUI shell now links the shared Kotlin core and has the first iOS-only microphone setup flow in place.")
+                        Text("This SwiftUI shell now links the shared Kotlin core, handles microphone setup, and can start live AVAudioEngine capture.")
                             .foregroundStyle(.secondary)
                     }
 
@@ -32,12 +32,16 @@ struct ContentView: View {
                                 title: "Audio session",
                                 detail: "\(setupViewModel.audioSessionSummary). \(setupViewModel.audioSessionDetail)"
                             )
+                            StatusRow(
+                                title: "Live capture",
+                                detail: "\(setupViewModel.liveCaptureSummary). \(setupViewModel.liveCaptureDetail)"
+                            )
                             StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    GroupBox("iOS setup") {
+                    GroupBox("iOS setup and capture") {
                         VStack(alignment: .leading, spacing: 12) {
                             Button(setupViewModel.primaryActionTitle) {
                                 setupViewModel.performPrimaryAction()
@@ -45,10 +49,20 @@ struct ContentView: View {
                             .buttonStyle(.borderedProminent)
                             .disabled(setupViewModel.isWorking)
 
+                            Button(setupViewModel.captureActionTitle) {
+                                setupViewModel.toggleLiveCapture()
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(setupViewModel.isCaptureActionDisabled)
+
                             if setupViewModel.isWorking {
                                 ProgressView("Updating microphone access...")
                             } else {
-                                Text("The audio session is configured for measurement capture but intentionally stays inactive until live analysis starts.")
+                                Text(
+                                    setupViewModel.isCapturing
+                                        ? "Live capture keeps the measurement-mode audio session active only while the AVAudioEngine tap is running."
+                                        : "The audio session stays inactive until you explicitly start live capture from this screen."
+                                )
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
@@ -58,7 +72,7 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Start live microphone capture with an AVAudioEngine input tap")
+                            BulletRow(text: "Move FFT, dominant-frequency, and weighted SPL logic into shared code")
                             BulletRow(text: "Feed live iOS buffers into the shared analyzer pipeline")
                             BulletRow(text: "Start live SPL and spectrum rendering on iOS")
                             BulletRow(text: "Move more pure analyzer helpers and defaults into shared code")

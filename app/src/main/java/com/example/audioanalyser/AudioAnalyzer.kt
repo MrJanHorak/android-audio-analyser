@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlin.math.cos
-import kotlin.math.log10
 import kotlin.math.sqrt
 import kotlin.math.PI
 
@@ -165,9 +164,9 @@ class AudioAnalyzer {
 
                 // dB calculation (RMS)
                 val rms = AnalyzerMath.calculateRms(audioBuffer, read)
-                val rawDb = if (rms > 1e-9) 20 * log10(rms.toDouble()).toFloat() else -120f
-                val calibratedDb = (rawDb + _dbOffset.value).coerceAtLeast(0f)
-                val currentDb = if (calibratedDb > _noiseThreshold.value) calibratedDb else 0f
+                val rawDb = AnalyzerMath.rawDbFromRms(rms)
+                val calibratedDb = AnalyzerMath.applyDbOffset(rawDb, _dbOffset.value)
+                val currentDb = AnalyzerMath.applyNoiseGate(calibratedDb, _noiseThreshold.value)
                 _dbLevel.value = currentDb
                 
                 // Transient detection

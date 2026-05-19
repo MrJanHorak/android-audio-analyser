@@ -1,21 +1,37 @@
 import Combine
 import Foundation
+import Shared
 
 @MainActor
 final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var microphonePermissionState: MicrophonePermissionState
     @Published private(set) var audioSessionSummary: String
     @Published private(set) var audioSessionDetail: String
+    @Published private(set) var liveCaptureSummary: String
+    @Published private(set) var liveCaptureDetail: String
+    @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
 
     private let audioSessionController: AudioSessionController
+    private let liveAudioCaptureController: LiveAudioCaptureController
+    private let dbOffset: Float = 30
+    private let noiseThreshold: Float = 25
 
-    init(audioSessionController: AudioSessionController = .shared) {
+    init(
+        audioSessionController: AudioSessionController = .shared,
+        liveAudioCaptureController: LiveAudioCaptureController? = nil
+    ) {
         self.audioSessionController = audioSessionController
+        self.liveAudioCaptureController = liveAudioCaptureController ?? LiveAudioCaptureController(
+            audioSessionController: audioSessionController
+        )
         let permissionState = audioSessionController.permissionState()
         microphonePermissionState = permissionState
         audioSessionSummary = ""
         audioSessionDetail = ""
+        liveCaptureSummary = "Live capture is idle"
+        liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+        bindCaptureCallbacks()
         refreshSetup()
     }
 
@@ -30,8 +46,24 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
     }
 
+    var captureActionTitle: String {
+        isCapturing ? "Stop live capture" : "Start live capture"
+    }
+
+    var isCaptureActionDisabled: Bool {
+        if isCapturing {
+            return false
+        }
+
+        return microphonePermissionState != .granted || isWorking
+    }
+
     func refreshSetup() {
         microphonePermissionState = audioSessionController.permissionState()
+
+        if microphonePermissionState != .granted && isCapturing {
+            stopLiveCaptureWithoutRefreshing()
+        }
 
         switch microphonePermissionState {
         case .undetermined:
@@ -41,7 +73,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
             audioSessionSummary = "Microphone access is blocked"
             audioSessionDetail = "iOS will not prompt again after a denial. Use Settings to re-enable microphone access."
         case .granted:
-            configureAudioSession()
+            if !isCapturing {
+                configureAudioSession()
+            }
         }
     }
 
@@ -53,6 +87,15 @@ final class AnalyzerSetupViewModel: ObservableObject {
             audioSessionController.openAppSettings()
         case .granted:
             refreshSetup()
+        }
+    }
+
+    func toggleLiveCapture() {
+        if isCapturing {
+            stopLiveCaptureWithoutRefreshing()
+            refreshSetup()
+        } else {
+            startLiveCapture()
         }
     }
 
@@ -79,6 +122,91 @@ final class AnalyzerSetupViewModel: ObservableObject {
                     self.audioSessionDetail = "Open Settings to allow microphone capture for the iOS analyzer."
                 }
             }
+        }
+    }
+
+    private func bindCaptureCallbacks() {
+        liveAudioCaptureController.onSnapshot = { [weak self] snapshot in
+            DispatchQueue.main.async {
+                self?.applyCaptureSnapshot(snapshot)
+            }
+        }
+
+        liveAudioCaptureController.onFailure = { [weak self] message in
+            DispatchQueue.main.async {
+                self?.handleCaptureFailure(message)
+            }
+        }
+    }
+
+    private func startLiveCapture() {
+        guard microphonePermissionState == .granted else {
+            liveCaptureSummary = "Microphone access is required"
+            liveCaptureDetail = "Grant microphone permission before starting live input capture."
+            return
+        }
+
+        do {
+            let startInfo = try liveAudioCaptureController.startCapture()
+            isCapturing = true
+            audioSessionSummary = "Active measurement capture"
+            audioSessionDetail = String(
+                format: "Category %@, mode %@, session %.0f Hz, %.1f ms buffer. The negotiated input format is %.0f Hz with %d channel%@.",
+                startInfo.categoryDescription,
+                startInfo.modeDescription,
+                startInfo.sessionSampleRate,
+                startInfo.sessionBufferDuration * 1_000,
+                startInfo.inputFormatSampleRate,
+                startInfo.channelCount,
+                startInfo.channelCount == 1 ? "" : "s"
+            )
+            liveCaptureSummary = "Capturing live microphone input"
+            liveCaptureDetail = "Waiting for the first throttled AVAudioEngine tap update."
+        } catch {
+            handleCaptureFailure(error.localizedDescription)
+        }
+    }
+
+    private func stopLiveCaptureWithoutRefreshing() {
+        liveAudioCaptureController.stopCapture()
+        isCapturing = false
+        liveCaptureSummary = "Live capture is idle"
+        liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+    }
+
+    private func applyCaptureSnapshot(_ snapshot: LiveAudioCaptureSnapshot) {
+        let rawDb = AnalyzerMath.shared.rawDbFromRms(
+            rms: snapshot.pcm16EquivalentRms,
+            floorDb: -120
+        )
+        let calibratedDb = AnalyzerMath.shared.applyDbOffset(rawDb: rawDb, dbOffset: dbOffset)
+        let currentDb = AnalyzerMath.shared.applyNoiseGate(
+            calibratedDb: calibratedDb,
+            noiseThreshold: noiseThreshold
+        )
+
+        let liveLevelDescription = currentDb > 0
+            ? String(format: "%.1f dB", currentDb)
+            : "below the \(Int(noiseThreshold)) dB gate"
+
+        liveCaptureSummary = "Capturing live microphone input"
+        liveCaptureDetail = String(
+            format: "Live level %@, %.0f Hz, %d frames, %d channel%@.",
+            liveLevelDescription,
+            snapshot.sampleRate,
+            snapshot.frameLength,
+            snapshot.channelCount,
+            snapshot.channelCount == 1 ? "" : "s"
+        )
+    }
+
+    private func handleCaptureFailure(_ message: String) {
+        stopLiveCaptureWithoutRefreshing()
+        liveCaptureSummary = "Live capture failed"
+        liveCaptureDetail = message
+
+        if microphonePermissionState == .granted {
+            configureAudioSession()
         }
     }
 

@@ -37,6 +37,14 @@ struct AnalysisAudioSessionSetup {
     let preferredBufferDuration: TimeInterval
 }
 
+struct ActiveAnalysisAudioSession {
+    let categoryDescription: String
+    let modeDescription: String
+    let actualSampleRate: Double
+    let actualBufferDuration: TimeInterval
+    let inputAvailable: Bool
+}
+
 final class AudioSessionController {
     static let shared = AudioSessionController()
 
@@ -87,6 +95,23 @@ final class AudioSessionController {
             preferredSampleRate: audioSession.preferredSampleRate,
             preferredBufferDuration: audioSession.preferredIOBufferDuration
         )
+    }
+
+    func activateForCapture() throws -> ActiveAnalysisAudioSession {
+        _ = try configureForAnalysis()
+        try audioSession.setActive(true)
+
+        return ActiveAnalysisAudioSession(
+            categoryDescription: audioSession.category.rawValue,
+            modeDescription: audioSession.mode.rawValue,
+            actualSampleRate: audioSession.sampleRate,
+            actualBufferDuration: audioSession.ioBufferDuration,
+            inputAvailable: audioSession.isInputAvailable
+        )
+    }
+
+    func deactivateAfterCapture() throws {
+        try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     func openAppSettings() {
