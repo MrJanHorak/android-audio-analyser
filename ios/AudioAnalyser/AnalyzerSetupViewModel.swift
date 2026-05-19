@@ -2,6 +2,18 @@ import Combine
 import Foundation
 import Shared
 
+struct LiveAnalyzerSnapshot {
+    let zLevelDb: Float
+    let aLevelDb: Float
+    let cLevelDb: Float
+    let dominantFrequencyHz: Float
+    let suggestedCutFrequencyHz: Float
+    let sampleRateHz: Double
+    let frameLength: Int
+    let channelCount: Int
+    let spectrumBars: [Float]
+}
+
 @MainActor
 final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var microphonePermissionState: MicrophonePermissionState
@@ -9,6 +21,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var audioSessionDetail: String
     @Published private(set) var liveCaptureSummary: String
     @Published private(set) var liveCaptureDetail: String
+    @Published private(set) var liveAnalyzerSnapshot: LiveAnalyzerSnapshot?
     @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
 
@@ -16,6 +29,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private let liveAudioCaptureController: LiveAudioCaptureController
     private let dbOffset: Float = 30
     private let noiseThreshold: Float = 25
+    private let spectrumBarCount = 40
     private var liveFrameAnalyzer: AnalyzerFrameAnalyzer?
 
     init(
@@ -32,6 +46,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
         audioSessionDetail = ""
         liveCaptureSummary = "Live capture is idle"
         liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+        liveAnalyzerSnapshot = nil
         bindCaptureCallbacks()
         refreshSetup()
     }
@@ -176,6 +191,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private func stopLiveCaptureWithoutRefreshing() {
         liveAudioCaptureController.stopCapture()
         liveFrameAnalyzer = nil
+        liveAnalyzerSnapshot = nil
         isCapturing = false
         liveCaptureSummary = "Live capture is idle"
         liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
@@ -219,18 +235,29 @@ final class AnalyzerSetupViewModel: ObservableObject {
             noiseThreshold: noiseThreshold
         )
 
-        liveCaptureSummary = "Capturing live microphone input"
-        liveCaptureDetail = String(
-            format: "Z %.1f dB, A %.1f dB, C %.1f dB, %.0f Hz dominant, %.0f Hz sample rate, %d frames, %d channel%@.",
-            currentDb,
-            weightedDbA,
-            weightedDbC,
-            frameAnalysis.dominantFrequencyHz,
-            snapshot.sampleRate,
-            snapshot.frameLength,
-            snapshot.channelCount,
-            snapshot.channelCount == 1 ? "" : "s"
+        let spectrumBars = makeSpectrumBars(
+            from: frameAnalysis.magnitudes,
+            binSizeHz: frameAnalysis.binSize,
+            previousBars: liveAnalyzerSnapshot?.spectrumBars
         )
+
+        liveAnalyzerSnapshot = LiveAnalyzerSnapshot(
+            zLevelDb: currentDb,
+            aLevelDb: weightedDbA,
+            cLevelDb: weightedDbC,
+            dominantFrequencyHz: frameAnalysis.dominantFrequencyHz,
+            suggestedCutFrequencyHz: AnalyzerMath.shared.suggestCutFrequency(
+                frequencyHz: frameAnalysis.dominantFrequencyHz
+            ),
+            sampleRateHz: snapshot.sampleRate,
+            frameLength: snapshot.frameLength,
+            channelCount: snapshot.channelCount,
+            spectrumBars: spectrumBars
+        )
+
+        if liveCaptureDetail == "Waiting for the first shared frame-analysis update." {
+            liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
+        }
     }
 
     private func handleCaptureFailure(_ message: String) {
@@ -269,10 +296,71 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
         return kotlinArray
     }
+
+    private func makeSpectrumBars(
+        from magnitudes: KotlinFloatArray,
+        binSizeHz: Float,
+        previousBars: [Float]?
+    ) -> [Float] {
+        let magnitudeCount = Int(magnitudes.size)
+        guard magnitudeCount > 1, binSizeHz > 0 else {
+            return Array(repeating: 0, count: spectrumBarCount)
+        }
+
+        let maxBinIndex = magnitudeCount - 1
+        let nyquistHz = Double(binSizeHz) * Double(maxBinIndex)
+        let minFrequencyHz = min(30.0, nyquistHz)
+        let maxFrequencyHz = max(minFrequencyHz * 2.0, nyquistHz)
+        let minLogFrequency = log10(minFrequencyHz)
+        let maxLogFrequency = log10(maxFrequencyHz)
+        let logRange = maxLogFrequency - minLogFrequency
+        var bars = Array(repeating: Float.zero, count: spectrumBarCount)
+
+        for barIndex in 0..<spectrumBarCount {
+            let startRatio = Double(barIndex) / Double(spectrumBarCount)
+            let endRatio = Double(barIndex + 1) / Double(spectrumBarCount)
+            let startFrequencyHz = pow(10.0, minLogFrequency + logRange * startRatio)
+            let endFrequencyHz = pow(10.0, minLogFrequency + logRange * endRatio)
+            let startBin = min(max(1, Int(floor(startFrequencyHz / Double(binSizeHz)))), maxBinIndex)
+            let endBin = min(max(startBin, Int(ceil(endFrequencyHz / Double(binSizeHz)))), maxBinIndex)
+
+            var peakMagnitude: Float = 0
+            for binIndex in startBin...endBin {
+                peakMagnitude = max(peakMagnitude, magnitudes.get(index: Int32(binIndex)))
+            }
+
+            let normalizedBar = normalizeSpectrumMagnitude(peakMagnitude)
+            let previousValue = previousBars?[safe: barIndex] ?? 0
+            let smoothingFactor: Float = normalizedBar > previousValue ? 0.55 : 0.18
+            bars[barIndex] = previousValue + (normalizedBar - previousValue) * smoothingFactor
+        }
+
+        return bars
+    }
+
+    private func normalizeSpectrumMagnitude(_ magnitude: Float) -> Float {
+        let magnitudeDb = 20.0 * log10(max(Double(magnitude), 1e-9))
+        let normalized = Float((magnitudeDb + 80.0) / 80.0)
+        return normalized.clampedToUnit()
+    }
 }
 
 private extension Float {
     func clampedToZero() -> Float {
         max(self, 0)
+    }
+
+    func clampedToUnit() -> Float {
+        min(max(self, 0), 1)
+    }
+}
+
+private extension Array where Element == Float {
+    subscript(safe index: Int) -> Float? {
+        guard indices.contains(index) else {
+            return nil
+        }
+
+        return self[index]
     }
 }

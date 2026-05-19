@@ -5,7 +5,7 @@ This document covers the current Android workflow and the current Xcode workflow
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, and shared frame analysis wired into the shell.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, and a first real live analyzer UI.
 
 ## Android Studio
 
@@ -91,11 +91,12 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - the microphone permission state
     - the configured measurement-mode audio-session summary
     - the live capture status row
+    - a live analyzer section with metric cards and a compact spectrum area
 6. Tap the microphone action buttons:
     - on first run, confirm the system permission prompt appears
     - after granting access, confirm the audio-session row updates
     - after denying access, confirm the button switches to the Settings path
-    - after starting live capture, confirm the status row begins showing live Z/A/C levels, dominant frequency, sample rate, and frame length updates
+    - after starting live capture, confirm the analyzer cards and spectrum begin updating with live data
 7. Verify parity in this order:
     - live SPL meter
     - live spectrum
@@ -115,6 +116,7 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - negotiated sample rate
     - changing frame size / live Z/A/C level text
     - dominant frequency updates
+    - a changing live spectrum visualization
 6. Feed a known test tone and compare:
     - dominant frequency
     - SPL trend
