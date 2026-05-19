@@ -1,11 +1,11 @@
 # IDE Testing Workflow
 
-This document covers the current Android workflow and the intended Xcode workflow for the future iOS shell.
+This document covers the current Android workflow and the current Xcode workflow for the in-repo iOS shell.
 
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** preparatory only right now. The repo has shared iOS-compatible Kotlin code, but there is **no iOS app project yet**.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, and the first native microphone/audio-session scaffolding.
 
 ## Android Studio
 
@@ -58,6 +58,7 @@ The repository now includes an XcodeGen-backed SwiftUI shell in `ios/`.
 ### Generate the project
 
 ```bash
+./scripts/prepare-ios-framework.sh
 cd ios
 xcodegen generate
 open AudioAnalyser.xcodeproj
@@ -66,29 +67,34 @@ open AudioAnalyser.xcodeproj
 ### Current iOS shell validation
 
 ```bash
-cd ios
-xcodegen generate
-xcodebuild -project AudioAnalyser.xcodeproj -scheme AudioAnalyser -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+./scripts/build-ios-shell.sh
 ```
 
 ### Shared framework preparation
 
-The `:shared` module already declares iOS targets and can generate frameworks for future Xcode integration.
+The `:shared` module now produces a `Shared.xcframework` and the helper script copies it into `ios/Frameworks/` before XcodeGen generation.
 
 Example simulator framework task:
 
 ```bash
-bash ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+bash ./gradlew :shared:assembleSharedDebugXCFramework
 ```
 
-### Planned Xcode workflow
+### Xcode manual validation checklist
 
-1. Generate the project with `xcodegen generate`.
-2. Open `ios/AudioAnalyser.xcodeproj` in Xcode.
-3. Run on an iPhone simulator or device.
-4. The current shell screen should open and show the iOS port status.
-5. After the next integration step, add or refresh the `Shared.framework` built from `:shared`.
-6. Verify parity in this order:
+1. Run `./scripts/prepare-ios-framework.sh`.
+2. Generate the project with `xcodegen generate`.
+3. Open `ios/AudioAnalyser.xcodeproj` in Xcode.
+4. Run on an iPhone simulator or device.
+5. The current shell screen should open and show:
+   - the shared Kotlin analyzer math status row
+   - the microphone permission state
+   - the configured measurement-mode audio-session summary
+6. Tap the microphone action button:
+   - on first run, confirm the system permission prompt appears
+   - after granting access, confirm the audio-session row updates
+   - after denying access, confirm the button switches to the Settings path
+7. Verify parity in this order:
    - live SPL meter
    - live spectrum
    - dominant frequency
@@ -96,13 +102,13 @@ bash ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
    - signal generator
    - waterfall
 
-### Planned iOS manual smoke test
+### Current iOS smoke test
 
-1. Generate and open the project.
-2. Launch the iOS shell and confirm the placeholder screen renders.
-3. After audio wiring lands, confirm microphone permission prompt behavior.
+1. Run `./scripts/build-ios-shell.sh`.
+2. Launch the iOS shell and confirm the shared Kotlin status row renders.
+3. Confirm microphone permission prompt behavior.
 4. Check that the audio session is configured for measurement-oriented capture.
-5. Feed a known test tone and compare:
+5. Once live capture lands, feed a known test tone and compare:
    - dominant frequency
    - SPL trend
    - A/C/Z relative behavior
@@ -125,6 +131,7 @@ Gradle needs a working JDK. Install JDK 17+ or set `JAVA_HOME` explicitly before
 
 ### Xcode project missing
 
-- Run `cd ios && xcodegen generate`.
+- Run `./scripts/prepare-ios-framework.sh` first.
+- Then run `cd ios && xcodegen generate`.
 - Confirm `xcodegen` is installed: `xcodegen --version`.
 - Then open `ios/AudioAnalyser.xcodeproj`.

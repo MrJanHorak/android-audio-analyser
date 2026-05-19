@@ -43,6 +43,7 @@ Command line (macOS / Linux)
 - [docs/ios-migration-handoff.md](docs/ios-migration-handoff.md) — current iOS migration status, decisions, and next steps.
 - [docs/ide-testing.md](docs/ide-testing.md) — Android Studio workflow now and planned Xcode workflow later.
 - [ios/README.md](ios/README.md) — XcodeGen-based iOS shell generation and build instructions.
+- [scripts/build-ios-shell.sh](scripts/build-ios-shell.sh) — one-command iOS shell build that prepares the shared XCFramework first.
 
 ## Permissions
 

@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a minimal native SwiftUI iOS shell in `ios/`. Android Gradle validation and the initial iOS simulator build both complete successfully in the local toolchains.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a minimal native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, and the SwiftUI shell now imports shared Kotlin code.
 
 ## What landed in this phase
 
@@ -25,9 +25,17 @@
 - Extracted the feedback-peak tracking state machine into `shared/src/commonMain/FeedbackPeakTracker.kt` so Android and future iOS code can reuse the same peak-matching and decay behavior.
 - Added shared tests in `shared/src/commonTest` to lock the current helper behavior before larger extractions.
 - Added `ios/` with an XcodeGen-backed SwiftUI shell that can be generated locally into `AudioAnalyser.xcodeproj`.
+- Added XCFramework generation for `Shared` and scripts to prepare/link it into the iOS shell:
+  - `scripts/prepare-ios-framework.sh`
+  - `scripts/build-ios-shell.sh`
+- Wired the SwiftUI shell to import `Shared` and call `AnalyzerMath.shared.suggestCutFrequency(...)`.
+- Added the first iOS-only platform seam scaffolding in Swift:
+  - microphone permission state via `AVAudioApplication`
+  - measurement-mode audio-session configuration via `AVAudioSession`
+  - explicit denied/open-settings handling in the SwiftUI shell
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
-  - `cd ios && xcodegen generate && xcodebuild -project AudioAnalyser.xcodeproj -scheme AudioAnalyser -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
+  - `./scripts/build-ios-shell.sh`
 
 ## Migration decisions
 
@@ -64,7 +72,7 @@ Owns the first pure helpers that can compile for Android, JVM, and iOS.
 2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
 3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
 4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Connect the iOS shell app to the generated shared framework.
+5. Start live microphone capture with `AVAudioEngine` and confirm buffer format/sample-rate behavior.
 6. Begin the first iOS analyzer screen backed by shared logic.
 
 ## Guardrails for future sessions
