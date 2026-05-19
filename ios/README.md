@@ -5,7 +5,7 @@ This directory contains the native SwiftUI iOS shell for the shared audio-analyz
 ## Prerequisites
 
 - macOS
-- Xcode with an iOS 17 simulator runtime or a physical iPhone
+- Xcode with an iOS 16 or newer simulator runtime, or a physical iPhone
 - XcodeGen (`brew install xcodegen`)
 - JDK 17+ or Android Studio installed so Gradle can build the shared XCFramework
 
