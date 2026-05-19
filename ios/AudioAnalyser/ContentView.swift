@@ -226,9 +226,9 @@ private struct CaptureControlCard: View {
         case .granted:
             return "Tap Start live capture."
         case .undetermined:
-            return "Allow microphone access to begin."
+            return "Tap Start live capture to request microphone access."
         case .denied:
-            return "Microphone access is blocked in Settings."
+            return setupViewModel.audioSessionDetail
         }
     }
 
@@ -255,7 +255,7 @@ private struct CaptureControlCard: View {
             }
 
             HStack(spacing: 10) {
-                if setupViewModel.microphonePermissionState != .granted {
+                if setupViewModel.microphonePermissionState == .denied {
                     Button(setupViewModel.primaryActionTitle) {
                         setupViewModel.performPrimaryAction()
                     }
@@ -276,7 +276,7 @@ private struct CaptureControlCard: View {
                 Text(secondaryStatusText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(isCaptureFailure ? 4 : 2)
+                    .lineLimit(isCaptureFailure || setupViewModel.microphonePermissionState == .denied ? 4 : 2)
             }
         }
     }

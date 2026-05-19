@@ -142,6 +142,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var shouldResumeWhenAppBecomesActive = false
     private var pendingAutomaticResumeWorkItem: DispatchWorkItem?
     private var ignoreEngineConfigurationChangesUntil = Date.distantPast
+    private var startCaptureAfterPermissionGrant = false
     private var cancellables: Set<AnyCancellable> = []
 
     init(
@@ -193,7 +194,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             return false
         }
 
-        return microphonePermissionState != .granted || isWorking
+        return microphonePermissionState == .denied || isWorking
     }
 
     var snapshotActionTitle: String {
@@ -548,7 +549,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     func performPrimaryAction() {
         switch microphonePermissionState {
         case .undetermined:
-            requestMicrophoneAccess()
+            requestMicrophoneAccess(startCaptureOnGrant: false)
         case .denied:
             audioSessionController.openAppSettings()
         case .granted:
@@ -564,13 +565,23 @@ final class AnalyzerSetupViewModel: ObservableObject {
             stopLiveCaptureWithoutRefreshing()
             refreshSetup()
         } else {
-            captureIntentIsActive = true
-            startLiveCapture()
+            switch microphonePermissionState {
+            case .granted:
+                captureIntentIsActive = true
+                startLiveCapture()
+            case .undetermined:
+                requestMicrophoneAccess(startCaptureOnGrant: true)
+            case .denied:
+                audioSessionSummary = "Microphone access is blocked"
+                audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
+                audioSessionController.openAppSettings()
+            }
         }
     }
 
-    private func requestMicrophoneAccess() {
+    private func requestMicrophoneAccess(startCaptureOnGrant: Bool) {
         isWorking = true
+        startCaptureAfterPermissionGrant = startCaptureOnGrant
 
         audioSessionController.requestMicrophoneAccess { [weak self] permissionState in
             DispatchQueue.main.async {
@@ -579,15 +590,23 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 }
 
                 self.isWorking = false
+                let shouldStartCapture = self.startCaptureAfterPermissionGrant
+                self.startCaptureAfterPermissionGrant = false
                 self.microphonePermissionState = permissionState
 
                 switch permissionState {
                 case .granted:
                     self.configureAudioSession()
+                    if shouldStartCapture {
+                        self.captureIntentIsActive = true
+                        self.startLiveCapture()
+                    }
                 case .undetermined:
+                    self.captureIntentIsActive = false
                     self.audioSessionSummary = "Waiting for microphone authorization"
                     self.audioSessionDetail = "Grant microphone access before starting live analysis."
                 case .denied:
+                    self.captureIntentIsActive = false
                     self.audioSessionSummary = "Microphone access is blocked"
                     self.audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
                 }
