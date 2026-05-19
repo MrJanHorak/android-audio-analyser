@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.example.audioanalyser.shared.CustomTargetCurveSettings
 import com.example.audioanalyser.shared.EqReferenceEntry
 import com.example.audioanalyser.shared.FeedbackPeak
+import com.example.audioanalyser.shared.FeedbackPeakPresentation
 import com.example.audioanalyser.shared.SavedTargetCurvePreset
 import com.example.audioanalyser.shared.customTargetCurveFrequencies
 import com.example.audioanalyser.shared.venueCategoryOptions
@@ -3027,9 +3028,9 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
     }
 }
 
-fun feedbackPeakLabel(peak: FeedbackPeak): String = when {
-    peak.stability >= 0.8f -> "Stable"
-    peak.stability >= 0.45f -> "Building"
+fun feedbackPeakLabel(peak: FeedbackPeak): String = when (FeedbackPeakPresentation.stabilityKey(peak)) {
+    "stable" -> "Stable"
+    "building" -> "Building"
     else -> "Watch"
 }
 

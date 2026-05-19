@@ -17,6 +17,7 @@ struct LiveAnalyzerSnapshot {
     let zLevelHistory: [Float]
     let spectrumBars: [Float]
     let spectrumHistoryRows: [[Float]]
+    let feedbackMarkers: [LiveFeedbackMarker]
     let feedbackSuggestions: [LiveFeedbackSuggestion]
 }
 
@@ -35,15 +36,34 @@ struct ExportedAnalyzerLog {
     let exportedAt: Date
 }
 
-struct LiveFeedbackSuggestion: Identifiable {
+struct ExportedAnalyzerSample {
+    let fileURL: URL
+    let exportedAt: Date
+}
+
+struct LiveFeedbackSuggestion: Identifiable, Equatable {
     let frequencyHz: Float
     let suggestedCutHz: Float
     let normalizedLevel: Float
     let stability: Float
     let holdFrames: Int
+    let stabilityKey: String
 
     var id: String {
         "\(Int(frequencyHz.rounded()))-\(Int(suggestedCutHz.rounded()))"
+    }
+}
+
+struct LiveFeedbackMarker: Identifiable, Equatable {
+    let frequencyHz: Float
+    let suggestedCutHz: Float
+    let normalizedX: Float
+    let normalizedLevel: Float
+    let holdFrames: Int
+    let stabilityKey: String
+
+    var id: String {
+        "\(Int(frequencyHz.rounded()))-\(Int(suggestedCutHz.rounded()))-marker"
     }
 }
 
@@ -59,7 +79,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var isSnapshotCompareRequested = false
     @Published private(set) var isLogging = false
     @Published private(set) var exportedAnalyzerLog: ExportedAnalyzerLog?
+    @Published private(set) var exportedAnalyzerSample: ExportedAnalyzerSample?
     @Published private(set) var logStatusMessage: String?
+    @Published private(set) var analyzerSampleStatusMessage: String?
     @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
 
@@ -104,7 +126,9 @@ final class AnalyzerSetupViewModel: ObservableObject {
         liveAnalyzerSnapshot = nil
         savedSpectrumSnapshot = nil
         exportedAnalyzerLog = nil
+        exportedAnalyzerSample = nil
         logStatusMessage = nil
+        analyzerSampleStatusMessage = nil
         bindCaptureCallbacks()
         refreshSetup()
     }
@@ -194,6 +218,10 @@ final class AnalyzerSetupViewModel: ObservableObject {
         !isCapturing && !isLogging
     }
 
+    var isAnalyzerSampleExportDisabled: Bool {
+        liveAnalyzerSnapshot == nil && savedSpectrumSnapshot == nil
+    }
+
     var loggingStatusText: String {
         if isLogging {
             return "Logging timestamp, dB(Z), dB(A), dB(C), and dominant frequency at live analyzer cadence. Stop logging to prepare a CSV."
@@ -204,6 +232,14 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
 
         return "Start live capture, then log a session to prepare a CSV you can share from iOS."
+    }
+
+    var analyzerSampleStatusText: String {
+        if let analyzerSampleStatusMessage {
+            return analyzerSampleStatusMessage
+        }
+
+        return "Prepare a versioned JSON analyzer sample that captures the current live state, history, feedback guidance, and any saved snapshot metadata."
     }
 
     func captureSpectrumSnapshot() {
@@ -240,6 +276,102 @@ final class AnalyzerSetupViewModel: ObservableObject {
             stopLoggingAndPrepareExport()
         } else {
             startLogging()
+        }
+    }
+
+    func prepareAnalyzerSampleExport(
+        feedbackMarkersEnabled: Bool,
+        feedbackDisplayCount: Int
+    ) {
+        guard liveAnalyzerSnapshot != nil || savedSpectrumSnapshot != nil else {
+            analyzerSampleStatusMessage = "Capture live data or save a spectrum snapshot before exporting an analyzer sample."
+            return
+        }
+
+        let exportDate = Date()
+        let markerLimit = max(1, feedbackDisplayCount)
+        let livePayload = liveAnalyzerSnapshot.map { snapshot in
+            AnalyzerSampleLivePayload(
+                zLevelDb: roundForExport(snapshot.zLevelDb, places: 1),
+                aLevelDb: roundForExport(snapshot.aLevelDb, places: 1),
+                cLevelDb: roundForExport(snapshot.cLevelDb, places: 1),
+                minZLevelDb: roundForExport(snapshot.minZLevelDb, places: 1),
+                avgZLevelDb: roundForExport(snapshot.avgZLevelDb, places: 1),
+                maxZLevelDb: roundForExport(snapshot.maxZLevelDb, places: 1),
+                dominantFrequencyHz: roundForExport(snapshot.dominantFrequencyHz, places: 1),
+                suggestedCutFrequencyHz: roundForExport(snapshot.suggestedCutFrequencyHz, places: 1),
+                sampleRateHz: roundForExport(snapshot.sampleRateHz, places: 1),
+                frameLength: snapshot.frameLength,
+                channelCount: snapshot.channelCount,
+                zLevelHistory: roundForExport(snapshot.zLevelHistory, places: 1),
+                spectrumBars: roundForExport(snapshot.spectrumBars, places: 3),
+                spectrumHistoryRows: snapshot.spectrumHistoryRows.map { row in
+                    roundForExport(row, places: 3)
+                }
+            )
+        }
+        let visibleSuggestions = liveAnalyzerSnapshot.map { snapshot in
+            Array(snapshot.feedbackSuggestions.prefix(markerLimit)).map { suggestion in
+                AnalyzerSampleFeedbackSuggestionPayload(
+                    frequencyHz: roundForExport(suggestion.frequencyHz, places: 1),
+                    suggestedCutHz: roundForExport(suggestion.suggestedCutHz, places: 1),
+                    normalizedLevel: roundForExport(suggestion.normalizedLevel, places: 3),
+                    stability: roundForExport(suggestion.stability, places: 3),
+                    holdFrames: suggestion.holdFrames,
+                    stabilityKey: suggestion.stabilityKey
+                )
+            }
+        } ?? []
+        let visibleMarkers = feedbackMarkersEnabled ? liveAnalyzerSnapshot.map { snapshot in
+            Array(snapshot.feedbackMarkers.prefix(markerLimit)).map { marker in
+                AnalyzerSampleFeedbackMarkerPayload(
+                    frequencyHz: roundForExport(marker.frequencyHz, places: 1),
+                    suggestedCutHz: roundForExport(marker.suggestedCutHz, places: 1),
+                    normalizedX: roundForExport(marker.normalizedX, places: 3),
+                    normalizedLevel: roundForExport(marker.normalizedLevel, places: 3),
+                    holdFrames: marker.holdFrames,
+                    stabilityKey: marker.stabilityKey
+                )
+            }
+        } ?? [] : []
+        let savedSnapshotPayload = savedSpectrumSnapshot.map { snapshot in
+            AnalyzerSampleSavedSnapshotPayload(
+                capturedAt: snapshot.capturedAt,
+                dominantFrequencyHz: roundForExport(snapshot.dominantFrequencyHz, places: 1),
+                zLevelDb: roundForExport(snapshot.zLevelDb, places: 1),
+                sampleRateHz: roundForExport(snapshot.sampleRateHz, places: 1),
+                frameLength: snapshot.frameLength,
+                spectrumBars: roundForExport(snapshot.spectrumBars, places: 3)
+            )
+        }
+        let envelope = AnalyzerSampleExportEnvelope(
+            schemaVersion: 1,
+            exportedAt: exportDate,
+            liveAnalyzer: livePayload,
+            savedSpectrumSnapshot: savedSnapshotPayload,
+            feedbackDisplay: AnalyzerSampleFeedbackDisplayPayload(
+                markersEnabled: feedbackMarkersEnabled,
+                markerLimit: markerLimit,
+                visibleSuggestions: visibleSuggestions,
+                visibleMarkers: visibleMarkers
+            )
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let exportURL = makeAnalyzerSampleExportUrl()
+
+        do {
+            let data = try encoder.encode(envelope)
+            try data.write(to: exportURL, options: .atomic)
+            exportedAnalyzerSample = ExportedAnalyzerSample(
+                fileURL: exportURL,
+                exportedAt: exportDate
+            )
+            analyzerSampleStatusMessage = "JSON analyzer sample ready: \(exportURL.lastPathComponent)"
+        } catch {
+            exportedAnalyzerSample = nil
+            analyzerSampleStatusMessage = "Couldn't prepare the analyzer sample export: \(error.localizedDescription)"
         }
     }
 
@@ -424,9 +556,15 @@ final class AnalyzerSetupViewModel: ObservableObject {
             calibratedDb: (calibratedDb + frameAnalysis.cWeightingAdjustmentDb).clampedToZero(),
             noiseThreshold: noiseThreshold
         )
-        let feedbackSuggestions = updateFeedbackSuggestions(
+        let feedbackPeaks = updateFeedbackPeaks(
             spectrum: smoothedSpectrum,
             currentDb: currentDb,
+            binSizeHz: frameAnalysis.binSize
+        )
+        let feedbackSuggestions = buildFeedbackSuggestions(from: feedbackPeaks)
+        let feedbackMarkers = makeFeedbackMarkers(
+            from: feedbackPeaks,
+            magnitudeCount: smoothedSpectrum.count,
             binSizeHz: frameAnalysis.binSize
         )
         updateLevelStats(with: currentDb)
@@ -474,6 +612,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             zLevelHistory: zLevelHistory,
             spectrumBars: spectrumBars,
             spectrumHistoryRows: spectrumHistoryRows,
+            feedbackMarkers: feedbackMarkers,
             feedbackSuggestions: feedbackSuggestions
         )
     }
@@ -536,11 +675,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
         return nextSpectrum
     }
 
-    private func updateFeedbackSuggestions(
+    private func updateFeedbackPeaks(
         spectrum: [Float],
         currentDb: Float,
         binSizeHz: Float
-    ) -> [LiveFeedbackSuggestion] {
+    ) -> [FeedbackPeak] {
         guard let liveFeedbackTracker else {
             return []
         }
@@ -549,19 +688,50 @@ final class AnalyzerSetupViewModel: ObservableObject {
         reusableTrackerSpectrumBuffer = kotlinSpectrum
         copy(spectrum, into: kotlinSpectrum)
 
-        let feedbackPeaks = liveFeedbackTracker.update(
+        return liveFeedbackTracker.update(
             spectrum: kotlinSpectrum,
             currentDb: currentDb,
             binSize: binSizeHz
         )
+    }
 
-        return feedbackPeaks.map { peak in
+    private func buildFeedbackSuggestions(from feedbackPeaks: [FeedbackPeak]) -> [LiveFeedbackSuggestion] {
+        feedbackPeaks.map { peak in
             LiveFeedbackSuggestion(
                 frequencyHz: peak.frequencyHz,
                 suggestedCutHz: peak.suggestedCutHz,
                 normalizedLevel: peak.normalizedLevel,
                 stability: peak.stability,
-                holdFrames: Int(peak.holdFrames)
+                holdFrames: Int(peak.holdFrames),
+                stabilityKey: FeedbackPeakPresentation.shared.stabilityKey(peak: peak)
+            )
+        }
+    }
+
+    private func makeFeedbackMarkers(
+        from feedbackPeaks: [FeedbackPeak],
+        magnitudeCount: Int,
+        binSizeHz: Float
+    ) -> [LiveFeedbackMarker] {
+        guard let spectrumAxis = makeSpectrumAxis(
+            magnitudeCount: magnitudeCount,
+            binSizeHz: binSizeHz
+        ) else {
+            return []
+        }
+
+        return feedbackPeaks.compactMap { peak in
+            let stabilityKey = FeedbackPeakPresentation.shared.stabilityKey(peak: peak)
+            return LiveFeedbackMarker(
+                frequencyHz: peak.frequencyHz,
+                suggestedCutHz: peak.suggestedCutHz,
+                normalizedX: normalizedSpectrumPosition(
+                    frequencyHz: peak.frequencyHz,
+                    spectrumAxis: spectrumAxis
+                ),
+                normalizedLevel: peak.normalizedLevel,
+                holdFrames: Int(peak.holdFrames),
+                stabilityKey: stabilityKey
             )
         }
     }
@@ -571,26 +741,28 @@ final class AnalyzerSetupViewModel: ObservableObject {
         binSizeHz: Float
     ) -> [Float] {
         let magnitudeCount = smoothedMagnitudes.count
-        guard magnitudeCount > 1, binSizeHz > 0 else {
+        guard let spectrumAxis = makeSpectrumAxis(
+            magnitudeCount: magnitudeCount,
+            binSizeHz: binSizeHz
+        ) else {
             return Array(repeating: 0, count: spectrumBarCount)
         }
 
-        let maxBinIndex = magnitudeCount - 1
-        let nyquistHz = Double(binSizeHz) * Double(maxBinIndex)
-        let minFrequencyHz = min(30.0, nyquistHz)
-        let maxFrequencyHz = max(minFrequencyHz * 2.0, nyquistHz)
-        let minLogFrequency = log10(minFrequencyHz)
-        let maxLogFrequency = log10(maxFrequencyHz)
-        let logRange = maxLogFrequency - minLogFrequency
         var bars = Array(repeating: Float.zero, count: spectrumBarCount)
 
         for barIndex in 0..<spectrumBarCount {
             let startRatio = Double(barIndex) / Double(spectrumBarCount)
             let endRatio = Double(barIndex + 1) / Double(spectrumBarCount)
-            let startFrequencyHz = pow(10.0, minLogFrequency + logRange * startRatio)
-            let endFrequencyHz = pow(10.0, minLogFrequency + logRange * endRatio)
-            let startBin = min(max(1, Int(floor(startFrequencyHz / Double(binSizeHz)))), maxBinIndex)
-            let endBin = min(max(startBin, Int(ceil(endFrequencyHz / Double(binSizeHz)))), maxBinIndex)
+            let startFrequencyHz = pow(10.0, spectrumAxis.minLogFrequency + spectrumAxis.logRange * startRatio)
+            let endFrequencyHz = pow(10.0, spectrumAxis.minLogFrequency + spectrumAxis.logRange * endRatio)
+            let startBin = min(
+                max(1, Int(floor(startFrequencyHz / Double(binSizeHz)))),
+                spectrumAxis.maxBinIndex
+            )
+            let endBin = min(
+                max(startBin, Int(ceil(endFrequencyHz / Double(binSizeHz)))),
+                spectrumAxis.maxBinIndex
+            )
 
             var peakMagnitude: Float = 0
             for binIndex in startBin...endBin {
@@ -601,6 +773,42 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
 
         return bars
+    }
+
+    private func makeSpectrumAxis(
+        magnitudeCount: Int,
+        binSizeHz: Float
+    ) -> SpectrumAxis? {
+        guard magnitudeCount > 1, binSizeHz > 0 else {
+            return nil
+        }
+
+        let maxBinIndex = magnitudeCount - 1
+        let nyquistHz = Double(binSizeHz) * Double(maxBinIndex)
+        let minFrequencyHz = min(30.0, nyquistHz)
+        let maxFrequencyHz = max(minFrequencyHz * 2.0, nyquistHz)
+        let minLogFrequency = log10(minFrequencyHz)
+        let maxLogFrequency = log10(maxFrequencyHz)
+
+        return SpectrumAxis(
+            minFrequencyHz: minFrequencyHz,
+            maxFrequencyHz: maxFrequencyHz,
+            minLogFrequency: minLogFrequency,
+            logRange: maxLogFrequency - minLogFrequency,
+            maxBinIndex: maxBinIndex
+        )
+    }
+
+    private func normalizedSpectrumPosition(
+        frequencyHz: Float,
+        spectrumAxis: SpectrumAxis
+    ) -> Float {
+        let clampedFrequencyHz = min(
+            max(Double(frequencyHz), spectrumAxis.minFrequencyHz),
+            spectrumAxis.maxFrequencyHz
+        )
+        let normalized = (log10(clampedFrequencyHz) - spectrumAxis.minLogFrequency) / spectrumAxis.logRange
+        return Float(normalized).clampedToUnit()
     }
 
     private var isSavedSpectrumSnapshotComparable: Bool {
@@ -726,6 +934,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
         return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
     }
 
+    private func makeAnalyzerSampleExportUrl() -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970 * 1_000)
+        let filename = "audio-analyser-sample-\(timestamp).json"
+        return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+    }
+
     private func normalizeSpectrumMagnitude(_ magnitude: Float) -> Float {
         let magnitudeDb = 20.0 * log10(max(Double(magnitude), 1e-9))
         let normalized = Float((magnitudeDb + 80.0) / 80.0)
@@ -750,6 +964,86 @@ final class AnalyzerSetupViewModel: ObservableObject {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+
+    private func roundForExport(_ value: Float, places: Int) -> Double {
+        roundForExport(Double(value), places: places)
+    }
+
+    private func roundForExport(_ value: Double, places: Int) -> Double {
+        let scale = pow(10.0, Double(places))
+        return (value * scale).rounded() / scale
+    }
+
+    private func roundForExport(_ values: [Float], places: Int) -> [Double] {
+        values.map { roundForExport($0, places: places) }
+    }
+
+    private struct SpectrumAxis {
+        let minFrequencyHz: Double
+        let maxFrequencyHz: Double
+        let minLogFrequency: Double
+        let logRange: Double
+        let maxBinIndex: Int
+    }
+}
+
+private struct AnalyzerSampleExportEnvelope: Encodable {
+    let schemaVersion: Int
+    let exportedAt: Date
+    let liveAnalyzer: AnalyzerSampleLivePayload?
+    let savedSpectrumSnapshot: AnalyzerSampleSavedSnapshotPayload?
+    let feedbackDisplay: AnalyzerSampleFeedbackDisplayPayload
+}
+
+private struct AnalyzerSampleLivePayload: Encodable {
+    let zLevelDb: Double
+    let aLevelDb: Double
+    let cLevelDb: Double
+    let minZLevelDb: Double
+    let avgZLevelDb: Double
+    let maxZLevelDb: Double
+    let dominantFrequencyHz: Double
+    let suggestedCutFrequencyHz: Double
+    let sampleRateHz: Double
+    let frameLength: Int
+    let channelCount: Int
+    let zLevelHistory: [Double]
+    let spectrumBars: [Double]
+    let spectrumHistoryRows: [[Double]]
+}
+
+private struct AnalyzerSampleSavedSnapshotPayload: Encodable {
+    let capturedAt: Date
+    let dominantFrequencyHz: Double
+    let zLevelDb: Double
+    let sampleRateHz: Double
+    let frameLength: Int
+    let spectrumBars: [Double]
+}
+
+private struct AnalyzerSampleFeedbackDisplayPayload: Encodable {
+    let markersEnabled: Bool
+    let markerLimit: Int
+    let visibleSuggestions: [AnalyzerSampleFeedbackSuggestionPayload]
+    let visibleMarkers: [AnalyzerSampleFeedbackMarkerPayload]
+}
+
+private struct AnalyzerSampleFeedbackSuggestionPayload: Encodable {
+    let frequencyHz: Double
+    let suggestedCutHz: Double
+    let normalizedLevel: Double
+    let stability: Double
+    let holdFrames: Int
+    let stabilityKey: String
+}
+
+private struct AnalyzerSampleFeedbackMarkerPayload: Encodable {
+    let frequencyHz: Double
+    let suggestedCutHz: Double
+    let normalizedX: Double
+    let normalizedLevel: Double
+    let holdFrames: Int
+    let stabilityKey: String
 }
 
 private extension Float {

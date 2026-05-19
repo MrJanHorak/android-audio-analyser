@@ -3,6 +3,8 @@ import Shared
 
 struct ContentView: View {
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
+    @AppStorage("ios-feedback-markers-enabled") private var feedbackMarkersEnabled = true
+    @AppStorage("ios-feedback-display-count") private var feedbackDisplayCount = 3
     private let suggestedCutHz = AnalyzerMath.shared.suggestCutFrequency(frequencyHz: Float(440))
 
     var body: some View {
@@ -23,19 +25,59 @@ struct ContentView: View {
                                 LevelHistorySection(snapshot: liveAnalyzerSnapshot)
                                 SpectrumBarsView(
                                     bars: liveAnalyzerSnapshot.spectrumBars,
-                                    snapshotOverlayBars: setupViewModel.snapshotOverlayBars
+                                    snapshotOverlayBars: setupViewModel.snapshotOverlayBars,
+                                    feedbackMarkers: visibleFeedbackMarkers(from: liveAnalyzerSnapshot)
                                 )
                                 SpectrumLegendView(sampleRateHz: liveAnalyzerSnapshot.sampleRateHz)
                                 SpectrumHistoryWaterfallView(rows: liveAnalyzerSnapshot.spectrumHistoryRows)
-                                FeedbackSuggestionsView(suggestions: liveAnalyzerSnapshot.feedbackSuggestions)
+                                FeedbackFocusSection(
+                                    primarySuggestion: visibleFeedbackSuggestions(from: liveAnalyzerSnapshot).first,
+                                    feedbackMarkerCount: max(1, feedbackDisplayCount),
+                                    markersEnabled: feedbackMarkersEnabled
+                                )
+                                FeedbackSuggestionsView(
+                                    suggestions: visibleFeedbackSuggestions(from: liveAnalyzerSnapshot)
+                                )
                             }
                         } else {
                             AnalyzerPlaceholderView(isCapturing: setupViewModel.isCapturing)
                         }
                     }
 
-                    GroupBox("Snapshots and logging") {
+                    GroupBox("Analyzer tools") {
                         VStack(alignment: .leading, spacing: 18) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Feedback guidance")
+                                    .font(.headline)
+
+                                Toggle(
+                                    "Show feedback markers on the live spectrum",
+                                    isOn: $feedbackMarkersEnabled
+                                )
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Feedback focus")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+
+                                    Picker("Feedback focus", selection: $feedbackDisplayCount) {
+                                        Text("Top 1").tag(1)
+                                        Text("Top 3").tag(3)
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+
+                                Text(
+                                    feedbackMarkersEnabled
+                                        ? "Markers and suggestion cards now follow the strongest \(feedbackDisplayCount == 1 ? "shared feedback peak" : "shared feedback peaks")."
+                                        : "Feedback guidance stays available in the cards below even while spectrum markers are hidden."
+                                )
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            }
+
+                            Divider()
+
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Spectrum snapshot")
                                     .font(.headline)
@@ -103,6 +145,44 @@ struct ContentView: View {
                                     .monospacedDigit()
                                 }
                             }
+
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Analyzer sample export")
+                                    .font(.headline)
+
+                                HStack(spacing: 10) {
+                                    Button("Prepare JSON sample") {
+                                        setupViewModel.prepareAnalyzerSampleExport(
+                                            feedbackMarkersEnabled: feedbackMarkersEnabled,
+                                            feedbackDisplayCount: feedbackDisplayCount
+                                        )
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(setupViewModel.isAnalyzerSampleExportDisabled)
+
+                                    if let exportedAnalyzerSample = setupViewModel.exportedAnalyzerSample {
+                                        ShareLink(item: exportedAnalyzerSample.fileURL) {
+                                            Label("Share JSON", systemImage: "square.and.arrow.up")
+                                        }
+                                        .buttonStyle(.bordered)
+                                    }
+                                }
+
+                                Text(setupViewModel.analyzerSampleStatusText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+
+                                if let exportedAnalyzerSample = setupViewModel.exportedAnalyzerSample {
+                                    Text(
+                                        "Prepared analyzer sample on \(exportedAnalyzerSample.exportedAt.formatted(date: .abbreviated, time: .shortened))."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -161,8 +241,8 @@ struct ContentView: View {
                                 detail: "iOS now shows live min/avg/max stats, a recent dB(Z) sparkline, and a compact spectrum history waterfall."
                             )
                             StatusRow(
-                                title: "Snapshots and logging",
-                                detail: "iOS can now save a live spectrum snapshot, compare it against matching live input, and export a CSV decibel log."
+                                title: "Analyzer tools",
+                                detail: "iOS can save live spectrum snapshots, compare them against matching live input, export CSV decibel logs, and prepare JSON analyzer samples."
                             )
                             StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
                         }
@@ -171,9 +251,9 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Refine the iOS feedback workflow with richer confidence and cut controls")
-                            BulletRow(text: "Add iOS waterfall/sample export and richer analyzer tooling around saved sessions")
-                            BulletRow(text: "Move more pure analyzer helpers, defaults, and comparison overlays into shared code")
+                            BulletRow(text: "Expand saved-session tooling with additional analyzer sample and waterfall exports")
+                            BulletRow(text: "Move more pure analyzer helpers, defaults, and comparison logic into shared code")
+                            BulletRow(text: "Revisit larger shared analyzer state only after multiplatform-safe concurrency is designed")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -182,6 +262,18 @@ struct ContentView: View {
             }
             .navigationTitle("AudioAnalyser")
         }
+    }
+
+    private func visibleFeedbackSuggestions(from snapshot: LiveAnalyzerSnapshot) -> [LiveFeedbackSuggestion] {
+        Array(snapshot.feedbackSuggestions.prefix(max(1, feedbackDisplayCount)))
+    }
+
+    private func visibleFeedbackMarkers(from snapshot: LiveAnalyzerSnapshot) -> [LiveFeedbackMarker] {
+        guard feedbackMarkersEnabled else {
+            return []
+        }
+
+        return Array(snapshot.feedbackMarkers.prefix(max(1, feedbackDisplayCount)))
     }
 }
 
@@ -345,6 +437,7 @@ private struct MetricCard: View {
 private struct SpectrumBarsView: View {
     let bars: [Float]
     let snapshotOverlayBars: [Float]?
+    let feedbackMarkers: [LiveFeedbackMarker]
 
     var body: some View {
         Canvas { context, size in
@@ -392,6 +485,32 @@ private struct SpectrumBarsView: View {
                     style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
                 )
             }
+
+            for marker in feedbackMarkers {
+                let x = min(max(CGFloat(marker.normalizedX), 0), 1) * size.width
+                let markerColor = feedbackMarkerColor(for: marker.stabilityKey)
+
+                context.stroke(
+                    Path { path in
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: size.height))
+                    },
+                    with: .color(markerColor.opacity(0.92)),
+                    style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                )
+
+                context.fill(
+                    Path(
+                        ellipseIn: CGRect(
+                            x: x - 4,
+                            y: 8,
+                            width: 8,
+                            height: 8
+                        )
+                    ),
+                    with: .color(markerColor)
+                )
+            }
         }
         .frame(height: 170)
         .padding(.vertical, 6)
@@ -401,6 +520,7 @@ private struct SpectrumBarsView: View {
         )
         .animation(nil, value: bars)
         .animation(nil, value: snapshotOverlayBars ?? [])
+        .animation(nil, value: feedbackMarkers)
     }
 }
 
@@ -469,6 +589,56 @@ private struct SpectrumHistoryWaterfallView: View {
     }
 }
 
+private struct FeedbackFocusSection: View {
+    let primarySuggestion: LiveFeedbackSuggestion?
+    let feedbackMarkerCount: Int
+    let markersEnabled: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Feedback focus")
+                .font(.headline)
+
+            if let primarySuggestion {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(String(format: "%.0f Hz", primarySuggestion.frequencyHz))
+                                .font(.title3.weight(.semibold))
+                            Text(String(format: "Cut %.0f Hz", primarySuggestion.suggestedCutHz))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        FeedbackTierBadge(stabilityKey: primarySuggestion.stabilityKey)
+                    }
+
+                    Text(
+                        feedbackFocusDetail(
+                            for: primarySuggestion,
+                            feedbackMarkerCount: feedbackMarkerCount,
+                            markersEnabled: markersEnabled
+                        )
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+            } else {
+                Text("No stable feedback focus yet. Sustain a ringing source and the strongest shared peak will be summarized here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct AnalyzerPlaceholderView: View {
     let isCapturing: Bool
 
@@ -518,8 +688,11 @@ private struct FeedbackSuggestionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(String(format: "%.0f Hz", suggestion.frequencyHz))
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(format: "%.0f Hz", suggestion.frequencyHz))
+                        .font(.headline)
+                    FeedbackTierBadge(stabilityKey: suggestion.stabilityKey)
+                }
                 Spacer()
                 Text(String(format: "Cut %.0f Hz", suggestion.suggestedCutHz))
                     .font(.subheadline.weight(.semibold))
@@ -563,6 +736,22 @@ private struct SuggestionMeter: View {
             .frame(height: 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct FeedbackTierBadge: View {
+    let stabilityKey: String
+
+    var body: some View {
+        Text(feedbackTierTitle(for: stabilityKey))
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(feedbackMarkerColor(for: stabilityKey).opacity(0.16))
+            )
+            .foregroundStyle(feedbackMarkerColor(for: stabilityKey))
     }
 }
 
@@ -616,6 +805,47 @@ private func waterfallColor(for value: Float) -> Color {
         green: start.green + (end.green - start.green) * fraction,
         blue: start.blue + (end.blue - start.blue) * fraction
     )
+}
+
+private func feedbackMarkerColor(for stabilityKey: String) -> Color {
+    switch stabilityKey {
+    case "stable":
+        return Color(red: 0.83, green: 0.19, blue: 0.19)
+    case "building":
+        return Color(red: 0.96, green: 0.49, blue: 0.08)
+    default:
+        return Color(red: 0.96, green: 0.76, blue: 0.13)
+    }
+}
+
+private func feedbackTierTitle(for stabilityKey: String) -> String {
+    switch stabilityKey {
+    case "stable":
+        return "Stable"
+    case "building":
+        return "Building"
+    default:
+        return "Watch"
+    }
+}
+
+private func feedbackFocusDetail(
+    for suggestion: LiveFeedbackSuggestion,
+    feedbackMarkerCount: Int,
+    markersEnabled: Bool
+) -> String {
+    let markerDetail = markersEnabled
+        ? "Spectrum markers track the top \(feedbackMarkerCount == 1 ? "shared peak" : "\(feedbackMarkerCount) shared peaks")."
+        : "Spectrum markers are hidden right now."
+
+    switch suggestion.stabilityKey {
+    case "stable":
+        return "This resonance is holding consistently. Cut near \(Int(suggestion.suggestedCutHz.rounded())) Hz first and verify the live bars settle. \(markerDetail)"
+    case "building":
+        return "This hotspot is strengthening over consecutive frames. Keep an eye on \(Int(suggestion.frequencyHz.rounded())) Hz and be ready to trim around \(Int(suggestion.suggestedCutHz.rounded())) Hz. \(markerDetail)"
+    default:
+        return "A possible feedback hotspot is emerging around \(Int(suggestion.frequencyHz.rounded())) Hz. Watch for it to build before making a deeper cut. \(markerDetail)"
+    }
 }
 
 #Preview {

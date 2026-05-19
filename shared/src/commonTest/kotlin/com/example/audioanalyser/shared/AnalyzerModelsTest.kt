@@ -19,4 +19,44 @@ class AnalyzerModelsTest {
         assertEquals("Other", venueCategoryOptions.last())
         assertTrue("Touring" in venueCategoryOptions)
     }
+
+    @Test
+    fun feedbackPeakStabilityKeysStayAligned() {
+        assertEquals(
+            "watch",
+            FeedbackPeakPresentation.stabilityKey(
+                FeedbackPeak(
+                    frequencyHz = 400f,
+                    suggestedCutHz = 400f,
+                    normalizedLevel = 0.4f,
+                    stability = 0.2f,
+                    holdFrames = 2
+                )
+            )
+        )
+        assertEquals(
+            "building",
+            FeedbackPeakPresentation.stabilityKey(
+                FeedbackPeak(
+                    frequencyHz = 630f,
+                    suggestedCutHz = 630f,
+                    normalizedLevel = 0.5f,
+                    stability = 0.6f,
+                    holdFrames = 7
+                )
+            )
+        )
+        assertEquals(
+            "stable",
+            FeedbackPeakPresentation.stabilityKey(
+                FeedbackPeak(
+                    frequencyHz = 1000f,
+                    suggestedCutHz = 1000f,
+                    normalizedLevel = 0.8f,
+                    stability = 0.9f,
+                    holdFrames = 15
+                )
+            )
+        )
+    }
 }
