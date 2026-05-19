@@ -47,14 +47,23 @@ enum LiveAudioCaptureError: LocalizedError {
 final class LiveAudioCaptureController {
     var onSnapshot: ((LiveAudioCaptureSnapshot) -> Void)?
     var onFailure: ((String) -> Void)?
+    var onConfigurationChange: (() -> Void)?
 
     private let audioSessionController: AudioSessionController
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
     private let requestedBufferSize: AVAudioFrameCount = 1024
     private var didReportTapFailure = false
+    private var engineConfigurationObserver: NSObjectProtocol?
 
     init(audioSessionController: AudioSessionController) {
         self.audioSessionController = audioSessionController
+        observeAudioEngineConfigurationChanges()
+    }
+
+    deinit {
+        if let engineConfigurationObserver {
+            NotificationCenter.default.removeObserver(engineConfigurationObserver)
+        }
     }
 
     func startCapture() throws -> LiveAudioCaptureStartInfo {
@@ -121,6 +130,24 @@ final class LiveAudioCaptureController {
 
         audioEngine.reset()
         try? audioSessionController.deactivateAfterCapture()
+    }
+
+    func rebuildAudioEngine() {
+        audioEngine.inputNode.removeTap(onBus: 0)
+
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+
+        audioEngine.reset()
+
+        if let engineConfigurationObserver {
+            NotificationCenter.default.removeObserver(engineConfigurationObserver)
+        }
+
+        audioEngine = AVAudioEngine()
+        didReportTapFailure = false
+        observeAudioEngineConfigurationChanges()
     }
 
     private func handleInputBuffer(
@@ -243,6 +270,16 @@ final class LiveAudioCaptureController {
         didReportTapFailure = true
         DispatchQueue.main.async { [weak self] in
             self?.onFailure?(message)
+        }
+    }
+
+    private func observeAudioEngineConfigurationChanges() {
+        engineConfigurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: audioEngine,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onConfigurationChange?()
         }
     }
 }

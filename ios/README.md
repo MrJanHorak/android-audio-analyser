@@ -45,6 +45,8 @@ For a physical device, configure a signing team first. The generated project use
 
 If you run in the **iOS Simulator**, also set **Simulator > I/O > Audio Input** to a Mac microphone or other host input device. If Simulator has no usable audio input route, the app can launch normally but live capture will fail.
 
+On a physical iPhone, the app now tries to recover live capture automatically after microphone interruptions, input-route changes, and iOS media-services resets. If iOS suspends the app in the background, return it to the foreground before expecting capture to resume.
+
 ## Fast command-line build
 
 ```bash
@@ -61,6 +63,7 @@ This performs the same prep flow automatically:
 ## What is implemented in the iOS shell
 
 - live microphone capture via `AVAudioEngine`
+- automatic live-capture recovery after route changes, interruptions, and media-services reset events
 - shared Kotlin frame analysis for Z/A/C levels and dominant frequency
 - live metric cards and spectrum display
 - source overlay selection with on-graph guide bands
@@ -92,7 +95,8 @@ This performs the same prep flow automatically:
     - toggle compare mode
     - start / stop logging and share the CSV
     - prepare each export type and confirm the share sheet appears
-6. Open the **Info** button and confirm the help sheet lists overlays, room curves, EQ starting points, and capture notes.
+6. On a physical iPhone, lock/unlock the device or change the microphone route and confirm the analyzer pauses cleanly and resumes once the route is usable again.
+7. Open the **Info** button and confirm the help sheet lists overlays, room curves, EQ starting points, and capture notes.
 
 For microphone behavior, a physical iPhone is the most reliable test target. The simulator is still useful for launch/build validation and non-audio UI testing.
 

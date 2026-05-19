@@ -45,8 +45,80 @@ struct ActiveAnalysisAudioSession {
     let inputAvailable: Bool
 }
 
+enum AudioSessionRouteChangeReason: Equatable {
+    case newDeviceAvailable
+    case oldDeviceUnavailable
+    case categoryChange
+    case override
+    case wakeFromSleep
+    case noSuitableRouteForCategory
+    case routeConfigurationChange
+    case unknown
+
+    init(_ reason: AVAudioSession.RouteChangeReason) {
+        switch reason {
+        case .newDeviceAvailable:
+            self = .newDeviceAvailable
+        case .oldDeviceUnavailable:
+            self = .oldDeviceUnavailable
+        case .categoryChange:
+            self = .categoryChange
+        case .override:
+            self = .override
+        case .wakeFromSleep:
+            self = .wakeFromSleep
+        case .noSuitableRouteForCategory:
+            self = .noSuitableRouteForCategory
+        case .routeConfigurationChange:
+            self = .routeConfigurationChange
+        default:
+            self = .unknown
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .newDeviceAvailable:
+            return "A new microphone input became available."
+        case .oldDeviceUnavailable:
+            return "The previous microphone input is no longer available."
+        case .categoryChange:
+            return "The audio session category changed."
+        case .override:
+            return "The audio route was overridden."
+        case .wakeFromSleep:
+            return "The device woke from sleep and refreshed the audio route."
+        case .noSuitableRouteForCategory:
+            return "No suitable audio route is available for measurement capture."
+        case .routeConfigurationChange:
+            return "The audio route configuration changed."
+        case .unknown:
+            return "The audio route changed."
+        }
+    }
+
+    var isCaptureRelevant: Bool {
+        switch self {
+        case .newDeviceAvailable, .oldDeviceUnavailable:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+enum AudioSessionEvent: Equatable {
+    case interruptionBegan(wasSuspended: Bool)
+    case interruptionEnded(shouldResume: Bool)
+    case routeChanged(reason: AudioSessionRouteChangeReason, inputAvailable: Bool, inputName: String?)
+    case mediaServicesWereLost
+    case mediaServicesWereReset
+}
+
 final class AudioSessionController {
     static let shared = AudioSessionController()
+
+    var onEvent: ((AudioSessionEvent) -> Void)?
 
     private let audioApplication = AVAudioApplication.shared
     private let audioSession = AVAudioSession.sharedInstance()
@@ -114,6 +186,14 @@ final class AudioSessionController {
         try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
+    func isInputAvailable() -> Bool {
+        audioSession.isInputAvailable
+    }
+
+    func activeInputName() -> String? {
+        audioSession.currentRoute.inputs.first?.portName
+    }
+
     func openAppSettings() {
         guard let settingsUrl = URL(string: UIApplication.openSettingsURLString) else {
             return
@@ -131,7 +211,24 @@ final class AudioSessionController {
                 object: audioSession,
                 queue: .main
             ) { notification in
-                print("Audio session interruption: \(notification.userInfo ?? [:])")
+                guard
+                    let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                    let interruptionType = AVAudioSession.InterruptionType(rawValue: rawType)
+                else {
+                    return
+                }
+
+                switch interruptionType {
+                case .began:
+                    let wasSuspended = (notification.userInfo?[AVAudioSessionInterruptionWasSuspendedKey] as? NSNumber)?.boolValue ?? false
+                    self.onEvent?(.interruptionBegan(wasSuspended: wasSuspended))
+                case .ended:
+                    let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                    let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+                    self.onEvent?(.interruptionEnded(shouldResume: options.contains(.shouldResume)))
+                @unknown default:
+                    break
+                }
             }
         )
 
@@ -141,7 +238,36 @@ final class AudioSessionController {
                 object: audioSession,
                 queue: .main
             ) { notification in
-                print("Audio route change: \(notification.userInfo ?? [:])")
+                let rawReason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+                let routeChangeReason = AVAudioSession.RouteChangeReason(rawValue: rawReason) ?? .unknown
+
+                self.onEvent?(
+                    .routeChanged(
+                        reason: AudioSessionRouteChangeReason(routeChangeReason),
+                        inputAvailable: self.audioSession.isInputAvailable,
+                        inputName: self.audioSession.currentRoute.inputs.first?.portName
+                    )
+                )
+            }
+        )
+
+        observers.append(
+            center.addObserver(
+                forName: AVAudioSession.mediaServicesWereLostNotification,
+                object: audioSession,
+                queue: .main
+            ) { _ in
+                self.onEvent?(.mediaServicesWereLost)
+            }
+        )
+
+        observers.append(
+            center.addObserver(
+                forName: AVAudioSession.mediaServicesWereResetNotification,
+                object: audioSession,
+                queue: .main
+            ) { _ in
+                self.onEvent?(.mediaServicesWereReset)
             }
         )
     }

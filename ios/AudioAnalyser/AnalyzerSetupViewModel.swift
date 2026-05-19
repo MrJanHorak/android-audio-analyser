@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import Shared
+import UIKit
 
 struct LiveAnalyzerSnapshot {
     let zLevelDb: Float
@@ -136,6 +137,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var loggedRowCount = 0
     private var savedWaterfallSession: SavedWaterfallSession?
     private var lastUiPublishTimeNanoseconds: UInt64 = 0
+    private var captureIntentIsActive = false
+    private var isCaptureTransitionInFlight = false
+    private var shouldResumeWhenAppBecomesActive = false
+    private var pendingAutomaticResumeWorkItem: DispatchWorkItem?
+    private var ignoreEngineConfigurationChangesUntil = Date.distantPast
+    private var cancellables: Set<AnyCancellable> = []
 
     init(
         audioSessionController: AudioSessionController = .shared,
@@ -162,6 +169,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
         waterfallExportStatusMessage = nil
         analyzerReportStatusMessage = nil
         bindCaptureCallbacks()
+        observeApplicationLifecycle()
         refreshSetup()
     }
 
@@ -177,11 +185,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
     }
 
     var captureActionTitle: String {
-        isCapturing ? "Stop live capture" : "Start live capture"
+        (isCapturing || captureIntentIsActive) ? "Stop live capture" : "Start live capture"
     }
 
     var isCaptureActionDisabled: Bool {
-        if isCapturing {
+        if isCapturing || captureIntentIsActive {
             return false
         }
 
@@ -516,7 +524,10 @@ final class AnalyzerSetupViewModel: ObservableObject {
     func refreshSetup() {
         microphonePermissionState = audioSessionController.permissionState()
 
-        if microphonePermissionState != .granted && isCapturing {
+        if microphonePermissionState != .granted && (isCapturing || captureIntentIsActive) {
+            captureIntentIsActive = false
+            cancelAutomaticCaptureResume()
+            shouldResumeWhenAppBecomesActive = false
             stopLiveCaptureWithoutRefreshing()
         }
 
@@ -546,10 +557,14 @@ final class AnalyzerSetupViewModel: ObservableObject {
     }
 
     func toggleLiveCapture() {
-        if isCapturing {
+        if isCapturing || captureIntentIsActive {
+            captureIntentIsActive = false
+            cancelAutomaticCaptureResume()
+            shouldResumeWhenAppBecomesActive = false
             stopLiveCaptureWithoutRefreshing()
             refreshSetup()
         } else {
+            captureIntentIsActive = true
             startLiveCapture()
         }
     }
@@ -592,50 +607,87 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 self?.handleCaptureFailure(message)
             }
         }
+
+        liveAudioCaptureController.onConfigurationChange = { [weak self] in
+            DispatchQueue.main.async {
+                self?.handleAudioEngineConfigurationChange()
+            }
+        }
+
+        audioSessionController.onEvent = { [weak self] event in
+            DispatchQueue.main.async {
+                self?.handleAudioSessionEvent(event)
+            }
+        }
     }
 
-    private func startLiveCapture() {
+    private func observeApplicationLifecycle() {
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleApplicationDidBecomeActive()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func startLiveCapture(automaticResumeReason: String? = nil, attempt: Int = 0) {
         guard microphonePermissionState == .granted else {
+            captureIntentIsActive = false
             liveCaptureSummary = "Microphone access is required"
             liveCaptureDetail = "Grant microphone permission before starting live input capture."
             return
         }
 
+        guard !isCaptureTransitionInFlight else {
+            return
+        }
+
+        if automaticResumeReason != nil, UIApplication.shared.applicationState != .active {
+            shouldResumeWhenAppBecomesActive = true
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "Bring the app back to the foreground to restore microphone capture."
+            return
+        }
+
+        if automaticResumeReason != nil, !audioSessionController.isInputAvailable() {
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "Waiting for a usable microphone input route before restoring live capture."
+            return
+        }
+
+        isCaptureTransitionInFlight = true
+        cancelAutomaticCaptureResume()
+        shouldResumeWhenAppBecomesActive = false
+
         do {
             let startInfo = try liveAudioCaptureController.startCapture()
-            liveFrameAnalyzer = AnalyzerFrameAnalyzer(
-                sampleRate: Int32(startInfo.inputFormatSampleRate.rounded()),
-                fftSize: Int32(startInfo.analysisFrameSize)
-            )
-            liveFeedbackTracker = FeedbackPeakTracker()
-            reusableAnalysisInputBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize))
-            reusableTrackerSpectrumBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize / 2))
-            smoothedSpectrum = Array(repeating: 0, count: startInfo.analysisFrameSize / 2)
-            resetLiveHistory()
-            lastUiPublishTimeNanoseconds = 0
-            isCapturing = true
-            audioSessionSummary = "Active measurement capture"
-            audioSessionDetail = String(
-                format: "Category %@, mode %@, session %.0f Hz, %.1f ms buffer. The negotiated input format is %.0f Hz with %d analysis samples and %d channel%@.",
-                startInfo.categoryDescription,
-                startInfo.modeDescription,
-                startInfo.sessionSampleRate,
-                startInfo.sessionBufferDuration * 1_000,
-                startInfo.inputFormatSampleRate,
-                startInfo.analysisFrameSize,
-                startInfo.channelCount,
-                startInfo.channelCount == 1 ? "" : "s"
-            )
+            configureCaptureState(using: startInfo)
             liveCaptureSummary = "Capturing live microphone input"
-            liveCaptureDetail = "Waiting for the first shared frame-analysis update."
+            if let automaticResumeReason {
+                liveCaptureDetail = "\(automaticResumeReason) Waiting for the first shared frame-analysis update."
+            } else {
+                liveCaptureDetail = "Waiting for the first shared frame-analysis update."
+            }
         } catch {
-            handleCaptureFailure(error.localizedDescription)
+            if let automaticResumeReason {
+                handleAutomaticResumeFailure(error, reason: automaticResumeReason, attempt: attempt)
+            } else {
+                captureIntentIsActive = false
+                handleCaptureFailure(error.localizedDescription)
+            }
         }
+
+        isCaptureTransitionInFlight = false
     }
 
-    private func stopLiveCaptureWithoutRefreshing() {
+    private func stopLiveCaptureWithoutRefreshing(
+        finalizeLogging: Bool = true,
+        resetStatus: Bool = true
+    ) {
         liveAudioCaptureController.stopCapture()
-        finalizeLoggingIfNeeded()
+        if finalizeLogging {
+            finalizeLoggingIfNeeded()
+        }
         liveFeedbackTracker?.clear()
         liveFrameAnalyzer = nil
         liveFeedbackTracker = nil
@@ -646,8 +698,118 @@ final class AnalyzerSetupViewModel: ObservableObject {
         lastUiPublishTimeNanoseconds = 0
         liveAnalyzerSnapshot = nil
         isCapturing = false
-        liveCaptureSummary = "Live capture is idle"
-        liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+        if resetStatus {
+            liveCaptureSummary = "Live capture is idle"
+            liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+        }
+    }
+
+    private func configureCaptureState(using startInfo: LiveAudioCaptureStartInfo) {
+        liveFrameAnalyzer = AnalyzerFrameAnalyzer(
+            sampleRate: Int32(startInfo.inputFormatSampleRate.rounded()),
+            fftSize: Int32(startInfo.analysisFrameSize)
+        )
+        liveFeedbackTracker = FeedbackPeakTracker()
+        reusableAnalysisInputBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize))
+        reusableTrackerSpectrumBuffer = KotlinFloatArray(size: Int32(startInfo.analysisFrameSize / 2))
+        smoothedSpectrum = Array(repeating: 0, count: startInfo.analysisFrameSize / 2)
+        resetLiveHistory()
+        lastUiPublishTimeNanoseconds = 0
+        ignoreEngineConfigurationChangesUntil = Date().addingTimeInterval(0.5)
+        isCapturing = true
+        audioSessionSummary = "Active measurement capture"
+        audioSessionDetail = String(
+            format: "Category %@, mode %@, session %.0f Hz, %.1f ms buffer. The negotiated input format is %.0f Hz with %d analysis samples and %d channel%@.",
+            startInfo.categoryDescription,
+            startInfo.modeDescription,
+            startInfo.sessionSampleRate,
+            startInfo.sessionBufferDuration * 1_000,
+            startInfo.inputFormatSampleRate,
+            startInfo.analysisFrameSize,
+            startInfo.channelCount,
+            startInfo.channelCount == 1 ? "" : "s"
+        )
+    }
+
+    private func pauseLiveCaptureForRecovery(summary: String, detail: String, rebuildEngine: Bool = false) {
+        cancelAutomaticCaptureResume()
+        stopLiveCaptureWithoutRefreshing(finalizeLogging: false, resetStatus: false)
+
+        if rebuildEngine {
+            liveAudioCaptureController.rebuildAudioEngine()
+        }
+
+        liveCaptureSummary = summary
+        liveCaptureDetail = detail
+    }
+
+    private func scheduleAutomaticCaptureResume(
+        reason: String,
+        attempt: Int = 0,
+        delay: TimeInterval = 0.2
+    ) {
+        guard captureIntentIsActive else {
+            return
+        }
+
+        cancelAutomaticCaptureResume()
+
+        guard UIApplication.shared.applicationState == .active else {
+            shouldResumeWhenAppBecomesActive = true
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "The app must be active before iOS can restore microphone capture."
+            return
+        }
+
+        guard audioSessionController.isInputAvailable() else {
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "No microphone input is currently available. Reconnect or select an input to resume."
+            return
+        }
+
+        liveCaptureSummary = "Refreshing live capture"
+        liveCaptureDetail = reason
+
+        let workItem = DispatchWorkItem { [weak self] in
+            DispatchQueue.main.async {
+                self?.startLiveCapture(automaticResumeReason: reason, attempt: attempt)
+            }
+        }
+
+        pendingAutomaticResumeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func cancelAutomaticCaptureResume() {
+        pendingAutomaticResumeWorkItem?.cancel()
+        pendingAutomaticResumeWorkItem = nil
+    }
+
+    private func handleAutomaticResumeFailure(_ error: Error, reason: String, attempt: Int) {
+        let isAppActive = UIApplication.shared.applicationState == .active
+        let inputAvailable = audioSessionController.isInputAvailable()
+
+        if attempt < 2, isAppActive, inputAvailable {
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "\(reason) Retrying microphone capture as iOS finishes renegotiating the input route."
+            scheduleAutomaticCaptureResume(
+                reason: reason,
+                attempt: attempt + 1,
+                delay: 0.25 * Double(attempt + 1)
+            )
+            return
+        }
+
+        liveCaptureSummary = "Live capture paused"
+
+        if !isAppActive {
+            shouldResumeWhenAppBecomesActive = true
+            liveCaptureDetail = "The app must be active before iOS can restore microphone capture."
+        } else if !inputAvailable {
+            liveCaptureDetail = "No microphone input is currently available. Reconnect or select an input to resume."
+        } else {
+            liveCaptureDetail = "\(reason) \(error.localizedDescription)"
+        }
     }
 
     private func applyCaptureSnapshot(_ snapshot: LiveAudioCaptureSnapshot) {
@@ -714,7 +876,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             dominantFrequencyHz: frameAnalysis.dominantFrequencyHz
         )
 
-        if liveCaptureDetail == "Waiting for the first shared frame-analysis update." {
+        if liveCaptureDetail.contains("Waiting for the first shared frame-analysis update.") {
             liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
         }
 
@@ -769,13 +931,108 @@ final class AnalyzerSetupViewModel: ObservableObject {
     }
 
     private func handleCaptureFailure(_ message: String) {
-        stopLiveCaptureWithoutRefreshing()
+        captureIntentIsActive = false
+        cancelAutomaticCaptureResume()
+        shouldResumeWhenAppBecomesActive = false
+        stopLiveCaptureWithoutRefreshing(resetStatus: false)
         liveCaptureSummary = "Live capture failed"
         liveCaptureDetail = message
 
         if microphonePermissionState == .granted {
             configureAudioSession()
         }
+    }
+
+    private func handleAudioSessionEvent(_ event: AudioSessionEvent) {
+        guard captureIntentIsActive || isCapturing else {
+            return
+        }
+
+        switch event {
+        case .interruptionBegan(let wasSuspended):
+            pauseLiveCaptureForRecovery(
+                summary: "Live capture interrupted",
+                detail: wasSuspended
+                    ? "iOS suspended the app while microphone capture was active. Bring the app back to the foreground to resume."
+                    : "iOS temporarily interrupted microphone capture. The analyzer will resume when audio input is available again."
+            )
+        case .interruptionEnded(let shouldResume):
+            guard shouldResume else {
+                captureIntentIsActive = false
+                cancelAutomaticCaptureResume()
+                liveCaptureSummary = "Live capture paused"
+                liveCaptureDetail = "The interruption ended without automatic resume permission. Tap Start live capture when you are ready to resume."
+                return
+            }
+
+            scheduleAutomaticCaptureResume(
+                reason: "Microphone access returned. Restoring live capture."
+            )
+        case .routeChanged(let reason, let inputAvailable, let inputName):
+            if !inputAvailable {
+                pauseLiveCaptureForRecovery(
+                    summary: "Live capture paused",
+                    detail: "\(reason.description) Connect or select a microphone input to resume live analysis."
+                )
+                return
+            }
+
+            guard reason.isCaptureRelevant, !isCapturing else {
+                return
+            }
+
+            let inputDescription = inputName ?? "the current microphone"
+            scheduleAutomaticCaptureResume(
+                reason: "\(reason.description) Switching to \(inputDescription) and restoring live capture."
+            )
+        case .mediaServicesWereLost:
+            pauseLiveCaptureForRecovery(
+                summary: "Live capture paused",
+                detail: "iOS audio services were lost. Waiting for the audio subsystem to return."
+            )
+        case .mediaServicesWereReset:
+            pauseLiveCaptureForRecovery(
+                summary: "Refreshing live capture",
+                detail: "iOS audio services were reset. Rebuilding the capture engine.",
+                rebuildEngine: true
+            )
+            if microphonePermissionState == .granted {
+                configureAudioSession()
+            }
+            scheduleAutomaticCaptureResume(
+                reason: "The iOS audio subsystem was reset. Restoring live capture."
+            )
+        }
+    }
+
+    private func handleAudioEngineConfigurationChange() {
+        guard captureIntentIsActive, !isCaptureTransitionInFlight else {
+            return
+        }
+
+        guard Date() >= ignoreEngineConfigurationChangesUntil else {
+            return
+        }
+
+        pauseLiveCaptureForRecovery(
+            summary: "Refreshing live capture",
+            detail: "The microphone hardware configuration changed. Renegotiating the live input format."
+        )
+        scheduleAutomaticCaptureResume(
+            reason: "The microphone hardware changed. Restoring live capture."
+        )
+    }
+
+    private func handleApplicationDidBecomeActive() {
+        guard shouldResumeWhenAppBecomesActive, captureIntentIsActive else {
+            return
+        }
+
+        shouldResumeWhenAppBecomesActive = false
+        scheduleAutomaticCaptureResume(
+            reason: "The app is active again. Restoring live capture.",
+            delay: 0.1
+        )
     }
 
     private func configureAudioSession() {
