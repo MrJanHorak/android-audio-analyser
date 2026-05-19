@@ -38,10 +38,20 @@ From the repository root:
    - press **Run**
 
 5. On first launch:
-   - grant microphone permission
-   - start live capture from the analyzer screen
+    - grant microphone permission
+    - start live capture from the analyzer screen
 
-For a physical device, configure a signing team first. The generated project uses the example bundle identifier `com.example.audioanalyser.ios`.
+For a physical device, finish signing setup first. The generated project uses the example bundle identifier `com.example.audioanalyser.ios`.
+
+1. Open **Signing & Capabilities** for the **AudioAnalyser** target.
+2. Turn on **Automatically manage signing**.
+3. Choose your Apple developer or personal team.
+4. Replace `com.example.audioanalyser.ios` with your own unique bundle identifier.
+5. On the device, enable **Developer Mode** under **Settings > Privacy & Security** if needed.
+6. If iOS reports the developer app is not trusted, open **Settings > General > VPN & Device Management**, select your developer certificate, and trust it.
+7. If the app installs but still fails to launch, delete it from the device, clean the build folder in Xcode, and run again.
+
+If microphone access was denied earlier, re-enable it from **Settings > Privacy & Security > Microphone** and turn on **AudioAnalyser** there. If the app is not listed, delete it from the device, reinstall it from Xcode, and request access again.
 
 If you run in the **iOS Simulator**, also set **Simulator > I/O > Audio Input** to a Mac microphone or other host input device. If Simulator has no usable audio input route, the app can launch normally but live capture will fail.
 

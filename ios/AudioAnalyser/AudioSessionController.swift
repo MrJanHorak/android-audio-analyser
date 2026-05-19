@@ -210,7 +210,8 @@ final class AudioSessionController {
 
                 switch interruptionType {
                 case .began:
-                    let wasSuspended = (notification.userInfo?[AVAudioSessionInterruptionWasSuspendedKey] as? NSNumber)?.boolValue ?? false
+                    let rawReason = notification.userInfo?[AVAudioSessionInterruptionReasonKey] as? UInt ?? 0
+                    let wasSuspended = rawReason == 1 || rawReason == 3
                     self.onEvent?(.interruptionBegan(wasSuspended: wasSuspended))
                 case .ended:
                     let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0

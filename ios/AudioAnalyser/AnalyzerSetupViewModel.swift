@@ -537,7 +537,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             audioSessionDetail = "The iOS analyzer session will stay inactive until permission is granted."
         case .denied:
             audioSessionSummary = "Microphone access is blocked"
-            audioSessionDetail = "iOS will not prompt again after a denial. Use Settings to re-enable microphone access."
+            audioSessionDetail = "iOS will not prompt again after a denial. Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If it is missing there, delete the app, reinstall it from Xcode, and request access again."
         case .granted:
             if !isCapturing {
                 configureAudioSession()
@@ -589,7 +589,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
                     self.audioSessionDetail = "Grant microphone access before starting live analysis."
                 case .denied:
                     self.audioSessionSummary = "Microphone access is blocked"
-                    self.audioSessionDetail = "Open Settings to allow microphone capture for the iOS analyzer."
+                    self.audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
                 }
             }
         }

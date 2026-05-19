@@ -228,7 +228,7 @@ private struct CaptureControlCard: View {
         case .undetermined:
             return "Allow microphone access to begin."
         case .denied:
-            return "Microphone access is blocked."
+            return "Microphone access is blocked in Settings."
         }
     }
 
