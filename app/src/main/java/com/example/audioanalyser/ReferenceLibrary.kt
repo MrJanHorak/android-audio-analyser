@@ -2,7 +2,10 @@ package com.example.audioanalyser
 
 import androidx.compose.ui.graphics.Color
 import com.example.audioanalyser.shared.CUSTOM_TARGET_CURVE_ID_PREFIX
+import com.example.audioanalyser.shared.buildCustomTargetCurvePoints
+import com.example.audioanalyser.shared.buildSavedTargetCurveDescription
 import com.example.audioanalyser.shared.CustomTargetCurveSettings
+import com.example.audioanalyser.shared.defaultCustomTargetCurveSettings
 import com.example.audioanalyser.shared.EqReferenceEntry
 import com.example.audioanalyser.shared.SavedTargetCurvePreset
 import com.example.audioanalyser.shared.TargetCurvePoint
@@ -32,22 +35,6 @@ data class AnalyzerOverlayProfile(
     fun bandFor(frequencyHz: Float): AnalyzerRangeBand? = bands.firstOrNull { it.contains(frequencyHz) }
 }
 
-fun SavedTargetCurvePreset.displayName(): String = buildString {
-    if (venueCategory.isNotBlank()) {
-        append(venueCategory)
-        append(" • ")
-    }
-    if (venueName.isNotBlank()) {
-        append(venueName)
-    }
-    if (settings.name.isNotBlank()) {
-        if (isNotEmpty()) {
-            append(" - ")
-        }
-        append(settings.name)
-    }
-}.ifBlank { settings.name }
-
 fun SavedTargetCurvePreset.lastUsedLabel(nowMillis: Long = System.currentTimeMillis()): String {
     if (lastUsedAtEpochMillis <= 0L) {
         return "Not used yet"
@@ -62,9 +49,6 @@ fun SavedTargetCurvePreset.lastUsedLabel(nowMillis: Long = System.currentTimeMil
         else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(lastUsedAtEpochMillis))
     }
 }
-
-fun SavedTargetCurvePreset.markUsed(nowMillis: Long = System.currentTimeMillis()): SavedTargetCurvePreset =
-    copy(lastUsedAtEpochMillis = nowMillis)
 
 fun SavedTargetCurvePreset.venueDetailRows(): List<Pair<String, String>> = buildList {
     if (venueCategory.isNotBlank()) add("Category" to venueCategory)
@@ -396,11 +380,6 @@ val analyzerTargetCurveProfiles = listOf(
     )
 )
 
-fun defaultCustomTargetCurveSettings(): CustomTargetCurveSettings = CustomTargetCurveSettings(
-    name = "My Room",
-    points = listOf(3.5f, 3f, 2f, 1f, 0f, -1f, -2.5f, -4f)
-)
-
 fun newSavedTargetCurvePreset(
     settings: CustomTargetCurveSettings = defaultCustomTargetCurveSettings(),
     venueName: String = "",
@@ -427,30 +406,19 @@ fun newSavedTargetCurvePreset(
 
 fun buildCustomTargetCurveProfile(preset: SavedTargetCurvePreset): AnalyzerTargetCurveProfile {
     val defaultSettings = defaultCustomTargetCurveSettings()
-    val safePoints = customTargetCurveFrequencies.mapIndexed { index, _ ->
-        preset.settings.points.getOrElse(index) { defaultSettings.points.getOrElse(index) { 0f } }
-    }
-    val description = preset.venueName.ifBlank {
-        "Your saved room or organisation target curve."
-    }.let { venueName ->
-        if (venueName == "Your saved room or organisation target curve.") {
-            venueName
-        } else {
-            "Saved target curve for $venueName."
-        }
-    }
 
     return AnalyzerTargetCurveProfile(
         id = preset.id,
         label = preset.settings.name.ifBlank { defaultSettings.name },
         badge = "Saved",
-        description = description,
+        description = buildSavedTargetCurveDescription(preset.venueName),
         useCase = "Useful when you regularly mix in the same room or for the same organisation and want your own repeatable reference.",
         caution = "Use it as a recall target, then still tune by ear for the audience size, PA deployment, and stage volume that day.",
         color = Color(0xFF8E24AA),
-        points = customTargetCurveFrequencies.zip(safePoints).map { (frequencyHz, relativeDb) ->
-            TargetCurvePoint(frequencyHz = frequencyHz, relativeDb = relativeDb)
-        }
+        points = buildCustomTargetCurvePoints(
+            points = preset.settings.points,
+            fallbackPoints = defaultSettings.points
+        )
     )
 }
 

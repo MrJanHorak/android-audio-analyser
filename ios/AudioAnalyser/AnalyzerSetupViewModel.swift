@@ -41,6 +41,23 @@ struct ExportedAnalyzerSample {
     let exportedAt: Date
 }
 
+struct SavedWaterfallSession {
+    let capturedAt: Date
+    let sampleRateHz: Double
+    let frameLength: Int
+    let channelCount: Int
+    let dominantFrequencyHz: Float
+    let zLevelDb: Float
+    let rowTimestamps: [Date]
+    let rows: [[Float]]
+}
+
+struct ExportedWaterfallSample {
+    let fileURL: URL
+    let exportedAt: Date
+    let rowCount: Int
+}
+
 struct LiveFeedbackSuggestion: Identifiable, Equatable {
     let frequencyHz: Float
     let suggestedCutHz: Float
@@ -80,8 +97,10 @@ final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var isLogging = false
     @Published private(set) var exportedAnalyzerLog: ExportedAnalyzerLog?
     @Published private(set) var exportedAnalyzerSample: ExportedAnalyzerSample?
+    @Published private(set) var exportedWaterfallSample: ExportedWaterfallSample?
     @Published private(set) var logStatusMessage: String?
     @Published private(set) var analyzerSampleStatusMessage: String?
+    @Published private(set) var waterfallExportStatusMessage: String?
     @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
 
@@ -101,12 +120,14 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var smoothedSpectrum: [Float] = []
     private var zLevelHistory: [Float] = []
     private var spectrumHistoryRows: [[Float]] = []
+    private var spectrumHistoryTimestamps: [Date] = []
     private var minObservedZLevelDb: Float = Float.greatestFiniteMagnitude
     private var maxObservedZLevelDb: Float = 0
     private var zLevelSum = 0.0
     private var zLevelSampleCount = 0
     private var loggedCsvRows: [String] = []
     private var loggedRowCount = 0
+    private var savedWaterfallSession: SavedWaterfallSession?
     private var lastUiPublishTimeNanoseconds: UInt64 = 0
 
     init(
@@ -127,8 +148,10 @@ final class AnalyzerSetupViewModel: ObservableObject {
         savedSpectrumSnapshot = nil
         exportedAnalyzerLog = nil
         exportedAnalyzerSample = nil
+        exportedWaterfallSample = nil
         logStatusMessage = nil
         analyzerSampleStatusMessage = nil
+        waterfallExportStatusMessage = nil
         bindCaptureCallbacks()
         refreshSetup()
     }
@@ -240,6 +263,26 @@ final class AnalyzerSetupViewModel: ObservableObject {
         }
 
         return "Prepare a versioned JSON analyzer sample that captures the current live state, history, feedback guidance, and any saved snapshot metadata."
+    }
+
+    var isWaterfallExportDisabled: Bool {
+        savedWaterfallSession == nil
+    }
+
+    var waterfallExportStatusText: String {
+        if let waterfallExportStatusMessage {
+            return waterfallExportStatusMessage
+        }
+
+        if let savedWaterfallSession {
+            if isCapturing {
+                return "Prepare a dedicated waterfall-session JSON from the current live history rows, including per-row timestamps and higher-fidelity normalized spectrum data."
+            }
+
+            return "The most recent waterfall session from \(captureDateString(savedWaterfallSession.capturedAt)) is ready to export even though live capture is idle."
+        }
+
+        return "Start live capture to collect a waterfall session you can export for external analysis."
     }
 
     func captureSpectrumSnapshot() {
@@ -372,6 +415,49 @@ final class AnalyzerSetupViewModel: ObservableObject {
         } catch {
             exportedAnalyzerSample = nil
             analyzerSampleStatusMessage = "Couldn't prepare the analyzer sample export: \(error.localizedDescription)"
+        }
+    }
+
+    func prepareWaterfallExport() {
+        guard let savedWaterfallSession else {
+            waterfallExportStatusMessage = "Start live capture before exporting a waterfall session."
+            return
+        }
+
+        let exportDate = Date()
+        let envelope = WaterfallSampleExportEnvelope(
+            schemaVersion: 1,
+            exportKind: "waterfall-session",
+            exportedAt: exportDate,
+            capturedAt: savedWaterfallSession.capturedAt,
+            rowFormat: "normalized-log-spectrum-bars",
+            sampleRateHz: savedWaterfallSession.sampleRateHz,
+            frameLength: savedWaterfallSession.frameLength,
+            channelCount: savedWaterfallSession.channelCount,
+            dominantFrequencyHz: Double(savedWaterfallSession.dominantFrequencyHz),
+            zLevelDb: Double(savedWaterfallSession.zLevelDb),
+            rowCount: savedWaterfallSession.rows.count,
+            columnCount: savedWaterfallSession.rows.first?.count ?? 0,
+            rowTimestamps: savedWaterfallSession.rowTimestamps,
+            rows: savedWaterfallSession.rows.map { row in row.map(Double.init) }
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let exportURL = makeWaterfallSampleExportUrl()
+
+        do {
+            let data = try encoder.encode(envelope)
+            try data.write(to: exportURL, options: .atomic)
+            exportedWaterfallSample = ExportedWaterfallSample(
+                fileURL: exportURL,
+                exportedAt: exportDate,
+                rowCount: savedWaterfallSession.rows.count
+            )
+            waterfallExportStatusMessage = "Waterfall session JSON ready: \(exportURL.lastPathComponent)"
+        } catch {
+            exportedWaterfallSample = nil
+            waterfallExportStatusMessage = "Couldn't prepare the waterfall export: \(error.localizedDescription)"
         }
     }
 
@@ -580,6 +666,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             liveCaptureDetail = "Shared frame analysis is active. The live analyzer panel below updates at a throttled cadence."
         }
 
+        let historyTimestamp = Date()
         let now = DispatchTime.now().uptimeNanoseconds
         let shouldPublishSnapshot = liveAnalyzerSnapshot == nil ||
             now - lastUiPublishTimeNanoseconds >= uiPublishIntervalNanoseconds
@@ -592,7 +679,19 @@ final class AnalyzerSetupViewModel: ObservableObject {
             from: smoothedSpectrum,
             binSizeHz: frameAnalysis.binSize
         )
-        appendHistorySample(levelDb: currentDb, spectrumBars: spectrumBars)
+        appendHistorySample(
+            levelDb: currentDb,
+            spectrumBars: spectrumBars,
+            sampledAt: historyTimestamp
+        )
+        updateSavedWaterfallSession(
+            capturedAt: historyTimestamp,
+            sampleRateHz: snapshot.sampleRate,
+            frameLength: snapshot.frameLength,
+            channelCount: snapshot.channelCount,
+            dominantFrequencyHz: frameAnalysis.dominantFrequencyHz,
+            zLevelDb: currentDb
+        )
         let levelStats = currentLevelStats()
 
         liveAnalyzerSnapshot = LiveAnalyzerSnapshot(
@@ -824,6 +923,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private func resetLiveHistory() {
         zLevelHistory = []
         spectrumHistoryRows = []
+        spectrumHistoryTimestamps = []
         minObservedZLevelDb = Float.greatestFiniteMagnitude
         maxObservedZLevelDb = 0
         zLevelSum = 0
@@ -853,7 +953,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
         )
     }
 
-    private func appendHistorySample(levelDb: Float, spectrumBars: [Float]) {
+    private func appendHistorySample(levelDb: Float, spectrumBars: [Float], sampledAt: Date) {
         zLevelHistory.append(levelDb)
         if zLevelHistory.count > zLevelHistoryLimit {
             zLevelHistory.removeFirst(zLevelHistory.count - zLevelHistoryLimit)
@@ -863,6 +963,35 @@ final class AnalyzerSetupViewModel: ObservableObject {
         if spectrumHistoryRows.count > spectrumHistoryLimit {
             spectrumHistoryRows.removeFirst(spectrumHistoryRows.count - spectrumHistoryLimit)
         }
+
+        spectrumHistoryTimestamps.append(sampledAt)
+        if spectrumHistoryTimestamps.count > spectrumHistoryLimit {
+            spectrumHistoryTimestamps.removeFirst(spectrumHistoryTimestamps.count - spectrumHistoryLimit)
+        }
+    }
+
+    private func updateSavedWaterfallSession(
+        capturedAt: Date,
+        sampleRateHz: Double,
+        frameLength: Int,
+        channelCount: Int,
+        dominantFrequencyHz: Float,
+        zLevelDb: Float
+    ) {
+        guard !spectrumHistoryRows.isEmpty else {
+            return
+        }
+
+        savedWaterfallSession = SavedWaterfallSession(
+            capturedAt: capturedAt,
+            sampleRateHz: sampleRateHz,
+            frameLength: frameLength,
+            channelCount: channelCount,
+            dominantFrequencyHz: dominantFrequencyHz,
+            zLevelDb: zLevelDb,
+            rowTimestamps: spectrumHistoryTimestamps,
+            rows: spectrumHistoryRows
+        )
     }
 
     private func startLogging() {
@@ -937,6 +1066,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private func makeAnalyzerSampleExportUrl() -> URL {
         let timestamp = Int(Date().timeIntervalSince1970 * 1_000)
         let filename = "audio-analyser-sample-\(timestamp).json"
+        return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+    }
+
+    private func makeWaterfallSampleExportUrl() -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970 * 1_000)
+        let filename = "audio-analyser-waterfall-\(timestamp).json"
         return FileManager.default.temporaryDirectory.appendingPathComponent(filename)
     }
 
@@ -1044,6 +1179,23 @@ private struct AnalyzerSampleFeedbackMarkerPayload: Encodable {
     let normalizedLevel: Double
     let holdFrames: Int
     let stabilityKey: String
+}
+
+private struct WaterfallSampleExportEnvelope: Encodable {
+    let schemaVersion: Int
+    let exportKind: String
+    let exportedAt: Date
+    let capturedAt: Date
+    let rowFormat: String
+    let sampleRateHz: Double
+    let frameLength: Int
+    let channelCount: Int
+    let dominantFrequencyHz: Double
+    let zLevelDb: Double
+    let rowCount: Int
+    let columnCount: Int
+    let rowTimestamps: [Date]
+    let rows: [[Double]]
 }
 
 private extension Float {

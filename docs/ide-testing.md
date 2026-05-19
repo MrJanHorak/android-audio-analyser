@@ -5,7 +5,7 @@ This document covers the current Android workflow and the current Xcode workflow
 ## Current status
 
 - **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a richer live analyzer UI with level history/spectrum history, shared feedback-cut suggestions, configurable feedback markers, and iOS snapshot/logging/export controls.
+- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a richer live analyzer UI with level history/spectrum history, shared feedback-cut suggestions, configurable feedback markers, and iOS snapshot/logging/export controls including dedicated waterfall-session export.
 
 ## Android Studio
 
@@ -40,6 +40,8 @@ bash ./gradlew :app:assembleDebug
   - Verifies shared feedback-peak tracking behavior, including matching, decay, and reset semantics.
 - `shared/src/commonMain/.../FeedbackPeakPresentation.kt`
   - Holds shared feedback stability-tier logic reused by both platform UI layers.
+- `shared/src/commonMain/.../TargetCurveHelpers.kt`
+  - Holds shared default target-curve settings and pure saved-target-curve helper logic extracted from Android app code.
 - `app/src/test/...`
   - Android/JVM unit tests for app-only logic as more characterization coverage is added.
 - `app/src/androidTest/...`
@@ -94,7 +96,7 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - the configured measurement-mode audio-session summary
     - the live capture status row
     - a live analyzer section with metric cards, min/avg/max level stats, a dB(Z) sparkline, a compact spectrum area, and a spectrum-history waterfall
-    - an analyzer-tools section with feedback guidance controls, spectrum snapshot controls, CSV log sharing, and JSON analyzer sample sharing
+    - an analyzer-tools section with feedback guidance controls, spectrum snapshot controls, CSV log sharing, JSON analyzer sample sharing, and waterfall-session export
     - a feedback suggestion area that can populate once stable peaks are present
 6. Tap the microphone action buttons:
     - on first run, confirm the system permission prompt appears
@@ -108,6 +110,7 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - shared feedback tiers / markers
     - snapshot capture/compare
     - logging/export
+    - dedicated waterfall export
     - signal generator
     - fuller waterfall/overlay controls
 
@@ -137,6 +140,8 @@ bash ./gradlew :shared:assembleSharedDebugXCFramework
     - share the CSV and inspect that it contains the Android-style columns `Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)`
     - prepare an analyzer sample JSON and confirm a share action appears
     - inspect the JSON and confirm it includes `schemaVersion`, `exportedAt`, `feedbackDisplay`, and any available live/saved snapshot analyzer payloads
+    - prepare a waterfall-session JSON and confirm a share action appears
+    - inspect the JSON and confirm it includes `exportKind`, `rowFormat`, `rowTimestamps`, and full waterfall `rows`
 7. Feed a known test tone and compare:
     - dominant frequency
     - SPL trend

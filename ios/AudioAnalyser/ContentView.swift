@@ -183,6 +183,41 @@ struct ContentView: View {
                                     .monospacedDigit()
                                 }
                             }
+
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Waterfall export")
+                                    .font(.headline)
+
+                                HStack(spacing: 10) {
+                                    Button("Prepare waterfall JSON") {
+                                        setupViewModel.prepareWaterfallExport()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(setupViewModel.isWaterfallExportDisabled)
+
+                                    if let exportedWaterfallSample = setupViewModel.exportedWaterfallSample {
+                                        ShareLink(item: exportedWaterfallSample.fileURL) {
+                                            Label("Share waterfall", systemImage: "square.and.arrow.up")
+                                        }
+                                        .buttonStyle(.bordered)
+                                    }
+                                }
+
+                                Text(setupViewModel.waterfallExportStatusText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+
+                                if let exportedWaterfallSample = setupViewModel.exportedWaterfallSample {
+                                    Text(
+                                        "Prepared \(exportedWaterfallSample.rowCount) waterfall rows on \(exportedWaterfallSample.exportedAt.formatted(date: .abbreviated, time: .shortened))."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -242,7 +277,7 @@ struct ContentView: View {
                             )
                             StatusRow(
                                 title: "Analyzer tools",
-                                detail: "iOS can save live spectrum snapshots, compare them against matching live input, export CSV decibel logs, and prepare JSON analyzer samples."
+                                detail: "iOS can save live spectrum snapshots, compare them against matching live input, export CSV logs, prepare JSON analyzer samples, and export dedicated waterfall sessions."
                             )
                             StatusRow(title: "iOS UI shell", detail: "SwiftUI app scaffolded, linked to shared code, and buildable in Xcode")
                         }
@@ -251,8 +286,8 @@ struct ContentView: View {
 
                     GroupBox("Next milestones") {
                         VStack(alignment: .leading, spacing: 10) {
-                            BulletRow(text: "Expand saved-session tooling with additional analyzer sample and waterfall exports")
                             BulletRow(text: "Move more pure analyzer helpers, defaults, and comparison logic into shared code")
+                            BulletRow(text: "Expand saved-session tooling beyond JSON/CSV with additional export targets if needed")
                             BulletRow(text: "Revisit larger shared analyzer state only after multiplatform-safe concurrency is designed")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -27,7 +27,8 @@ open ios/AudioAnalyser.xcodeproj
 - Shared feedback tracking now surfaces live cut suggestions in the iOS analyzer UI.
 - iOS can now capture a live spectrum snapshot, compare it against matching live input, and prepare/share CSV decibel logs from the analyzer session.
 - iOS now adds richer analyzer tools: shared feedback-stability tiers, configurable spectrum feedback markers, and versioned JSON analyzer sample export.
+- iOS can now also export a dedicated waterfall-session JSON with per-row timestamps and full-precision waterfall rows for external analysis.
 
 ## Next step
 
-Expand saved-session tooling further and continue extracting remaining non-UI analyzer helpers into shared code.
+Continue extracting the remaining pure non-UI analyzer helpers into shared code and leave larger shared analyzer-state moves for a dedicated concurrency design pass.

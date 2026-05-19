@@ -60,9 +60,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.rememberCoroutineScope
 import com.example.audioanalyser.shared.CustomTargetCurveSettings
+import com.example.audioanalyser.shared.defaultCustomTargetCurveSettings
+import com.example.audioanalyser.shared.displayName
 import com.example.audioanalyser.shared.EqReferenceEntry
 import com.example.audioanalyser.shared.FeedbackPeak
 import com.example.audioanalyser.shared.FeedbackPeakPresentation
+import com.example.audioanalyser.shared.markUsed
 import com.example.audioanalyser.shared.SavedTargetCurvePreset
 import com.example.audioanalyser.shared.customTargetCurveFrequencies
 import com.example.audioanalyser.shared.venueCategoryOptions
@@ -757,7 +760,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
     val onOverlayProfileSelected: (AnalyzerOverlayProfile) -> Unit = { selectedOverlayId = it.id }
     val onUpsertSavedTargetCurve: (SavedTargetCurvePreset) -> Unit = { preset ->
-        val presetToStore = preset.markUsed()
+        val presetToStore = preset.markUsed(System.currentTimeMillis())
         val updatedPresets = sortSavedTargetCurvePresets(savedTargetCurves.filterNot { it.id == presetToStore.id } + presetToStore)
         savedTargetCurves = updatedPresets
         saveSavedTargetCurvePresets(ctx, updatedPresets)

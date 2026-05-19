@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a richer live analyzer UI with shared feedback-cut suggestions, live level history, a compact spectrum-history waterfall, spectrum snapshot compare, CSV logging/export, configurable feedback markers, and versioned JSON analyzer sample export.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, and iOS now renders a richer live analyzer UI with shared feedback-cut suggestions, live level history, a compact spectrum-history waterfall, spectrum snapshot compare, CSV logging/export, configurable feedback markers, versioned JSON analyzer sample export, and dedicated waterfall-session export.
 
 ## What landed in this phase
 
@@ -65,6 +65,10 @@
   - a shared `FeedbackPeakPresentation.stabilityKey(...)` helper in `:shared` so Android and iOS use the same feedback-tier thresholds
   - configurable live spectrum feedback markers (top 1 / top 3, hide/show) driven by shared feedback peaks
   - a versioned JSON analyzer sample export that captures current live analyzer state, history, feedback display state, and optional saved snapshot metadata
+- Added the next saved-session + helper-extraction slice with:
+  - a dedicated waterfall-session JSON export on iOS with per-row timestamps and full-precision normalized waterfall rows
+  - a shared `TargetCurveHelpers.kt` file for default target-curve settings, saved-target-curve display/description helpers, and normalized saved target-curve point generation
+  - Android app call sites updated to consume the shared target-curve helpers instead of keeping that pure logic app-side
 - Validated the current checkpoints with:
   - `bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug`
   - `./scripts/build-ios-shell.sh`
@@ -104,8 +108,8 @@ Owns the first pure helpers that can compile for Android, JVM, and iOS.
 2. Revisit `SpectrogramBuffer` only after shared coroutines dependencies and multiplatform-safe synchronization are in place.
 3. Extract additional pure DSP helpers from `AudioAnalyzer.kt`.
 4. Replace Compose `Color` in shareable model files with a neutral type.
-5. Add richer saved-session tooling around analyzer samples and waterfall exports.
-6. Start extracting remaining non-UI helpers such as target-curve defaults and formatting seams.
+5. Start extracting any remaining non-UI helpers such as formatting seams and comparison helpers.
+6. Revisit larger shared analyzer-state moves only after the concurrency design is agreed.
 
 ## Guardrails for future sessions
 

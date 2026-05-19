@@ -21,6 +21,69 @@ class AnalyzerModelsTest {
     }
 
     @Test
+    fun defaultCustomTargetCurveSettingsRemainStable() {
+        val defaults = defaultCustomTargetCurveSettings()
+
+        assertEquals("My Room", defaults.name)
+        assertEquals(listOf(3.5f, 3f, 2f, 1f, 0f, -1f, -2.5f, -4f), defaults.points)
+    }
+
+    @Test
+    fun displayNameIncludesCategoryVenueAndCurveName() {
+        val preset = SavedTargetCurvePreset(
+            id = "saved_curve_test",
+            settings = CustomTargetCurveSettings(name = "Sunday Mix", points = emptyList()),
+            venueName = "Main Hall",
+            venueCategory = "Church"
+        )
+
+        assertEquals("Church • Main Hall - Sunday Mix", preset.displayName())
+    }
+
+    @Test
+    fun buildSavedTargetCurveDescriptionHandlesBlankVenue() {
+        assertEquals(
+            "Your saved room or organisation target curve.",
+            buildSavedTargetCurveDescription("")
+        )
+        assertEquals(
+            "Saved target curve for Main Hall.",
+            buildSavedTargetCurveDescription("Main Hall")
+        )
+    }
+
+    @Test
+    fun normalizeCustomTargetCurveLevelsFillsMissingValuesFromDefaults() {
+        val normalized = normalizeCustomTargetCurveLevels(listOf(9f, 8f))
+
+        assertEquals(customTargetCurveFrequencies.size, normalized.size)
+        assertEquals(9f, normalized[0])
+        assertEquals(8f, normalized[1])
+        assertEquals(defaultCustomTargetCurveSettings().points[2], normalized[2])
+        assertEquals(defaultCustomTargetCurveSettings().points.last(), normalized.last())
+    }
+
+    @Test
+    fun buildCustomTargetCurvePointsUsesSharedFrequenciesAndNormalizedLevels() {
+        val points = buildCustomTargetCurvePoints(listOf(4f, 3f, 2f))
+
+        assertEquals(customTargetCurveFrequencies.size, points.size)
+        assertEquals(customTargetCurveFrequencies.first(), points.first().frequencyHz)
+        assertEquals(4f, points.first().relativeDb)
+        assertEquals(defaultCustomTargetCurveSettings().points.last(), points.last().relativeDb)
+    }
+
+    @Test
+    fun markUsedUpdatesPresetTimestamp() {
+        val preset = SavedTargetCurvePreset(
+            id = "saved_curve_test",
+            settings = defaultCustomTargetCurveSettings()
+        )
+
+        assertEquals(1234L, preset.markUsed(1234L).lastUsedAtEpochMillis)
+    }
+
+    @Test
     fun feedbackPeakStabilityKeysStayAligned() {
         assertEquals(
             "watch",
