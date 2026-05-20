@@ -1,6 +1,6 @@
 # iOS Migration Handoff
 
-**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, shared feedback presentation, shared target-curve helpers, shared formatting rules, shared spectrogram-history ring-buffer logic, and iOS now renders a richer live analyzer UI with spectrum snapshot compare, CSV logging/export, versioned JSON analyzer sample export, dedicated waterfall-session export, and a Markdown session report.
+**Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, shared feedback presentation, shared target-curve helpers, shared formatting rules, shared spectrogram-history ring-buffer logic, and iOS now renders a richer live analyzer UI with denser Android-like spectrum guides, saved venue curve recall/editing, spectrum snapshot compare, adjustable waterfall palette/percentile/gamma controls, optional big-graph mode, CSV logging/export, versioned JSON analyzer sample export, dedicated waterfall-session export, full signal-generator mode parity, a native delay calculator with ping auto-measure, and a Markdown session report.
 
 ## What landed in this phase
 
@@ -22,9 +22,9 @@
   - `SavedTargetCurvePreset`
   - `EqReferenceEntry`
   - shared target-curve constants/options
-- Extracted the feedback-peak tracking state machine into `shared/src/commonMain/FeedbackPeakTracker.kt` so Android and future iOS code can reuse the same peak-matching and decay behavior.
+- Extracted the feedback-peak tracking state machine into `shared/src/commonMain/FeedbackPeakTracker.kt` so Android and iOS code can reuse the same peak-matching and decay behavior.
 - Added shared tests in `shared/src/commonTest` to lock the current helper behavior before larger extractions.
-- Added `ios/` with an XcodeGen-backed SwiftUI shell that can be generated locally into `AudioAnalyser.xcodeproj`.
+- Added `ios/` with an XcodeGen-backed SwiftUI shell that can be generated locally into `SoundRunner.xcodeproj`.
 - Added XCFramework generation for `Shared` and scripts to prepare/link it into the iOS shell:
   - `scripts/prepare-ios-framework.sh`
   - `scripts/build-ios-shell.sh`
@@ -57,6 +57,15 @@
   - live min/avg/max dB(Z) stats that ignore gated zero readings
   - a recent dB(Z) history sparkline
   - a compact spectrum-history waterfall built from normalized log-binned spectrum bars
+- Added the next analyzer display-parity slice on iOS with:
+  - adjustable waterfall min/max percentile controls
+  - adjustable waterfall gamma control
+  - Android-matched inferno / viridis / plasma / magma waterfall palettes
+  - an optional FOH-style big graph mode that keeps the graph view more prominent
+- Added native iOS saved venue-curve parity with Android by:
+  - persisting saved target-curve presets in the same JSON field shape Android uses
+  - showing saved curve names/venue recall details directly in the iOS room-curve selector
+  - adding a native SwiftUI saved-curve manager for create/edit/delete workflows
 - Added iOS analyzer-tool parity with Android for:
   - saved spectrum snapshots that can overlay a matching live spectrum as a cyan reference line
   - in-memory decibel logging with CSV export/share using the same `Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)` column set
@@ -74,6 +83,19 @@
   - Android wrappers updated to delegate formatting through the shared formatter
   - iOS label rendering updated to use the shared formatter (with iOS-specific `--` handling for missing frequencies)
   - a Markdown session report export on iOS for human-readable sharing of live metrics, feedback suggestions, snapshot state, and waterfall-session availability
+- Tightened the iOS spectrum presentation toward Android parity by:
+  - switching the graph overlays, target curve, and tick marks to a shared log-frequency display axis
+  - adding denser in-graph frequency labels/grid lines
+  - extending target-curve rendering cleanly across the graph width with visible control-point markers
+- Added a native iOS signal-generator tool in Swift with:
+  - sine, white-noise, pink-noise, pulse, and sweep playback modes
+  - a playback-only AVAudioEngine path so it does not require microphone permission by itself
+  - capture coordination so starting live analysis stops playback first instead of fighting the mic session
+- Added a native iOS delay/alignment tool in Swift with:
+  - manual distance/temperature delay calculation controls
+  - a separate short-lived `playAndRecord` ping-measurement path so it does not destabilize the normal analyzer/generator flows
+  - polarity readout and measured-delay backfill into the distance control
+  - capture-engine rebuild after measurement so the next live analyzer start negotiates a fresh input format
 - Split spectrogram history storage from Android publication by:
   - adding `shared/src/commonMain/.../SpectrogramHistoryBuffer.kt` as a pure ring buffer with oldest-to-newest snapshots
   - keeping Android `SpectrogramBuffer.kt` as the `StateFlow`-owning wrapper so current UI behavior and initial `emptyList()` semantics stay intact
@@ -84,13 +106,13 @@
 
 ## Migration decisions
 
-- Keep **one repository** for Android, shared code, and future iOS code.
+- Keep **one repository** for Android, shared code, and iOS code.
 - Keep Android shippable while shared code is extracted in small slices.
-- Target a **native SwiftUI iOS shell** later, backed by the shared Kotlin core.
+- Target a **native SwiftUI iOS shell** backed by the shared Kotlin core.
 - Do **not** move these Android-only surfaces yet:
   - `MainActivity.kt`
   - `AudioAnalyzer` capture loop and `AudioRecord`
-  - `SignalGenerator` / `AudioTrack`
+  - Android `SignalGenerator` / `AudioTrack` internals (iOS now has a separate native playback-only generator)
   - `WaterfallVisualizer.kt`
   - JNI / NDK FFT integration
 

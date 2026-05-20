@@ -1,53 +1,58 @@
 # Usage
 
-Run the app
+This guide describes the current analyzer workflow across Android and iOS.
 
-- Launch from Android Studio or install the debug APK onto a device/emulator.
-- Grant microphone permission when prompted.
+## Shared analyzer workflow
 
-Interpreting the UI
+Both platforms now share the same core analyzer logic for:
 
-- Sound Level: large dB readout shows the current calibrated decibel reading. Colors:
-  - Green: safe
-  - Amber (~80–90 dB): caution
-  - Red (>90 dB): too loud
-- Min / Avg / Max: historical statistics since the last reset.
-- History Sparkline: recent dB values (historyLimit ≈ 100 samples).
-- Frequency Spectrum: log-scaled bands split into bass / mids / highs. Labels on the visualizer show representative frequencies (60, 250, 1k, 4k, 16k).
+- FFT-based frame analysis
+- dominant-frequency detection
+- Z/A/C-weighted level calculations
+- feedback peak tracking and stability tiers
+- analyzer text formatting
+- spectrogram-history ring-buffer storage
 
-Signal generator
+Typical flow:
 
-- Open Tools → Signal generator to play test tones and noise. Modes available:
-  - `SINE`: selectable frequency (20 Hz–20 kHz).
-  - `WHITE`: white noise useful for broadband testing.
-  - `PINK`: pink noise for perceived-equal-energy testing.
-  - `PULSE`: short pulses for delay/impulse tests (experimental).
-- Always stop playback before moving microphones or making system changes.
+1. Launch the app and grant microphone permission.
+2. Start live capture.
+3. Watch the live metric cards update:
+   - dB(Z), dB(A), dB(C)
+   - dominant frequency
+   - feedback guidance
+4. Use the recent-history views:
+   - dB(Z) sparkline
+   - live spectrum
+   - compact spectrum-history waterfall
 
-Waterfall (spectrogram)
+## iOS analyzer tools
 
-- Enable the waterfall from Tools → Waterfall (switch). The waterfall shows recent spectrum history top→bottom (old→new).
-- Use the Waterfall settings sliders to adjust `Min percentile`, `Max percentile`, and `Gamma` to change the dynamic scaling:
-  - `Min/Max percentile`: control which percentile of recent dB values map to the colormap range (helps ignore outliers).
-  - `Gamma`: alters mid-range contrast (values <1 boost mid-tones).
-- If the waterfall is too dark, increase `Max percentile` or reduce `Gamma`.
+The iOS shell currently adds these analyzer-session tools:
 
-Weighted SPLs and calibration
+- **Spectrum snapshot** — capture the current spectrum and compare it against live input.
+- **CSV log export** — export `Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)`.
+- **Analyzer-sample JSON** — export a structured snapshot of the current analyzer state.
+- **Waterfall-session JSON** — export the waterfall history with timestamps.
+- **Markdown session report** — export a human-readable summary of the live session.
 
-- The meter shows calibrated dB and also displays dB(A), dB(C), and dB(Z) derived from the spectrum. Use `Settings` → `Open calibration` to set `dbOffset` and `noiseThreshold` to align readings against a reference SPL meter.
+## Android-focused tools
 
-Mixing & Feedback Guide
+Android still has the broader app surface, including Android-specific tool flows such as:
 
-- The app includes a short "Mixing & Feedback" dialog accessed from the top-right info icon. It contains tips such as:
-  - "Eliminating Feedback": look for sharp spikes in the Highs or Upper Mids and attenuate that band.
-  - "Fixing 'Muddy' Sound": check Bass/Low-Mid (60–250Hz) and apply HPF if needed.
-  - "Vocal Presence": vocals often sit in 1–4kHz; adjust mids accordingly.
-  - "Safe Volume Levels": aim for ~75–85dB for general listening contexts; avoid sustained >90dB.
+- signal generator playback
+- richer waterfall tuning controls
+- the rest of the established Android UI flows that have not yet been ported to iOS
 
-Calibration
+## Measurement notes
 
-- `dbOffset` in `AudioAnalyzer.kt` attempts to bring phone microphone readings closer to SPL values. Phone mics vary; for accurate SPL measurements use an external calibrated microphone or compare against a reference SPL meter.
+- Phone microphones vary. For precise SPL work, compare against a reference meter or use a calibrated external microphone.
+- Weighted readings are still useful for relative analysis even when absolute SPL calibration varies by device.
+- For iOS microphone testing, a physical iPhone is the most reliable target.
 
-Limitations
+## Interpreting the analyzer
 
-- The FFT is implemented in Kotlin and may be CPU-heavy on very old devices. Consider using a native or optimized FFT library for production.
+- **Dominant frequency** helps identify the strongest detected tone or resonant peak.
+- **Feedback suggestions** are more meaningful after a stable tone persists for a moment.
+- **Min / Avg / Max** accumulate after non-zero readings so idle silence does not pollute the stats.
+- **Waterfall history** makes changing resonance or sustained tones easier to see over time.

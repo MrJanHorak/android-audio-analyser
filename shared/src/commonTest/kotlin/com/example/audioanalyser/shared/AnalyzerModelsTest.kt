@@ -122,4 +122,26 @@ class AnalyzerModelsTest {
             )
         )
     }
+
+    @Test
+    fun analyzerReferenceCatalogKeepsExpectedCoreProfiles() {
+        val overlays = AnalyzerReferenceCatalog.overlayProfiles()
+        val targetCurves = AnalyzerReferenceCatalog.targetCurveProfiles()
+
+        assertEquals("off", overlays.first().id)
+        assertTrue(overlays.any { it.id == "lead_vocal" })
+        assertTrue(overlays.any { it.id == "speech" })
+
+        assertEquals("off", targetCurves.first().id)
+        assertTrue(targetCurves.any { it.id == "harman_room" })
+        assertTrue(targetCurves.any { it.id == "lead_vocal_guide" })
+    }
+
+    @Test
+    fun analyzerReferenceCatalogKeepsEqEntriesAvailable() {
+        val entries = AnalyzerReferenceCatalog.eqReferenceEntries()
+
+        assertTrue(entries.any { it.title == "Male / Low Vocal" })
+        assertTrue(entries.any { it.title == "General Gain Staging & Tuning" })
+    }
 }

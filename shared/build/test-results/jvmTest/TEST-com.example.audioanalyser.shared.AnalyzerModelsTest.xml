@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="AnalyzerModelsTest[jvm]" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-05-19T03:16:09.185Z" hostname="Jans-Mac-mini.local" time="0.007">
+<testsuite name="AnalyzerModelsTest[jvm]" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-05-20T01:09:08.389Z" hostname="Mac.attlocal.net" time="0.014">
   <properties/>
   <testcase name="venueCategoryOptionsRemainStable[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.006"/>
-  <testcase name="targetCurveFrequenciesStayInExpectedOrder[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.001"/>
+  <testcase name="analyzerReferenceCatalogKeepsEqEntriesAvailable[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.001"/>
+  <testcase name="targetCurveFrequenciesStayInExpectedOrder[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
+  <testcase name="displayNameIncludesCategoryVenueAndCurveName[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.004"/>
+  <testcase name="buildSavedTargetCurveDescriptionHandlesBlankVenue[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.002"/>
+  <testcase name="buildCustomTargetCurvePointsUsesSharedFrequenciesAndNormalizedLevels[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
+  <testcase name="defaultCustomTargetCurveSettingsRemainStable[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
+  <testcase name="feedbackPeakStabilityKeysStayAligned[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
+  <testcase name="analyzerReferenceCatalogKeepsExpectedCoreProfiles[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
+  <testcase name="normalizeCustomTargetCurveLevelsFillsMissingValuesFromDefaults[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
+  <testcase name="markUsedUpdatesPresetTimestamp[jvm]" classname="com.example.audioanalyser.shared.AnalyzerModelsTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

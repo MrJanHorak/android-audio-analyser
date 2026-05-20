@@ -1,11 +1,11 @@
 # IDE Testing Workflow
 
-This document covers the current Android workflow and the current Xcode workflow for the in-repo iOS shell.
+This document covers the current Android Studio and Xcode workflows for the repo.
 
 ## Current status
 
-- **Android Studio workflow:** runnable once a JDK 17+ and Android SDK are available.
-- **Xcode workflow:** runnable now. The repo has an XcodeGen-backed SwiftUI shell, a linked shared Kotlin XCFramework, native microphone/audio-session scaffolding, a live `AVAudioEngine` capture path, shared frame analysis wired into the shell, a richer live analyzer UI with level history/spectrum history, shared feedback-cut suggestions, configurable feedback markers, shared Kotlin label formatting, and iOS snapshot/logging/export controls including dedicated waterfall-session export and a Markdown session report.
+- **Android:** full Android app workflow is runnable now.
+- **iOS:** the SwiftUI shell is runnable now and uses the shared Kotlin analyzer core.
 
 ## Android Studio
 
@@ -13,13 +13,13 @@ This document covers the current Android workflow and the current Xcode workflow
 
 - Android Studio
 - JDK 17 or newer available to Gradle
-- Android SDK matching the project's `compileSdk`
-- An emulator or Android device for manual app testing
+- Android SDK matching `compileSdk = 36`
+- Android emulator or device for manual testing
 
 ### Open and sync
 
 1. Open the repository root in Android Studio.
-2. Let Gradle sync the project.
+2. Let Gradle sync.
 3. Confirm both `:app` and `:shared` appear in the Gradle tool window.
 
 ### Useful Gradle tasks
@@ -30,148 +30,112 @@ bash ./gradlew :app:testDebugUnitTest
 bash ./gradlew :app:assembleDebug
 ```
 
-### IDE test targets
+### Useful test targets
 
 - `shared/src/commonTest/.../AnalyzerMathTest.kt`
-  - Verifies the first extracted shared analyzer helpers.
 - `shared/src/commonTest/.../AnalyzerModelsTest.kt`
-  - Verifies shared target-curve constants and model invariants used by both Android and future iOS code.
 - `shared/src/commonTest/.../FeedbackPeakTrackerTest.kt`
-  - Verifies shared feedback-peak tracking behavior, including matching, decay, and reset semantics.
-- `shared/src/commonMain/.../FeedbackPeakPresentation.kt`
-  - Holds shared feedback stability-tier logic reused by both platform UI layers.
-- `shared/src/commonMain/.../TargetCurveHelpers.kt`
-  - Holds shared default target-curve settings and pure saved-target-curve helper logic extracted from Android app code.
-- `shared/src/commonMain/.../AnalyzerTextFormatter.kt`
-  - Holds shared deterministic analyzer/frequency/delta formatting reused by Android and iOS.
+- `shared/src/commonTest/.../AnalyzerTextFormatterTest.kt`
+- `shared/src/commonTest/.../SpectrogramHistoryBufferTest.kt`
 - `app/src/test/...`
-  - Android/JVM unit tests for app-only logic as more characterization coverage is added.
 - `app/src/androidTest/...`
-  - Device or emulator instrumentation tests.
 
 ### Manual Android smoke test
 
-1. Run the app on a device or emulator with microphone permission available.
-2. Confirm the dB meter still updates.
-3. Confirm the dominant frequency and spectrum still respond to a known tone.
-4. Confirm weighted readings still change when a tone source changes frequency.
-5. Confirm signal generator, waterfall, snapshots, and export flows still open.
+1. Run the app on a device or emulator.
+2. Grant microphone permission.
+3. Confirm the dB meter, weighted readings, dominant frequency, and spectrum update.
+4. Confirm the waterfall fills in over time.
+5. Confirm Android-only tools such as the signal generator still open and behave normally.
 
 ## Xcode
 
-The repository now includes an XcodeGen-backed SwiftUI shell in `ios/`.
+### Prerequisites
 
-### Generate the project
+- macOS
+- Xcode with an iOS 16 or newer simulator runtime, or a physical iPhone
+- XcodeGen
+- JDK 17+ or Android Studio so Gradle can build `Shared.xcframework`
+
+### Generate and open the project
 
 ```bash
 ./scripts/prepare-ios-framework.sh
 cd ios
 xcodegen generate
-open AudioAnalyser.xcodeproj
+open SoundRunner.xcodeproj
 ```
 
-### Current iOS shell validation
+### Fast iOS shell build
 
 ```bash
 ./scripts/build-ios-shell.sh
 ```
 
-### Shared framework preparation
-
-The `:shared` module now produces a `Shared.xcframework` and the helper script copies it into `ios/Frameworks/` before XcodeGen generation.
-
-Example simulator framework task:
-
-```bash
-bash ./gradlew :shared:assembleSharedDebugXCFramework
-```
+That script prepares the shared XCFramework, regenerates the project, and performs an unsigned simulator build.
 
 ### Xcode manual validation checklist
 
-1. Run `./scripts/prepare-ios-framework.sh`.
-2. Generate the project with `xcodegen generate`.
-3. Open `ios/AudioAnalyser.xcodeproj` in Xcode.
-4. Run on an iPhone simulator or device.
-5. The current shell screen should open and show:
-    - the shared Kotlin analyzer math status row
-    - the microphone permission state
-    - the configured measurement-mode audio-session summary
-    - the live capture status row
-    - a live analyzer section with metric cards, min/avg/max level stats, a dB(Z) sparkline, a compact spectrum area, and a spectrum-history waterfall
-    - an analyzer-tools section with feedback guidance controls, spectrum snapshot controls, CSV log sharing, JSON analyzer sample sharing, waterfall-session export, and Markdown session-report sharing
-    - a feedback suggestion area that can populate once stable peaks are present
-6. Tap the microphone action buttons:
-    - on first run, confirm the system permission prompt appears
-    - after granting access, confirm the audio-session row updates
-    - after denying access, confirm the button switches to the Settings path
-    - after starting live capture, confirm the analyzer cards and spectrum begin updating with live data
-7. Verify parity in this order:
-    - live SPL meter/history
-    - live spectrum/history
-    - dominant frequency
-    - shared feedback tiers / markers
-    - shared label formatting
-    - snapshot capture/compare
-    - logging/export
-    - dedicated waterfall export
-    - Markdown session report export
-    - signal generator
-    - fuller waterfall/overlay controls
+1. Select the **SoundRunner** scheme.
+2. Choose an iPhone simulator or a signed physical device.
+3. If using a physical device, verify **Automatically manage signing** is enabled, a **Team** is selected, the bundle identifier is unique, **Developer Mode** is enabled on the device, and the developer certificate is trusted under **Settings > General > VPN & Device Management**.
+4. Run the app.
+5. If using the simulator, choose **Simulator > I/O > Audio Input** and select a Mac microphone before testing live capture.
+6. Confirm the analyzer screen shows:
+   - live metric cards
+   - dominant frequency
+   - recent dB(Z) history
+   - spectrum display
+   - compact spectrum-history waterfall
+   - feedback suggestion area
+   - analyzer tool controls
+6. On first launch, verify the microphone permission prompt appears.
+7. Start live capture and confirm:
+   - the capture status changes to running
+   - live Z/A/C readings update
+   - dominant frequency changes with input
+   - the spectrum and history views animate
+   - feedback suggestions appear after a sustained peak
+8. Exercise the iOS analyzer tools:
+   - feedback marker mode
+   - snapshot capture / clear / compare
+   - CSV log export
+   - analyzer-sample JSON export
+   - waterfall-session JSON export
+   - Markdown session report export
 
-### Current iOS smoke test
-
-1. Run `./scripts/build-ios-shell.sh`.
-2. Launch the iOS shell and confirm the shared Kotlin status row renders.
-3. Confirm microphone permission prompt behavior.
-4. Check that the audio session is configured for measurement-oriented capture.
-5. Start live capture and confirm the UI reports:
-    - a running live capture state
-    - negotiated sample rate
-    - changing frame size / live Z/A/C level text
-    - min/avg/max level stats that accumulate after non-zero readings
-    - a recent dB(Z) history sparkline
-    - dominant frequency updates
-    - a changing live spectrum visualization
-    - a compact spectrum-history waterfall that fills from top to bottom over time
-    - feedback suggestions appearing when a stable resonant peak is sustained
-6. Exercise the new analyzer tools:
-    - toggle feedback markers on/off and confirm the live spectrum markers appear/disappear
-    - switch between Top 1 and Top 3 feedback focus and confirm the marker/suggestion count changes
-    - capture a spectrum snapshot and confirm compare turns on automatically
-    - confirm the cyan snapshot overlay tracks above the live bars when the current axis matches
-    - clear the snapshot and confirm the overlay disappears
-    - start logging, let the analyzer run briefly, stop logging, and confirm a CSV share action appears
-    - share the CSV and inspect that it contains the Android-style columns `Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)`
-    - prepare an analyzer sample JSON and confirm a share action appears
-    - inspect the JSON and confirm it includes `schemaVersion`, `exportedAt`, `feedbackDisplay`, and any available live/saved snapshot analyzer payloads
-    - prepare a waterfall-session JSON and confirm a share action appears
-    - inspect the JSON and confirm it includes `exportKind`, `rowFormat`, `rowTimestamps`, and full waterfall `rows`
-    - prepare a Markdown session report and confirm a share action appears
-    - inspect the report and confirm it summarizes live metrics, visible feedback suggestions, snapshot state, and waterfall-session availability
-7. Feed a known test tone and compare:
-    - dominant frequency
-    - SPL trend
-    - A/C/Z relative behavior
-8. Confirm app behavior after route changes:
-    - speakers
-    - headphones
-    - Bluetooth if supported later
+For the most realistic microphone testing, prefer a physical iPhone. The simulator is still appropriate for build and UI validation.
 
 ## Troubleshooting
 
 ### `Unable to locate a Java Runtime`
 
-Gradle needs a working JDK. Install JDK 17+ or set `JAVA_HOME` explicitly before running Gradle tasks.
+Install JDK 17+ or set `JAVA_HOME` explicitly before running Gradle tasks.
 
-### Android Studio sync issues after adding `:shared`
+### Android Studio sync issues
 
 - Re-sync Gradle.
 - Confirm the Kotlin Multiplatform plugin resolves successfully.
-- If needed, run the shared tests first: `bash ./gradlew :shared:jvmTest`.
+- If needed, run `bash ./gradlew :shared:jvmTest`.
 
 ### Xcode project missing
 
-- Run `./scripts/prepare-ios-framework.sh` first.
-- Then run `cd ios && xcodegen generate`.
-- Confirm `xcodegen` is installed: `xcodegen --version`.
-- Then open `ios/AudioAnalyser.xcodeproj`.
+- Run `./scripts/prepare-ios-framework.sh`.
+- Run `cd ios && xcodegen generate`.
+- Confirm `xcodegen --version` works.
+
+### iOS framework appears out of date
+
+Re-run:
+
+```bash
+./scripts/prepare-ios-framework.sh
+cd ios
+xcodegen generate
+```
+
+### Live capture fails in the simulator
+
+- In Simulator, choose **I/O > Audio Input** and select a Mac microphone.
+- Confirm macOS microphone privacy permissions allow **Simulator** to access input.
+- Prefer a physical iPhone for reliable live-audio validation.

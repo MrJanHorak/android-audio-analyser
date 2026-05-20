@@ -1,41 +1,79 @@
-# Dependencies
+# Dependencies and Toolchains
 
-This project uses the versions defined in `gradle/libs.versions.toml`.
+This project uses both Gradle-managed dependencies and native platform toolchains.
 
-Key version entries (see file for full details):
+## Gradle-managed versions
+
+Core versions are defined in `gradle/libs.versions.toml`.
 
 ```toml
 [versions]
 agp = "9.2.1"
-coreKtx = "1.18.0"
-junit = "4.13.2"
-junitVersion = "1.1.5"
-espressoCore = "3.5.1"
-lifecycleRuntimeKtx = "2.6.1"
-activityCompose = "1.13.0"
 kotlin = "2.2.10"
 composeBom = "2026.02.01"
-
-[libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
-androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
-androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
-androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
-androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
-
-[plugins]
-android-application = { id = "com.android.application", version.ref = "agp" }
-android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 ```
 
-Notes
+Important modules:
 
-- Compose is managed via the BOM (`androidx-compose-bom`). Use the BOM to keep Compose artifacts consistent.
-- AGP (`agp`) is defined as `9.2.1` in the TOML and applied in module build scripts.
-- Kotlin Multiplatform is now enabled for the `:shared` module via `org.jetbrains.kotlin.multiplatform`.
-- The `:shared` module uses `com.android.kotlin.multiplatform.library`, which is the supported Android/KMP integration path on AGP 9.x.
+- `app/` uses `com.android.application`
+- `shared/` uses Kotlin Multiplatform plus `com.android.kotlin.multiplatform.library`
+
+## Local toolchain requirements
+
+| Tool | Why it is needed |
+| --- | --- |
+| JDK 17+ | Gradle, Android builds, and XCFramework preparation |
+| Android Studio + Android SDK | Android app development and emulator/device testing |
+| Xcode | iOS build, simulator/device launch, signing |
+| XcodeGen | Generates `ios/SoundRunner.xcodeproj` from `ios/project.yml` |
+
+## Platform build targets
+
+### Android
+
+- `compileSdk = 36`
+- `targetSdk = 36`
+- `minSdk = 24`
+- Java target = 11
+
+### Shared module
+
+- Android target
+- JVM target
+- `iosX64`
+- `iosArm64`
+- `iosSimulatorArm64`
+
+The shared iOS binary is produced as `Shared.xcframework`.
+
+### iOS shell
+
+- deployment target = iOS 16.0
+- Xcode scheme = `SoundRunner`
+- default bundle identifier in the project spec = `com.example.audioanalyser.ios`
+
+## Helpful commands
+
+### Android + shared validation
+
+```bash
+bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug
+```
+
+### iOS framework preparation
+
+```bash
+./scripts/prepare-ios-framework.sh
+```
+
+### iOS shell build
+
+```bash
+./scripts/build-ios-shell.sh
+```
+
+## Notes
+
+- `./scripts/prepare-ios-framework.sh` builds `Shared.xcframework` and copies it into `ios/Frameworks/`.
+- `./scripts/build-ios-shell.sh` also regenerates the Xcode project before running `xcodebuild`.
+- On macOS, the iOS prep script will try to use Android Studio's bundled JDK automatically if `JAVA_HOME` is unset.

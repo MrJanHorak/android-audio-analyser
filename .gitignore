@@ -15,6 +15,7 @@
 .cxx
 local.properties
 ios/AudioAnalyser.xcodeproj/
+ios/SoundRunner.xcodeproj/
 ios/build/
 ios/DerivedData/
 ios/Frameworks/*
