@@ -79,8 +79,10 @@ This performs the same prep flow automatically:
 - live metric cards and spectrum display
 - source overlay selection with on-graph guide bands
 - room-curve selection with on-graph target-curve overlay
+- saved venue curve recall and editing from the iOS Tools sheet
 - feedback-hunt controls and analyzer info/help sheet
 - recent dB(Z) sparkline and compact spectrum-history waterfall
+- adjustable waterfall percentile / gamma / palette controls plus optional big graph mode
 - shared feedback suggestion tracking and configurable feedback markers
 - spectrum snapshot capture / compare
 - CSV decibel log export
@@ -101,7 +103,9 @@ This performs the same prep flow automatically:
     - feedback suggestions appear after a stable tone when feedback hunt is enabled
 5. Exercise the analyzer tools:
     - switch source overlays and room curves
-    - toggle feedback hunt and waterfall mode
+    - create or edit a saved venue curve and reselect it from the room-curve list
+    - toggle feedback hunt, waterfall mode, and big graph mode
+    - adjust the waterfall percentile sliders, gamma, and palette buttons while the waterfall is visible
     - stop live capture, then start / stop the sine, white-noise, pink-noise, pulse, and sweep generator modes
     - stop live capture, then run **Delay calculator** → **Auto-Measure with Ping** and confirm the delay / polarity fields update
     - capture / clear a snapshot

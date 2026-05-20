@@ -18,6 +18,7 @@ struct LiveAnalyzerSnapshot {
     let zLevelHistory: [Float]
     let spectrumBars: [Float]
     let spectrumHistoryRows: [[Float]]
+    let waterfallHistoryRowsDb: [[Float]]
     let feedbackMarkers: [LiveFeedbackMarker]
     let feedbackSuggestions: [LiveFeedbackSuggestion]
 }
@@ -128,6 +129,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var smoothedSpectrum: [Float] = []
     private var zLevelHistory: [Float] = []
     private var spectrumHistoryRows: [[Float]] = []
+    private var waterfallHistoryRowsDb: [[Float]] = []
     private var spectrumHistoryTimestamps: [Date] = []
     private var minObservedZLevelDb: Float = Float.greatestFiniteMagnitude
     private var maxObservedZLevelDb: Float = 0
@@ -924,9 +926,14 @@ final class AnalyzerSetupViewModel: ObservableObject {
             from: smoothedSpectrum,
             binSizeHz: frameAnalysis.binSize
         )
+        let waterfallHistoryRowDb = makeWaterfallHistoryRowDb(
+            from: smoothedSpectrum,
+            binSizeHz: frameAnalysis.binSize
+        )
         appendHistorySample(
             levelDb: currentDb,
             spectrumBars: spectrumBars,
+            waterfallHistoryRowDb: waterfallHistoryRowDb,
             sampledAt: historyTimestamp
         )
         updateSavedWaterfallSession(
@@ -956,6 +963,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             zLevelHistory: zLevelHistory,
             spectrumBars: spectrumBars,
             spectrumHistoryRows: spectrumHistoryRows,
+            waterfallHistoryRowsDb: waterfallHistoryRowsDb,
             feedbackMarkers: feedbackMarkers,
             feedbackSuggestions: feedbackSuggestions
         )
@@ -1181,6 +1189,26 @@ final class AnalyzerSetupViewModel: ObservableObject {
         from smoothedMagnitudes: [Float],
         binSizeHz: Float
     ) -> [Float] {
+        makeSpectrumPeakMagnitudes(
+            from: smoothedMagnitudes,
+            binSizeHz: binSizeHz
+        ).map(normalizeSpectrumMagnitude)
+    }
+
+    private func makeWaterfallHistoryRowDb(
+        from smoothedMagnitudes: [Float],
+        binSizeHz: Float
+    ) -> [Float] {
+        makeSpectrumPeakMagnitudes(
+            from: smoothedMagnitudes,
+            binSizeHz: binSizeHz
+        ).map(spectrumMagnitudeDb)
+    }
+
+    private func makeSpectrumPeakMagnitudes(
+        from smoothedMagnitudes: [Float],
+        binSizeHz: Float
+    ) -> [Float] {
         let magnitudeCount = smoothedMagnitudes.count
         guard let spectrumAxis = makeSpectrumAxis(
             magnitudeCount: magnitudeCount,
@@ -1210,7 +1238,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 peakMagnitude = max(peakMagnitude, smoothedMagnitudes[binIndex])
             }
 
-            bars[barIndex] = normalizeSpectrumMagnitude(peakMagnitude)
+            bars[barIndex] = peakMagnitude
         }
 
         return bars
@@ -1265,6 +1293,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private func resetLiveHistory() {
         zLevelHistory = []
         spectrumHistoryRows = []
+        waterfallHistoryRowsDb = []
         spectrumHistoryTimestamps = []
         minObservedZLevelDb = Float.greatestFiniteMagnitude
         maxObservedZLevelDb = 0
@@ -1295,7 +1324,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
         )
     }
 
-    private func appendHistorySample(levelDb: Float, spectrumBars: [Float], sampledAt: Date) {
+    private func appendHistorySample(
+        levelDb: Float,
+        spectrumBars: [Float],
+        waterfallHistoryRowDb: [Float],
+        sampledAt: Date
+    ) {
         zLevelHistory.append(levelDb)
         if zLevelHistory.count > zLevelHistoryLimit {
             zLevelHistory.removeFirst(zLevelHistory.count - zLevelHistoryLimit)
@@ -1304,6 +1338,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
         spectrumHistoryRows.append(spectrumBars)
         if spectrumHistoryRows.count > spectrumHistoryLimit {
             spectrumHistoryRows.removeFirst(spectrumHistoryRows.count - spectrumHistoryLimit)
+        }
+
+        waterfallHistoryRowsDb.append(waterfallHistoryRowDb)
+        if waterfallHistoryRowsDb.count > spectrumHistoryLimit {
+            waterfallHistoryRowsDb.removeFirst(waterfallHistoryRowsDb.count - spectrumHistoryLimit)
         }
 
         spectrumHistoryTimestamps.append(sampledAt)
@@ -1424,9 +1463,13 @@ final class AnalyzerSetupViewModel: ObservableObject {
     }
 
     private func normalizeSpectrumMagnitude(_ magnitude: Float) -> Float {
-        let magnitudeDb = 20.0 * log10(max(Double(magnitude), 1e-9))
+        let magnitudeDb = spectrumMagnitudeDb(magnitude)
         let normalized = Float((magnitudeDb + 80.0) / 80.0)
         return normalized.clampedToUnit()
+    }
+
+    private func spectrumMagnitudeDb(_ magnitude: Float) -> Float {
+        Float(20.0 * log10(max(Double(magnitude), 1e-12)))
     }
 
     private func buildAnalyzerReportMarkdown(

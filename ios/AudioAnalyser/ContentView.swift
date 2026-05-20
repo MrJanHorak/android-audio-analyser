@@ -5,9 +5,15 @@ struct ContentView: View {
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
     @StateObject private var signalGenerator = SignalGeneratorController()
     @StateObject private var alignmentDelayController = AlignmentDelayController()
+    @StateObject private var savedTargetCurveStore = SavedTargetCurveStore()
     @AppStorage("ios-feedback-hunt-enabled") private var feedbackHuntEnabled = true
     @AppStorage("ios-feedback-display-count") private var feedbackDisplayCount = 3
     @AppStorage("ios-show-waterfall") private var showWaterfall = false
+    @AppStorage("ios-big-graph-mode-enabled") private var bigGraphModeEnabled = false
+    @AppStorage("ios-waterfall-min-percentile") private var waterfallMinPercentile = 0.05
+    @AppStorage("ios-waterfall-max-percentile") private var waterfallMaxPercentile = 0.95
+    @AppStorage("ios-waterfall-gamma") private var waterfallGamma = 0.6
+    @AppStorage("ios-waterfall-colormap") private var waterfallColormapId = "inferno"
     @AppStorage("ios-selected-overlay-id") private var selectedOverlayId = "off"
     @AppStorage("ios-selected-target-curve-id") private var selectedTargetCurveId = "off"
     @State private var selectedWeighting = "Z"
@@ -32,7 +38,7 @@ struct ContentView: View {
     }
 
     private var targetCurveProfiles: [IOSTargetCurveProfile] {
-        IOSAnalyzerReferenceCatalog.targetCurveProfiles
+        IOSAnalyzerReferenceCatalog.targetCurveProfiles + savedTargetCurveStore.presets.map { $0.asIOSTargetCurveProfile() }
     }
 
     private var selectedTargetCurve: IOSTargetCurveProfile {
@@ -45,6 +51,23 @@ struct ContentView: View {
             caution: "",
             color: .green,
             points: []
+        )
+    }
+
+    private var selectedSavedTargetCurve: SavedTargetCurvePreset? {
+        savedTargetCurveStore.presets.first(where: { $0.id == selectedTargetCurveId })
+    }
+
+    private var targetCurveProfileIdsSignature: String {
+        targetCurveProfiles.map(\.id).joined(separator: "|")
+    }
+
+    private var waterfallDisplaySettings: WaterfallDisplaySettings {
+        WaterfallDisplaySettings(
+            minPercentile: waterfallMinPercentile,
+            maxPercentile: waterfallMaxPercentile,
+            gamma: waterfallGamma,
+            colormap: WaterfallColormap(rawValue: waterfallColormapId) ?? .inferno
         )
     }
 
@@ -71,6 +94,8 @@ struct ContentView: View {
                         selectedOverlay: selectedOverlay,
                         selectedTargetCurve: selectedTargetCurve,
                         showWaterfall: $showWaterfall,
+                        bigGraphModeEnabled: bigGraphModeEnabled,
+                        waterfallDisplaySettings: waterfallDisplaySettings,
                         snapshotOverlayBars: setupViewModel.snapshotOverlayBars,
                         feedbackMarkers: setupViewModel.liveAnalyzerSnapshot.map {
                             visibleFeedbackMarkers(from: $0)
@@ -130,10 +155,28 @@ struct ContentView: View {
                         feedbackHuntEnabled: $feedbackHuntEnabled,
                         feedbackDisplayCount: $feedbackDisplayCount,
                         showWaterfall: $showWaterfall,
+                        bigGraphModeEnabled: $bigGraphModeEnabled,
+                        waterfallMinPercentile: $waterfallMinPercentile,
+                        waterfallMaxPercentile: $waterfallMaxPercentile,
+                        waterfallGamma: $waterfallGamma,
+                        waterfallColormapId: $waterfallColormapId,
+                        savedTargetCurves: savedTargetCurveStore.presets,
+                        selectedSavedTargetCurve: selectedSavedTargetCurve,
                         overlayProfiles: overlayProfiles,
                         targetCurveProfiles: targetCurveProfiles,
                         selectedOverlay: selectedOverlay,
-                        selectedTargetCurve: selectedTargetCurve
+                        selectedTargetCurve: selectedTargetCurve,
+                        onTargetCurveSelected: selectTargetCurve,
+                        onUpsertSavedTargetCurve: { preset in
+                            savedTargetCurveStore.upsert(preset)
+                            selectedTargetCurveId = preset.id
+                        },
+                        onDeleteSavedTargetCurve: { presetId in
+                            savedTargetCurveStore.delete(id: presetId)
+                            if selectedTargetCurveId == presetId {
+                                selectedTargetCurveId = IOSAnalyzerReferenceCatalog.targetCurveProfiles.first?.id ?? "off"
+                            }
+                        }
                     )
                 }
                 .presentationDetents([.medium, .large])
@@ -150,6 +193,13 @@ struct ContentView: View {
                 )
             ) { _ in
                 setupViewModel.rebuildCaptureEngineAfterExternalAudioTool()
+            }
+            .onChange(of: targetCurveProfileIdsSignature) { _ in
+                guard !targetCurveProfiles.contains(where: { $0.id == selectedTargetCurveId }) else {
+                    return
+                }
+
+                selectedTargetCurveId = targetCurveProfiles.first?.id ?? "off"
             }
         }
     }
@@ -184,6 +234,16 @@ struct ContentView: View {
         }
 
         setupViewModel.toggleLiveCapture()
+    }
+
+    private func selectTargetCurve(_ profile: IOSTargetCurveProfile) {
+        selectedTargetCurveId = profile.id
+
+        guard savedTargetCurveStore.contains(id: profile.id) else {
+            return
+        }
+
+        savedTargetCurveStore.markUsed(id: profile.id)
     }
 }
 
@@ -454,6 +514,8 @@ private struct AnalyzerVisualizerCard: View {
     let selectedOverlay: IOSOverlayProfile
     let selectedTargetCurve: IOSTargetCurveProfile
     @Binding var showWaterfall: Bool
+    let bigGraphModeEnabled: Bool
+    let waterfallDisplaySettings: WaterfallDisplaySettings
     let snapshotOverlayBars: [Float]?
     let feedbackMarkers: [LiveFeedbackMarker]
     let feedbackSuggestions: [LiveFeedbackSuggestion]
@@ -468,25 +530,71 @@ private struct AnalyzerVisualizerCard: View {
     let onToggleSnapshotCompare: () -> Void
     let onClearSnapshot: () -> Void
 
+    private var chartHeight: CGFloat {
+        bigGraphModeEnabled ? 320 : (showWaterfall ? 150 : 194)
+    }
+
+    private var primaryFeedbackSuggestion: LiveFeedbackSuggestion? {
+        feedbackSuggestions.first
+    }
+
     var body: some View {
         AnalyzerCard {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Frequency spectrum")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    Text(snapshot.map { sharedFrequencyLabel($0.dominantFrequencyHz) } ?? "--")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .monospacedDigit()
+            if bigGraphModeEnabled {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("FOH graph mode")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(snapshot.map { sharedFrequencyLabel($0.dominantFrequencyHz) } ?? "--")
+                            .font(.system(size: 38, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+
+                        if feedbackHuntEnabled, let primaryFeedbackSuggestion {
+                            Text("Watch \(sharedFrequencyLabel(primaryFeedbackSuggestion.suggestedCutHz))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else if let snapshot {
+                            Text("Cut \(sharedFrequencyLabel(snapshot.suggestedCutFrequencyHz))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
 
                     if let snapshot {
-                        Text("Cut \(sharedFrequencyLabel(snapshot.suggestedCutFrequencyHz))")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .trailing, spacing: 8) {
+                            StatusPill(text: "dB(Z) \(sharedDecibelNumber(snapshot.zLevelDb))", tint: .accentColor)
+
+                            if showWaterfall {
+                                StatusPill(
+                                    text: waterfallDisplaySettings.colormap.title,
+                                    tint: waterfallDisplaySettings.colormap.accentColor
+                                )
+                            }
+                        }
                     }
                 }
+            } else {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Frequency spectrum")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(snapshot.map { sharedFrequencyLabel($0.dominantFrequencyHz) } ?? "--")
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .monospacedDigit()
 
-                Spacer()
+                        if let snapshot {
+                            Text("Cut \(sharedFrequencyLabel(snapshot.suggestedCutFrequencyHz))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+                }
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -500,33 +608,52 @@ private struct AnalyzerVisualizerCard: View {
                         text: feedbackHuntEnabled ? "Feedback on" : "Feedback off",
                         tint: feedbackHuntEnabled ? .orange : .secondary
                     )
+                    StatusPill(
+                        text: showWaterfall
+                            ? "Waterfall \(waterfallDisplaySettings.colormap.title)"
+                            : "Waterfall off",
+                        tint: showWaterfall ? waterfallDisplaySettings.colormap.accentColor : .secondary
+                    )
+                    if isSnapshotCompareEnabled {
+                        StatusPill(
+                            text: "Compare on",
+                            tint: Color(red: 0, green: 0.67, blue: 0.76)
+                        )
+                    }
                 }
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    Button(snapshotActionTitle, action: onCaptureSnapshot)
-                        .buttonStyle(.bordered)
-                        .disabled(isSnapshotCaptureDisabled)
+            if !bigGraphModeEnabled {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Button(snapshotActionTitle, action: onCaptureSnapshot)
+                            .buttonStyle(.bordered)
+                            .disabled(isSnapshotCaptureDisabled)
 
-                    Button(isSnapshotCompareEnabled ? "Compare on" : "Compare off", action: onToggleSnapshotCompare)
-                        .buttonStyle(.bordered)
-                        .disabled(!canToggleSnapshotCompare)
+                        Button(isSnapshotCompareEnabled ? "Compare on" : "Compare off", action: onToggleSnapshotCompare)
+                            .buttonStyle(.bordered)
+                            .disabled(!canToggleSnapshotCompare)
 
-                    Button("Clear", action: onClearSnapshot)
-                        .buttonStyle(.bordered)
-                        .disabled(!canClearSnapshot)
+                        Button("Clear", action: onClearSnapshot)
+                            .buttonStyle(.bordered)
+                            .disabled(!canClearSnapshot)
 
-                    Button(showWaterfall ? "Waterfall on" : "Waterfall off") {
-                        showWaterfall.toggle()
+                        Button(showWaterfall ? "Waterfall on" : "Waterfall off") {
+                            showWaterfall.toggle()
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
             }
 
             if let snapshot {
                 if showWaterfall {
-                    SpectrumHistoryWaterfallView(rows: snapshot.spectrumHistoryRows, showsLabels: false)
+                    SpectrumHistoryWaterfallView(
+                        rowsDb: snapshot.waterfallHistoryRowsDb,
+                        settings: waterfallDisplaySettings,
+                        showsLabels: false,
+                        chartHeight: chartHeight
+                    )
                 } else {
                     SpectrumBarsView(
                         bars: snapshot.spectrumBars,
@@ -534,19 +661,20 @@ private struct AnalyzerVisualizerCard: View {
                         overlayBands: selectedOverlay.bands,
                         targetCurve: selectedTargetCurve,
                         snapshotOverlayBars: snapshotOverlayBars,
-                        feedbackMarkers: feedbackMarkers
+                        feedbackMarkers: feedbackMarkers,
+                        chartHeight: chartHeight
                     )
                 }
 
-                if !selectedOverlay.bands.isEmpty {
+                if !bigGraphModeEnabled, !selectedOverlay.bands.isEmpty {
                     OverlayBandStrip(bands: selectedOverlay.bands)
                 }
 
-                if selectedTargetCurve.isEnabled {
+                if !bigGraphModeEnabled, selectedTargetCurve.isEnabled {
                     CurveSummaryView(targetCurve: selectedTargetCurve)
                 }
 
-                if feedbackHuntEnabled, feedbackSuggestions.first != nil {
+                if !bigGraphModeEnabled, feedbackHuntEnabled, feedbackSuggestions.first != nil {
                     FeedbackFocusSection(
                         primarySuggestion: feedbackSuggestions.first,
                         feedbackMarkerCount: feedbackMarkerCount,
@@ -557,7 +685,8 @@ private struct AnalyzerVisualizerCard: View {
             } else {
                 AnalyzerChartPlaceholder(
                     isCapturing: isCapturing,
-                    showingWaterfall: showWaterfall
+                    showingWaterfall: showWaterfall,
+                    bigGraphModeEnabled: bigGraphModeEnabled
                 )
             }
         }
@@ -567,6 +696,7 @@ private struct AnalyzerVisualizerCard: View {
 private struct AnalyzerChartPlaceholder: View {
     let isCapturing: Bool
     let showingWaterfall: Bool
+    let bigGraphModeEnabled: Bool
 
     var body: some View {
         VStack(spacing: 12) {
@@ -579,7 +709,7 @@ private struct AnalyzerChartPlaceholder: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: showingWaterfall ? 150 : 170)
+        .frame(height: bigGraphModeEnabled ? 320 : (showingWaterfall ? 150 : 170))
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.black.opacity(0.08))
@@ -596,11 +726,22 @@ private struct AnalyzerToolsSheet: View {
     @Binding var feedbackHuntEnabled: Bool
     @Binding var feedbackDisplayCount: Int
     @Binding var showWaterfall: Bool
+    @Binding var bigGraphModeEnabled: Bool
+    @Binding var waterfallMinPercentile: Double
+    @Binding var waterfallMaxPercentile: Double
+    @Binding var waterfallGamma: Double
+    @Binding var waterfallColormapId: String
+    let savedTargetCurves: [SavedTargetCurvePreset]
+    let selectedSavedTargetCurve: SavedTargetCurvePreset?
     let overlayProfiles: [IOSOverlayProfile]
     let targetCurveProfiles: [IOSTargetCurveProfile]
     let selectedOverlay: IOSOverlayProfile
     let selectedTargetCurve: IOSTargetCurveProfile
+    let onTargetCurveSelected: (IOSTargetCurveProfile) -> Void
+    let onUpsertSavedTargetCurve: (SavedTargetCurvePreset) -> Void
+    let onDeleteSavedTargetCurve: (String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var showSavedCurveManager = false
 
     private var frequencySliderBinding: Binding<Double> {
         Binding {
@@ -613,6 +754,34 @@ private struct AnalyzerToolsSheet: View {
             let maxLog = log10(20_000.0)
             signalGenerator.frequencyHz = pow(10.0, minLog + (maxLog - minLog) * normalizedValue)
         }
+    }
+
+    private var waterfallMinPercentileBinding: Binding<Double> {
+        Binding {
+            waterfallMinPercentile
+        } set: { newValue in
+            waterfallMinPercentile = min(max(newValue, 0), max(waterfallMaxPercentile - 0.01, 0))
+        }
+    }
+
+    private var waterfallMaxPercentileBinding: Binding<Double> {
+        Binding {
+            waterfallMaxPercentile
+        } set: { newValue in
+            waterfallMaxPercentile = max(min(newValue, 1), min(waterfallMinPercentile + 0.01, 1))
+        }
+    }
+
+    private var waterfallGammaBinding: Binding<Double> {
+        Binding {
+            waterfallGamma
+        } set: { newValue in
+            waterfallGamma = min(max(newValue, 0.25), 2.0)
+        }
+    }
+
+    private var selectedWaterfallColormap: WaterfallColormap {
+        WaterfallColormap(rawValue: waterfallColormapId) ?? .inferno
     }
 
     var body: some View {
@@ -652,8 +821,9 @@ private struct AnalyzerToolsSheet: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(targetCurveProfiles) { profile in
-                            Button(profile.label) {
-                                selectedTargetCurveId = profile.id
+                            let savedPreset = savedTargetCurves.first(where: { $0.id == profile.id })
+                            Button(savedPreset?.displayName() ?? profile.label) {
+                                onTargetCurveSelected(profile)
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(profile.id == selectedTargetCurveId ? profile.color : .secondary.opacity(0.35))
@@ -667,6 +837,9 @@ private struct AnalyzerToolsSheet: View {
                     .foregroundStyle(.secondary)
 
                 if selectedTargetCurve.isEnabled {
+                    Text("\(selectedSavedTargetCurve?.displayName() ?? selectedTargetCurve.label) \(selectedTargetCurve.badge)")
+                        .font(.subheadline.weight(.semibold))
+
                     CurveSummaryView(targetCurve: selectedTargetCurve)
                     Text("Best for: \(selectedTargetCurve.useCase)")
                         .font(.footnote)
@@ -674,6 +847,36 @@ private struct AnalyzerToolsSheet: View {
                     Text("Caution: \(selectedTargetCurve.caution)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                if let selectedSavedTargetCurve {
+                    let detailRows = selectedSavedTargetCurve.venueDetailRows()
+                    if !detailRows.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Venue recall")
+                                .font(.subheadline.weight(.semibold))
+
+                            ForEach(detailRows) { detailRow in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(detailRow.label)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(detailRow.value)
+                                        .font(.footnote)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.secondary.opacity(0.10))
+                        )
+                    }
+                }
+
+                Button("Manage saved venue curves") {
+                    showSavedCurveManager = true
                 }
             }
 
@@ -824,6 +1027,49 @@ private struct AnalyzerToolsSheet: View {
 
             Section("Display") {
                 Toggle("Show waterfall", isOn: $showWaterfall)
+                Toggle("Big graph mode", isOn: $bigGraphModeEnabled)
+
+                Text("Keeps the analyzer focused on the graph, dominant frequency, and marker overlays.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Waterfall settings")
+                        .font(.subheadline.weight(.semibold))
+
+                    Text("Min percentile \(Int((waterfallMinPercentile * 100).rounded()))%")
+                        .font(.footnote.weight(.semibold))
+                    Slider(value: waterfallMinPercentileBinding, in: 0...0.49)
+
+                    Text("Max percentile \(Int((waterfallMaxPercentile * 100).rounded()))%")
+                        .font(.footnote.weight(.semibold))
+                    Slider(value: waterfallMaxPercentileBinding, in: 0.51...1)
+
+                    Text(String(format: "Gamma %.2f", waterfallGamma))
+                        .font(.footnote.weight(.semibold))
+                    Slider(value: waterfallGammaBinding, in: 0.25...2.0)
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(WaterfallColormap.allCases) { colormap in
+                            Button(colormap.title) {
+                                waterfallColormapId = colormap.rawValue
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(
+                                colormap == selectedWaterfallColormap
+                                    ? colormap.accentColor
+                                    : .secondary.opacity(0.35)
+                            )
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Text("Lower gamma brightens quieter detail. Higher max percentile preserves stronger peaks before they saturate.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
 
                 if setupViewModel.liveCaptureSummary.localizedCaseInsensitiveContains("failed") {
                     Text(setupViewModel.liveCaptureDetail)
@@ -927,6 +1173,21 @@ private struct AnalyzerToolsSheet: View {
                     dismiss()
                 }
             }
+        }
+        .sheet(isPresented: $showSavedCurveManager) {
+            NavigationStack {
+                SavedTargetCurveManagerView(
+                    savedTargetCurves: savedTargetCurves,
+                    initialSelectedCurveId: selectedSavedTargetCurve?.id,
+                    onSave: { preset in
+                        onUpsertSavedTargetCurve(preset)
+                    },
+                    onDelete: { presetId in
+                        onDeleteSavedTargetCurve(presetId)
+                    }
+                )
+            }
+            .presentationDetents([.large])
         }
     }
 }
@@ -1139,6 +1400,7 @@ private struct SpectrumBarsView: View {
     let targetCurve: IOSTargetCurveProfile
     let snapshotOverlayBars: [Float]?
     let feedbackMarkers: [LiveFeedbackMarker]
+    let chartHeight: CGFloat
 
     var body: some View {
         Canvas { context, size in
@@ -1319,7 +1581,7 @@ private struct SpectrumBarsView: View {
                 )
             }
         }
-        .frame(height: 194)
+        .frame(height: chartHeight)
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1356,6 +1618,54 @@ private struct SpectrumBarsView: View {
         }
 
         return "\(Int(frequencyHz.rounded()))"
+    }
+}
+
+private struct WaterfallDisplaySettings: Equatable {
+    let minPercentile: Double
+    let maxPercentile: Double
+    let gamma: Double
+    let colormap: WaterfallColormap
+}
+
+private enum WaterfallColormap: String, CaseIterable, Identifiable {
+    case inferno
+    case viridis
+    case plasma
+    case magma
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .inferno:
+            return "Inferno"
+        case .viridis:
+            return "Viridis"
+        case .plasma:
+            return "Plasma"
+        case .magma:
+            return "Magma"
+        }
+    }
+
+    var accentColor: Color {
+        waterfallColor(for: 0.72, colormap: self)
+    }
+
+    fileprivate var colorStops: [UInt32] {
+        switch self {
+        case .inferno:
+            return [0x000004, 0x2A1A5A, 0x5C1191, 0x9A3A6B, 0xDE6A25, 0xFCA50A, 0xFCFFA4]
+        case .viridis:
+            return [0x440154, 0x3B528B, 0x21918C, 0x5EC962, 0xFDE725]
+        case .plasma:
+            return [0x0D0887, 0x6A00A8, 0xB12A90, 0xE16462, 0xFCA636, 0xF0F921]
+        case .magma:
+            return [0x000004, 0x3B0F70, 0x8C2981, 0xDE4968, 0xFE9F6D, 0xFCFDBF]
+        }
     }
 }
 
@@ -1400,8 +1710,14 @@ private struct SpectrumDisplayAxis {
 }
 
 private struct SpectrumHistoryWaterfallView: View {
-    let rows: [[Float]]
+    let rowsDb: [[Float]]
+    let settings: WaterfallDisplaySettings
     var showsLabels = true
+    var chartHeight: CGFloat = 150
+
+    private var normalizedRows: [[Double]] {
+        waterfallNormalizedRows(rowsDb: rowsDb, settings: settings)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1411,14 +1727,15 @@ private struct SpectrumHistoryWaterfallView: View {
             }
 
             Canvas { context, size in
-                guard let firstRow = rows.first, !firstRow.isEmpty else {
+                let renderRows = normalizedRows
+                guard let firstRow = renderRows.first, !firstRow.isEmpty else {
                     return
                 }
 
-                let rowHeight = size.height / CGFloat(rows.count)
+                let rowHeight = size.height / CGFloat(renderRows.count)
                 let columnWidth = size.width / CGFloat(firstRow.count)
 
-                for (rowIndex, row) in rows.enumerated() {
+                for (rowIndex, row) in renderRows.enumerated() {
                     let y = CGFloat(rowIndex) * rowHeight
                     for (columnIndex, value) in row.enumerated() {
                         let x = CGFloat(columnIndex) * columnWidth
@@ -1430,17 +1747,23 @@ private struct SpectrumHistoryWaterfallView: View {
                         )
                         context.fill(
                             Path(rect),
-                            with: .color(waterfallColor(for: value))
+                            with: .color(
+                                waterfallColor(
+                                    for: value,
+                                    colormap: settings.colormap
+                                )
+                            )
                         )
                     }
                 }
             }
-            .frame(height: 150)
+            .frame(height: chartHeight)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color.black.opacity(0.08))
             )
-            .animation(nil, value: rows)
+            .animation(nil, value: rowsDb)
+            .animation(nil, value: settings)
 
             if showsLabels {
                 Text("Older frames at the top, newest frames at the bottom.")
@@ -1629,29 +1952,69 @@ private struct StatusRow: View {
     }
 }
 
-private func waterfallColor(for value: Float) -> Color {
-    let clamped = Double(min(max(value, 0), 1))
-    let stops: [(red: Double, green: Double, blue: Double)] = [
-        (0.0, 0.0, 0.02),
-        (0.16, 0.10, 0.35),
-        (0.36, 0.07, 0.57),
-        (0.60, 0.23, 0.42),
-        (0.87, 0.42, 0.15),
-        (0.99, 0.65, 0.05),
-        (0.99, 0.99, 0.64)
-    ]
-    let scaled = clamped * Double(stops.count - 1)
-    let startIndex = min(Int(scaled), stops.count - 2)
+private func waterfallNormalizedRows(
+    rowsDb: [[Float]],
+    settings: WaterfallDisplaySettings
+) -> [[Double]] {
+    let flattenedValues = rowsDb.flatMap { row in
+        row.map(Double.init)
+    }
+    guard !flattenedValues.isEmpty else {
+        return []
+    }
+
+    let sortedValues = flattenedValues.sorted()
+    let upperIndex = sortedValues.count - 1
+    let minPercentile = min(max(settings.minPercentile, 0), 0.99)
+    let maxPercentile = max(min(settings.maxPercentile, 1), minPercentile + 0.01)
+    let lowIndex = min(max(Int(Double(upperIndex) * minPercentile), 0), upperIndex)
+    let highIndex = min(max(Int(Double(upperIndex) * maxPercentile), 0), upperIndex)
+    let lowValue = sortedValues[lowIndex]
+    var highValue = sortedValues[highIndex]
+    if highValue <= lowValue {
+        highValue = lowValue + 1
+    }
+
+    let gamma = max(settings.gamma, 0.25)
+    let range = highValue - lowValue
+
+    return rowsDb.map { row in
+        row.map { value in
+            let normalized = min(max((Double(value) - lowValue) / range, 0), 1)
+            return pow(normalized, gamma)
+        }
+    }
+}
+
+private func waterfallColor(for normalizedValue: Double, colormap: WaterfallColormap) -> Color {
+    let clamped = min(max(normalizedValue, 0), 1)
+    let scaled = clamped * Double(colormap.colorStops.count - 1)
+    let startIndex = min(Int(scaled), colormap.colorStops.count - 2)
     let endIndex = startIndex + 1
     let fraction = scaled - Double(startIndex)
-    let start = stops[startIndex]
-    let end = stops[endIndex]
+    return interpolatedWaterfallColor(
+        startHex: colormap.colorStops[startIndex],
+        endHex: colormap.colorStops[endIndex],
+        fraction: fraction
+    )
+}
+
+private func interpolatedWaterfallColor(startHex: UInt32, endHex: UInt32, fraction: Double) -> Color {
+    let start = waterfallRgbComponents(from: startHex)
+    let end = waterfallRgbComponents(from: endHex)
 
     return Color(
         red: start.red + (end.red - start.red) * fraction,
         green: start.green + (end.green - start.green) * fraction,
         blue: start.blue + (end.blue - start.blue) * fraction
     )
+}
+
+private func waterfallRgbComponents(from hex: UInt32) -> (red: Double, green: Double, blue: Double) {
+    let red = Double((hex >> 16) & 0xFF) / 255.0
+    let green = Double((hex >> 8) & 0xFF) / 255.0
+    let blue = Double(hex & 0xFF) / 255.0
+    return (red, green, blue)
 }
 
 private func feedbackMarkerColor(for stabilityKey: String) -> Color {
