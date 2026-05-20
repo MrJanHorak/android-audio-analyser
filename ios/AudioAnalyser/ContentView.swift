@@ -4,6 +4,7 @@ import Shared
 struct ContentView: View {
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
     @StateObject private var signalGenerator = SignalGeneratorController()
+    @StateObject private var alignmentDelayController = AlignmentDelayController()
     @AppStorage("ios-feedback-hunt-enabled") private var feedbackHuntEnabled = true
     @AppStorage("ios-feedback-display-count") private var feedbackDisplayCount = 3
     @AppStorage("ios-show-waterfall") private var showWaterfall = false
@@ -121,6 +122,7 @@ struct ContentView: View {
                     AnalyzerToolsSheet(
                         setupViewModel: setupViewModel,
                         signalGenerator: signalGenerator,
+                        alignmentDelayController: alignmentDelayController,
                         selectedOverlayId: $selectedOverlayId,
                         selectedTargetCurveId: $selectedTargetCurveId,
                         feedbackHuntEnabled: $feedbackHuntEnabled,
@@ -139,6 +141,13 @@ struct ContentView: View {
                     AnalyzerInfoSheet()
                 }
                 .presentationDetents([.large])
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: AlignmentDelayController.measurementDidFinishNotification
+                )
+            ) { _ in
+                setupViewModel.rebuildCaptureEngineAfterExternalAudioTool()
             }
         }
     }
@@ -569,6 +578,7 @@ private struct AnalyzerChartPlaceholder: View {
 private struct AnalyzerToolsSheet: View {
     @ObservedObject var setupViewModel: AnalyzerSetupViewModel
     @ObservedObject var signalGenerator: SignalGeneratorController
+    @ObservedObject var alignmentDelayController: AlignmentDelayController
     @Binding var selectedOverlayId: String
     @Binding var selectedTargetCurveId: String
     @Binding var feedbackHuntEnabled: Bool
@@ -656,13 +666,19 @@ private struct AnalyzerToolsSheet: View {
             }
 
             Section("Signal generator") {
-                Picker("Mode", selection: $signalGenerator.selectedMode) {
-                    ForEach(SignalGeneratorMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(SignalGeneratorMode.allCases) { mode in
+                            Button(mode.title) {
+                                signalGenerator.selectedMode = mode
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(mode == signalGenerator.selectedMode ? .accentColor : .secondary.opacity(0.35))
+                            .disabled(signalGenerator.isRunning)
+                        }
                     }
+                    .padding(.vertical, 4)
                 }
-                .pickerStyle(.segmented)
-                .disabled(signalGenerator.isRunning)
 
                 Text(signalGenerator.selectedMode.summary)
                     .font(.footnote)
@@ -696,6 +712,99 @@ private struct AnalyzerToolsSheet: View {
                     setupViewModel.isCaptureSessionActiveOrPending
                         ? "Stop live capture to use the onboard iOS signal generator."
                         : signalGenerator.statusText
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+
+            Section("Delay calculator") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Button("Meters") {
+                            alignmentDelayController.usesMeters = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(alignmentDelayController.usesMeters ? .accentColor : .secondary.opacity(0.35))
+                        .disabled(alignmentDelayController.isMeasuring)
+
+                        Button("Feet") {
+                            alignmentDelayController.usesMeters = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(!alignmentDelayController.usesMeters ? .accentColor : .secondary.opacity(0.35))
+                        .disabled(alignmentDelayController.isMeasuring)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Text(
+                    "Distance \(String(format: "%.1f", alignmentDelayController.distanceValue)) \(alignmentDelayController.distanceUnitLabel)"
+                )
+                .font(.footnote.weight(.semibold))
+                Slider(value: $alignmentDelayController.distanceValue, in: 0.5...100)
+                    .disabled(alignmentDelayController.isMeasuring)
+
+                Text("Temperature \(String(format: "%.1f", alignmentDelayController.temperatureC)) °C")
+                    .font(.footnote.weight(.semibold))
+                Slider(value: $alignmentDelayController.temperatureC, in: -10...45)
+                    .disabled(alignmentDelayController.isMeasuring)
+
+                VStack(spacing: 4) {
+                    Text("Alignment delay")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%.1f ms", alignmentDelayController.delayMilliseconds))
+                        .font(.title2.weight(.bold))
+                        .monospacedDigit()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+
+                HStack(spacing: 12) {
+                    Button(alignmentDelayController.isMeasuring ? "Listening…" : "Auto-Measure with Ping") {
+                        if signalGenerator.isRunning {
+                            signalGenerator.stop(status: "Signal generator stopped for ping measurement.")
+                        }
+                        alignmentDelayController.startMeasurement()
+                    }
+                    .disabled(
+                        alignmentDelayController.isMeasuring ||
+                            setupViewModel.isCaptureSessionActiveOrPending ||
+                            setupViewModel.isWorking
+                    )
+
+                    Button("Stop") {
+                        alignmentDelayController.stopMeasurement()
+                    }
+                    .disabled(!alignmentDelayController.isMeasuring)
+                }
+
+                if alignmentDelayController.microphonePermissionState == .denied {
+                    Button("Open Settings") {
+                        alignmentDelayController.openAppSettings()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if let detectedPolarity = alignmentDelayController.detectedPolarity {
+                    Text(detectedPolarity ? "Polarity: In phase (+)" : "Polarity: Inverted (-)")
+                        .font(.footnote.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill((detectedPolarity ? Color.green : Color.red).opacity(0.18))
+                        )
+                }
+
+                Text(
+                    setupViewModel.isCaptureSessionActiveOrPending
+                        ? "Stop live capture before running the alignment ping tool."
+                        : alignmentDelayController.statusText
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)

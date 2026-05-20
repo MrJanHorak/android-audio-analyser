@@ -102,7 +102,8 @@ This performs the same prep flow automatically:
 5. Exercise the analyzer tools:
     - switch source overlays and room curves
     - toggle feedback hunt and waterfall mode
-    - stop live capture, then start / stop the sine, white-noise, and pink-noise generator modes
+    - stop live capture, then start / stop the sine, white-noise, pink-noise, pulse, and sweep generator modes
+    - stop live capture, then run **Delay calculator** → **Auto-Measure with Ping** and confirm the delay / polarity fields update
     - capture / clear a snapshot
     - toggle compare mode
     - start / stop logging and share the CSV

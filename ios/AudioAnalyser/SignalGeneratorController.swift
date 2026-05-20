@@ -7,6 +7,8 @@ enum SignalGeneratorMode: String, CaseIterable, Identifiable {
     case sine
     case white
     case pink
+    case pulse
+    case sweep
 
     var id: String { rawValue }
 
@@ -18,6 +20,10 @@ enum SignalGeneratorMode: String, CaseIterable, Identifiable {
             return "White"
         case .pink:
             return "Pink"
+        case .pulse:
+            return "Pulse"
+        case .sweep:
+            return "Sweep"
         }
     }
 
@@ -29,6 +35,10 @@ enum SignalGeneratorMode: String, CaseIterable, Identifiable {
             return "Broadband noise with equal energy per FFT bin."
         case .pink:
             return "Broadband noise weighted toward lower octaves for room voicing."
+        case .pulse:
+            return "Short burst followed by silence for quick delay checks."
+        case .sweep:
+            return "Three-second logarithmic sweep from 20 Hz to 20 kHz."
         }
     }
 
@@ -119,32 +129,24 @@ final class SignalGeneratorController: ObservableObject {
             throw SignalGeneratorError.invalidOutputFormat
         }
 
-        var phase = 0.0
-        var randomState = UInt64(Date().timeIntervalSince1970.bitPattern | 1)
-        var pinkNoiseState = PinkNoiseState()
+        var renderState = GeneratorRenderState(
+            mode: mode,
+            frequencyHz: frequencyHz,
+            sampleRate: sampleRate,
+            level: level,
+            phase: 0,
+            randomState: UInt64(Date().timeIntervalSince1970.bitPattern | 1),
+            pinkNoiseState: PinkNoiseState(),
+            pulseState: PulseRenderState(sampleRate: sampleRate),
+            sweepState: SweepRenderState(sampleRate: sampleRate)
+        )
 
         let sourceNode = AVAudioSourceNode(format: sourceFormat) { _, _, frameCount, audioBufferList -> OSStatus in
             let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
             let frameTotal = Int(frameCount)
 
             for frameIndex in 0..<frameTotal {
-                let sample: Float
-                switch mode {
-                case .sine:
-                    sample = Self.nextSineSample(
-                        phase: &phase,
-                        frequencyHz: frequencyHz,
-                        sampleRate: sampleRate,
-                        level: level
-                    )
-                case .white:
-                    sample = Self.nextWhiteNoiseSample(randomState: &randomState) * level
-                case .pink:
-                    sample = Self.nextPinkNoiseSample(
-                        randomState: &randomState,
-                        pinkNoiseState: &pinkNoiseState
-                    ) * level
-                }
+                let sample = Self.nextGeneratorSample(state: &renderState)
 
                 for bufferIndex in 0..<bufferList.count {
                     guard let channelPointer = bufferList[bufferIndex].mData?.assumingMemoryBound(to: Float.self) else {
@@ -213,6 +215,34 @@ final class SignalGeneratorController: ObservableObject {
             return "Playing \(mode.title.lowercased()) at \(frequencyLabel) • \(Int(level * 100))%"
         case .white, .pink:
             return "Playing \(mode.title.lowercased()) noise • \(Int(level * 100))%"
+        case .pulse:
+            let frequencyLabel = AnalyzerTextFormatter.shared.formatFrequencyLabel(frequencyHz: Float(frequencyHz))
+            return "Playing pulse bursts at \(frequencyLabel) • \(Int(level * 100))%"
+        case .sweep:
+            return "Playing 20 Hz–20 kHz sweep • \(Int(level * 100))%"
+        }
+    }
+
+    private static func nextGeneratorSample(state: inout GeneratorRenderState) -> Float {
+        switch state.mode {
+        case .sine:
+            return nextSineSample(
+                phase: &state.phase,
+                frequencyHz: state.frequencyHz,
+                sampleRate: state.sampleRate,
+                level: state.level
+            )
+        case .white:
+            return nextWhiteNoiseSample(randomState: &state.randomState) * state.level
+        case .pink:
+            return nextPinkNoiseSample(
+                randomState: &state.randomState,
+                pinkNoiseState: &state.pinkNoiseState
+            ) * state.level
+        case .pulse:
+            return nextPulseSample(state: &state)
+        case .sweep:
+            return nextSweepSample(state: &state)
         }
     }
 
@@ -258,6 +288,103 @@ final class SignalGeneratorController: ObservableObject {
         pinkNoiseState.b6 = white * 0.115926
         return pink * 0.11
     }
+
+    private static func nextPulseSample(state: inout GeneratorRenderState) -> Float {
+        let burstSampleCount = state.pulseState.burstSampleCount
+        let cycleSampleCount = state.pulseState.cycleSampleCount
+        let cycleSampleIndex = state.pulseState.cycleSampleIndex
+
+        defer {
+            state.pulseState.cycleSampleIndex = (cycleSampleIndex + 1) % cycleSampleCount
+        }
+
+        guard cycleSampleIndex < burstSampleCount else {
+            return 0
+        }
+
+        let envelope = raisedCosineWindow(
+            sampleIndex: cycleSampleIndex,
+            sampleCount: burstSampleCount
+        )
+        return nextSineSample(
+            phase: &state.phase,
+            frequencyHz: state.frequencyHz,
+            sampleRate: state.sampleRate,
+            level: state.level * envelope
+        )
+    }
+
+    private static func nextSweepSample(state: inout GeneratorRenderState) -> Float {
+        let sweepSampleIndex = state.sweepState.sampleIndex
+        let sweepSampleCount = state.sweepState.totalSampleCount
+        let progress = Double(sweepSampleIndex) / Double(max(sweepSampleCount - 1, 1))
+        let currentFrequencyHz = exp(
+            state.sweepState.logFrequencyStart +
+                state.sweepState.logFrequencyRange * progress
+        )
+        let envelope = loopFadeEnvelope(
+            sampleIndex: sweepSampleIndex,
+            totalSampleCount: sweepSampleCount,
+            fadeSampleCount: state.sweepState.fadeSampleCount
+        )
+        let sample = nextSineSample(
+            phase: &state.phase,
+            frequencyHz: currentFrequencyHz,
+            sampleRate: state.sampleRate,
+            level: state.level * envelope
+        )
+
+        state.sweepState.sampleIndex += 1
+        if state.sweepState.sampleIndex >= sweepSampleCount {
+            state.sweepState.sampleIndex = 0
+        }
+
+        return sample
+    }
+
+    private static func raisedCosineWindow(sampleIndex: Int, sampleCount: Int) -> Float {
+        guard sampleCount > 1 else {
+            return 1
+        }
+
+        let normalizedPosition = Double(sampleIndex) / Double(sampleCount - 1)
+        return Float(0.5 - 0.5 * cos(2.0 * .pi * normalizedPosition))
+    }
+
+    private static func loopFadeEnvelope(
+        sampleIndex: Int,
+        totalSampleCount: Int,
+        fadeSampleCount: Int
+    ) -> Float {
+        guard fadeSampleCount > 0, totalSampleCount > fadeSampleCount * 2 else {
+            return 1
+        }
+
+        if sampleIndex < fadeSampleCount {
+            let progress = Double(sampleIndex) / Double(fadeSampleCount)
+            return Float(0.5 - 0.5 * cos(.pi * progress))
+        }
+
+        let trailingSampleIndex = totalSampleCount - sampleIndex - 1
+        if trailingSampleIndex < fadeSampleCount {
+            let progress = Double(trailingSampleIndex) / Double(fadeSampleCount)
+            return Float(0.5 - 0.5 * cos(.pi * progress))
+        }
+
+        return 1
+    }
+}
+
+private struct GeneratorRenderState {
+    let mode: SignalGeneratorMode
+    let frequencyHz: Double
+    let sampleRate: Double
+    let level: Float
+    var phase: Double
+    var randomState: UInt64
+    var pinkNoiseState: PinkNoiseState
+    var pulseState: PulseRenderState
+    var sweepState: SweepRenderState
 }
 
 private struct PinkNoiseState {
@@ -268,4 +395,33 @@ private struct PinkNoiseState {
     var b4: Float = 0
     var b5: Float = 0
     var b6: Float = 0
+}
+
+private struct PulseRenderState {
+    let burstSampleCount: Int
+    let cycleSampleCount: Int
+    var cycleSampleIndex = 0
+
+    init(sampleRate: Double) {
+        let burstLength = max(Int((sampleRate * 0.008).rounded()), 32)
+        let gapLength = max(Int((sampleRate * 0.300).rounded()), 1)
+        burstSampleCount = burstLength
+        cycleSampleCount = burstLength + gapLength
+    }
+}
+
+private struct SweepRenderState {
+    let totalSampleCount: Int
+    let fadeSampleCount: Int
+    let logFrequencyStart: Double
+    let logFrequencyRange: Double
+    var sampleIndex = 0
+
+    init(sampleRate: Double) {
+        let totalSamples = max(Int((sampleRate * 3.0).rounded()), 1)
+        totalSampleCount = totalSamples
+        fadeSampleCount = min(max(Int((sampleRate * 0.015).rounded()), 1), max(totalSamples / 8, 1))
+        logFrequencyStart = log(20.0)
+        logFrequencyRange = log(20_000.0) - log(20.0)
+    }
 }

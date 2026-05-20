@@ -201,6 +201,14 @@ final class AnalyzerSetupViewModel: ObservableObject {
         isCapturing || captureIntentIsActive
     }
 
+    func rebuildCaptureEngineAfterExternalAudioTool() {
+        guard !isCaptureSessionActiveOrPending else {
+            return
+        }
+
+        liveAudioCaptureController.rebuildAudioEngine()
+    }
+
     var snapshotActionTitle: String {
         savedSpectrumSnapshot == nil ? "Capture snapshot" : "Refresh snapshot"
     }
