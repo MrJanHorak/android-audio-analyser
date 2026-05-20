@@ -8,9 +8,9 @@ struct AnalyzerInfoSheet: View {
             Section("Microphone setup") {
                 InfoCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("1. Tap Start live capture")
+                        Text("1. Tap play in the header")
                             .font(.headline)
-                        Text("On a fresh install, the main capture button triggers the iOS microphone prompt.")
+                        Text("On a fresh install, the play button next to the SoundRunner logo triggers the iOS microphone prompt.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
@@ -22,7 +22,7 @@ struct AnalyzerInfoSheet: View {
                             .font(.headline)
                         Text("Open Settings > Privacy & Security > Microphone and enable SoundRunner.")
                             .font(.callout)
-                        Text("If the app is missing from that list, delete it, reinstall from Xcode, and tap Start live capture again.")
+                        Text("If the app is missing from that list, delete it, reinstall from Xcode, and tap the header play button again.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

@@ -2,6 +2,7 @@ import SwiftUI
 import Shared
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var setupViewModel = AnalyzerSetupViewModel()
     @StateObject private var signalGenerator = SignalGeneratorController()
     @StateObject private var alignmentDelayController = AlignmentDelayController()
@@ -16,7 +17,7 @@ struct ContentView: View {
     @AppStorage("ios-waterfall-colormap") private var waterfallColormapId = "inferno"
     @AppStorage("ios-selected-overlay-id") private var selectedOverlayId = "off"
     @AppStorage("ios-selected-target-curve-id") private var selectedTargetCurveId = "off"
-    @State private var selectedWeighting = "Z"
+    @AppStorage("ios-selected-weighting") private var selectedWeighting = "Z"
     @State private var showAnalyzerTools = false
     @State private var showInfoSheet = false
 
@@ -71,21 +72,102 @@ struct ContentView: View {
         )
     }
 
+    private var captureToolbarSymbolName: String {
+        setupViewModel.isCaptureSessionActiveOrPending ? "pause.fill" : "play.fill"
+    }
+
+    private var captureToolbarTint: Color {
+        if setupViewModel.microphonePermissionState == .denied || isCaptureFailure {
+            return .orange
+        }
+
+        return setupViewModel.isCaptureSessionActiveOrPending ? .green : .accentColor
+    }
+
+    private var captureToolbarAccessibilityLabel: String {
+        if setupViewModel.isWorking {
+            return "Updating microphone access"
+        }
+
+        switch setupViewModel.microphonePermissionState {
+        case .denied:
+            return "Open microphone settings"
+        case .undetermined:
+            return "Start live capture"
+        case .granted:
+            return setupViewModel.isCaptureSessionActiveOrPending ? "Pause live capture" : "Start live capture"
+        }
+    }
+
+    private var captureStatusBanner: CaptureStatusBannerState? {
+        if setupViewModel.microphonePermissionState == .denied {
+            return CaptureStatusBannerState(
+                title: setupViewModel.audioSessionSummary,
+                detail: setupViewModel.audioSessionDetail,
+                tint: .orange,
+                actionTitle: setupViewModel.primaryActionTitle,
+                action: performPrimaryAction
+            )
+        }
+
+        if setupViewModel.isWorking {
+            return CaptureStatusBannerState(
+                title: "Updating microphone access",
+                detail: "SoundRunner is refreshing microphone access and live capture availability.",
+                tint: .accentColor,
+                actionTitle: nil,
+                action: nil,
+                showsProgress: true
+            )
+        }
+
+        guard
+            !setupViewModel.isCapturing,
+            setupViewModel.liveCaptureSummary != "Live capture is idle"
+        else {
+            return nil
+        }
+
+        return CaptureStatusBannerState(
+            title: setupViewModel.liveCaptureSummary,
+            detail: setupViewModel.liveCaptureDetail,
+            tint: isCaptureFailure ? .orange : .secondary,
+            actionTitle: nil,
+            action: nil
+        )
+    }
+
+    private var liveMeterHint: String? {
+        guard !setupViewModel.isCapturing else {
+            return nil
+        }
+
+        if signalGenerator.isRunning {
+            return "The signal generator is running. Tap play in the header to stop playback and switch to the microphone."
+        }
+
+        switch setupViewModel.microphonePermissionState {
+        case .granted:
+            return "Tap play in the header to start live capture."
+        case .undetermined:
+            return "Tap play in the header to request microphone access."
+        case .denied:
+            return nil
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    CaptureControlCard(
-                        setupViewModel: setupViewModel,
-                        isCaptureFailure: isCaptureFailure,
-                        isSignalGeneratorRunning: signalGenerator.isRunning,
-                        onPrimaryAction: performPrimaryAction,
-                        onToggleCapture: toggleLiveCapture
-                    )
+                    if let captureStatusBanner {
+                        CaptureStatusBanner(state: captureStatusBanner)
+                    }
 
                     LiveMeterCard(
                         snapshot: setupViewModel.liveAnalyzerSnapshot,
-                        selectedWeighting: $selectedWeighting
+                        selectedWeighting: $selectedWeighting,
+                        idleHint: liveMeterHint
                     )
 
                     AnalyzerVisualizerCard(
@@ -118,7 +200,8 @@ struct ContentView: View {
                         },
                         onClearSnapshot: {
                             setupViewModel.clearSpectrumSnapshot()
-                        }
+                        },
+                        onOpenTools: openAnalyzerTools
                     )
                 }
                 .padding(16)
@@ -127,21 +210,33 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    SoundRunnerHeaderLogo()
+                    HStack(spacing: 10) {
+                        SoundRunnerHeaderLogo()
+                        CaptureToolbarButton(
+                            symbolName: captureToolbarSymbolName,
+                            tint: captureToolbarTint,
+                            isWorking: setupViewModel.isWorking,
+                            accessibilityLabel: captureToolbarAccessibilityLabel,
+                            isDisabled: setupViewModel.isCaptureToolbarDisabled,
+                            action: toggleLiveCapture
+                        )
+                    }
                 }
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
-                        showInfoSheet = true
+                        openInfoSheet()
                     } label: {
-                        Label("Info", systemImage: "info.circle")
+                        Image(systemName: "info.circle")
                     }
+                    .accessibilityLabel("Info")
 
                     Button {
-                        showAnalyzerTools = true
+                        openAnalyzerTools()
                     } label: {
-                        Label("Tools", systemImage: "slider.horizontal.3")
+                        Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("Settings")
                 }
             }
             .sheet(isPresented: $showAnalyzerTools) {
@@ -194,12 +289,22 @@ struct ContentView: View {
             ) { _ in
                 setupViewModel.rebuildCaptureEngineAfterExternalAudioTool()
             }
+            .onAppear {
+                setupViewModel.restoreCaptureIfNeeded()
+            }
             .onChange(of: targetCurveProfileIdsSignature) { _ in
                 guard !targetCurveProfiles.contains(where: { $0.id == selectedTargetCurveId }) else {
                     return
                 }
 
                 selectedTargetCurveId = targetCurveProfiles.first?.id ?? "off"
+            }
+            .onChange(of: scenePhase) { newPhase in
+                guard newPhase == .active else {
+                    return
+                }
+
+                setupViewModel.restoreCaptureIfNeeded()
             }
         }
     }
@@ -236,6 +341,22 @@ struct ContentView: View {
         setupViewModel.toggleLiveCapture()
     }
 
+    private func openAnalyzerTools() {
+        guard !showAnalyzerTools else {
+            return
+        }
+
+        showAnalyzerTools = true
+    }
+
+    private func openInfoSheet() {
+        guard !showInfoSheet else {
+            return
+        }
+
+        showInfoSheet = true
+    }
+
     private func selectTargetCurve(_ profile: IOSTargetCurveProfile) {
         selectedTargetCurveId = profile.id
 
@@ -252,8 +373,39 @@ private struct SoundRunnerHeaderLogo: View {
         Image("AppHeader")
             .resizable()
             .scaledToFit()
-            .frame(maxWidth: 220, maxHeight: 22)
+            .frame(maxWidth: 180, maxHeight: 22)
             .accessibilityLabel("SoundRunner")
+    }
+}
+
+private struct CaptureToolbarButton: View {
+    let symbolName: String
+    let tint: Color
+    let isWorking: Bool
+    let accessibilityLabel: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.16))
+
+                if isWorking {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(tint)
+                }
+            }
+            .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 
@@ -299,93 +451,44 @@ private struct StatusPill: View {
     }
 }
 
-private struct CaptureControlCard: View {
-    @ObservedObject var setupViewModel: AnalyzerSetupViewModel
-    let isCaptureFailure: Bool
-    let isSignalGeneratorRunning: Bool
-    let onPrimaryAction: () -> Void
-    let onToggleCapture: () -> Void
+private struct CaptureStatusBannerState {
+    let title: String
+    let detail: String
+    let tint: Color
+    let actionTitle: String?
+    let action: (() -> Void)?
+    var showsProgress = false
+}
 
-    private var stateTint: Color {
-        if isCaptureFailure {
-            return .orange
-        }
-
-        return setupViewModel.isCapturing ? .green : .secondary
-    }
-
-    private var secondaryStatusText: String {
-        if isCaptureFailure {
-            return setupViewModel.liveCaptureDetail
-        }
-
-        if setupViewModel.isWorking {
-            return "Updating microphone access..."
-        }
-
-        if setupViewModel.isCapturing {
-            return "Listening to live microphone input."
-        }
-
-        if isSignalGeneratorRunning {
-            return "The onboard signal generator is playing. Starting capture will stop playback first."
-        }
-
-        switch setupViewModel.microphonePermissionState {
-        case .granted:
-            return "Tap Start live capture."
-        case .undetermined:
-            return "Tap Start live capture to request microphone access."
-        case .denied:
-            return setupViewModel.audioSessionDetail
-        }
-    }
+private struct CaptureStatusBanner: View {
+    let state: CaptureStatusBannerState
 
     var body: some View {
         AnalyzerCard {
             HStack(alignment: .top, spacing: 12) {
+                Image(systemName: state.showsProgress ? "mic.badge.clock" : "mic.fill")
+                    .font(.headline)
+                    .foregroundStyle(state.tint)
+
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(setupViewModel.isCapturing ? "Live capture" : "Analyzer ready")
+                    Text(state.title)
                         .font(.headline)
 
-                    HStack(spacing: 8) {
-                        StatusPill(
-                            text: "Mic \(setupViewModel.microphonePermissionState.title)",
-                            tint: setupViewModel.microphonePermissionState == .granted ? .green : .secondary
-                        )
-                        StatusPill(
-                            text: setupViewModel.isCapturing ? "Running" : (isCaptureFailure ? "Failed" : "Idle"),
-                            tint: stateTint
-                        )
+                    if state.showsProgress {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+
+                    Text(state.detail)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+
+                    if let actionTitle = state.actionTitle, let action = state.action {
+                        Button(actionTitle, action: action)
+                            .buttonStyle(.bordered)
                     }
                 }
-
-                Spacer()
-            }
-
-            HStack(spacing: 10) {
-                if setupViewModel.microphonePermissionState == .denied {
-                    Button(setupViewModel.primaryActionTitle) {
-                        onPrimaryAction()
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(setupViewModel.isWorking)
-                }
-
-                Button(setupViewModel.captureActionTitle) {
-                    onToggleCapture()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(setupViewModel.isCaptureActionDisabled)
-            }
-
-            if setupViewModel.isWorking {
-                ProgressView("Updating microphone access...")
-            } else {
-                Text(secondaryStatusText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(isCaptureFailure || setupViewModel.microphonePermissionState == .denied ? 4 : 2)
             }
         }
     }
@@ -394,6 +497,7 @@ private struct CaptureControlCard: View {
 private struct LiveMeterCard: View {
     let snapshot: LiveAnalyzerSnapshot?
     @Binding var selectedWeighting: String
+    let idleHint: String?
 
     private var displayDbValue: Float? {
         guard let snapshot else {
@@ -436,38 +540,50 @@ private struct LiveMeterCard: View {
 
     var body: some View {
         AnalyzerCard {
-            Text("Sound level")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                Text("Sound level")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
 
-            Text(displayDbText)
-                .font(.system(size: 40, weight: .bold, design: .rounded))
-                .foregroundStyle(displayDbColor)
-                .monospacedDigit()
+                Text(displayDbText)
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(displayDbColor)
+                    .monospacedDigit()
+                    .multilineTextAlignment(.center)
 
-            HStack(spacing: 8) {
-                WeightingChip(
-                    title: "A",
-                    value: snapshot?.aLevelDb,
-                    isSelected: selectedWeighting == "A"
-                ) {
-                    selectedWeighting = "A"
+                if let idleHint {
+                    Text(idleHint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                WeightingChip(
-                    title: "C",
-                    value: snapshot?.cLevelDb,
-                    isSelected: selectedWeighting == "C"
-                ) {
-                    selectedWeighting = "C"
+
+                HStack(spacing: 8) {
+                    WeightingChip(
+                        title: "A",
+                        value: snapshot?.aLevelDb,
+                        isSelected: selectedWeighting == "A"
+                    ) {
+                        selectedWeighting = "A"
+                    }
+                    WeightingChip(
+                        title: "C",
+                        value: snapshot?.cLevelDb,
+                        isSelected: selectedWeighting == "C"
+                    ) {
+                        selectedWeighting = "C"
+                    }
+                    WeightingChip(
+                        title: "Z",
+                        value: snapshot?.zLevelDb,
+                        isSelected: selectedWeighting == "Z"
+                    ) {
+                        selectedWeighting = "Z"
+                    }
                 }
-                WeightingChip(
-                    title: "Z",
-                    value: snapshot?.zLevelDb,
-                    isSelected: selectedWeighting == "Z"
-                ) {
-                    selectedWeighting = "Z"
-                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
 
             HStack(spacing: 10) {
                 LevelStatChip(title: "Min", value: snapshot?.minZLevelDb)
@@ -488,19 +604,19 @@ private struct WeightingChip: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .center, spacing: 2) {
                 Text("dB(\(title))")
                     .font(.caption2.weight(.semibold))
                 Text(value.map(sharedDecibelNumber) ?? "--")
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: 72)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.black.opacity(0.06))
+                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.10))
             )
         }
         .buttonStyle(.plain)
@@ -529,6 +645,7 @@ private struct AnalyzerVisualizerCard: View {
     let onCaptureSnapshot: () -> Void
     let onToggleSnapshotCompare: () -> Void
     let onClearSnapshot: () -> Void
+    let onOpenTools: () -> Void
 
     private var chartHeight: CGFloat {
         bigGraphModeEnabled ? 320 : (showWaterfall ? 150 : 194)
@@ -575,6 +692,9 @@ private struct AnalyzerVisualizerCard: View {
                             }
                         }
                     }
+
+                    Button("Tools", action: onOpenTools)
+                        .buttonStyle(.bordered)
                 }
             } else {
                 HStack(alignment: .top) {
@@ -594,6 +714,9 @@ private struct AnalyzerVisualizerCard: View {
                     }
 
                     Spacer()
+
+                    Button("Tools", action: onOpenTools)
+                        .buttonStyle(.bordered)
                 }
             }
 
@@ -704,7 +827,7 @@ private struct AnalyzerChartPlaceholder: View {
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            Text(isCapturing ? "Waiting for live audio…" : "Start live capture")
+            Text(isCapturing ? "Waiting for live audio…" : "Tap play in the header")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -712,7 +835,7 @@ private struct AnalyzerChartPlaceholder: View {
         .frame(height: bigGraphModeEnabled ? 320 : (showingWaterfall ? 150 : 170))
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.08))
+                .fill(Color.secondary.opacity(0.10))
         )
     }
 }
@@ -742,6 +865,10 @@ private struct AnalyzerToolsSheet: View {
     let onDeleteSavedTargetCurve: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var showSavedCurveManager = false
+    @State private var calibrationTargetDb = 85.0
+    @State private var measuredCalibrationAverageDb: Double?
+    @State private var isCalibrationMeasuring = false
+    @State private var calibrationMeasurementTask: Task<Void, Never>?
 
     private var frequencySliderBinding: Binding<Double> {
         Binding {
@@ -782,6 +909,26 @@ private struct AnalyzerToolsSheet: View {
 
     private var selectedWaterfallColormap: WaterfallColormap {
         WaterfallColormap(rawValue: waterfallColormapId) ?? .inferno
+    }
+
+    private var calibrationOffsetBinding: Binding<Double> {
+        Binding {
+            setupViewModel.calibrationOffsetDb
+        } set: { newValue in
+            setupViewModel.setCalibrationOffset(newValue)
+        }
+    }
+
+    private var noiseThresholdBinding: Binding<Double> {
+        Binding {
+            setupViewModel.noiseThresholdDb
+        } set: { newValue in
+            setupViewModel.setNoiseThreshold(newValue)
+        }
+    }
+
+    private var currentCalibrationLevelDb: Double? {
+        setupViewModel.liveAnalyzerSnapshot.map { Double($0.zLevelDb) }
     }
 
     var body: some View {
@@ -1078,6 +1225,68 @@ private struct AnalyzerToolsSheet: View {
                 }
             }
 
+            Section("Calibration") {
+                VStack(spacing: 8) {
+                    Text(currentCalibrationLevelDb.map { String(format: "%.1f dB(Z)", $0) } ?? "-- dB(Z)")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                    Text("Use a reference SPL meter when accuracy matters. The offset shifts the main iOS meter and the noise gate trims very quiet readings.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+
+                Text(String(format: "dB offset %.1f", setupViewModel.calibrationOffsetDb))
+                    .font(.footnote.weight(.semibold))
+                Slider(value: calibrationOffsetBinding, in: 0...100)
+
+                Text(String(format: "Noise gate %.1f dB", setupViewModel.noiseThresholdDb))
+                    .font(.footnote.weight(.semibold))
+                Slider(value: noiseThresholdBinding, in: 0...60)
+
+                Text(String(format: "Target level %.1f dB", calibrationTargetDb))
+                    .font(.footnote.weight(.semibold))
+                Slider(value: $calibrationTargetDb, in: 0...120)
+
+                HStack(spacing: 12) {
+                    Button(isCalibrationMeasuring ? "Measuring…" : "Measure 3s average") {
+                        startCalibrationMeasurement()
+                    }
+                    .disabled(isCalibrationMeasuring || !setupViewModel.isCapturing)
+
+                    Button("Set offset") {
+                        let baseLevel = measuredCalibrationAverageDb ?? currentCalibrationLevelDb
+                        guard let baseLevel else {
+                            return
+                        }
+
+                        setupViewModel.applyCalibrationTarget(
+                            targetDb: calibrationTargetDb,
+                            measuredDb: baseLevel
+                        )
+                    }
+                    .disabled((measuredCalibrationAverageDb ?? currentCalibrationLevelDb) == nil)
+                }
+
+                if let measuredCalibrationAverageDb {
+                    Text(String(format: "Measured average %.1f dB(Z)", measuredCalibrationAverageDb))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else if !setupViewModel.isCapturing {
+                    Text("Start live capture from the header before running a calibration measurement.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Reset calibration defaults") {
+                    setupViewModel.resetCalibrationDefaults()
+                    measuredCalibrationAverageDb = nil
+                }
+                .buttonStyle(.bordered)
+            }
+
             Section("Spectrum snapshot") {
                 Button(setupViewModel.snapshotActionTitle) {
                     setupViewModel.captureSpectrumSnapshot()
@@ -1174,6 +1383,11 @@ private struct AnalyzerToolsSheet: View {
                 }
             }
         }
+        .onDisappear {
+            calibrationMeasurementTask?.cancel()
+            calibrationMeasurementTask = nil
+            isCalibrationMeasuring = false
+        }
         .sheet(isPresented: $showSavedCurveManager) {
             NavigationStack {
                 SavedTargetCurveManagerView(
@@ -1188,6 +1402,43 @@ private struct AnalyzerToolsSheet: View {
                 )
             }
             .presentationDetents([.large])
+        }
+    }
+
+    private func startCalibrationMeasurement() {
+        guard !isCalibrationMeasuring, setupViewModel.isCapturing else {
+            return
+        }
+
+        calibrationMeasurementTask?.cancel()
+        isCalibrationMeasuring = true
+        measuredCalibrationAverageDb = nil
+
+        calibrationMeasurementTask = Task {
+            var samples: [Double] = []
+            let deadline = Date().addingTimeInterval(3)
+
+            while Date() < deadline {
+                guard !Task.isCancelled else {
+                    await MainActor.run {
+                        isCalibrationMeasuring = false
+                    }
+                    return
+                }
+
+                let sample = await MainActor.run { currentCalibrationLevelDb }
+                if let sample {
+                    samples.append(sample)
+                }
+
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+
+            await MainActor.run {
+                measuredCalibrationAverageDb = samples.isEmpty ? nil : (samples.reduce(0, +) / Double(samples.count))
+                calibrationMeasurementTask = nil
+                isCalibrationMeasuring = false
+            }
         }
     }
 }
@@ -1336,7 +1587,7 @@ private struct HistorySparklineView: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.08))
+                .fill(Color.secondary.opacity(0.10))
         )
         .animation(nil, value: history)
     }
@@ -1585,7 +1836,7 @@ private struct SpectrumBarsView: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.08))
+                .fill(Color.secondary.opacity(0.10))
         )
         .animation(nil, value: bars)
         .animation(nil, value: overlayBands)
@@ -1760,7 +2011,7 @@ private struct SpectrumHistoryWaterfallView: View {
             .frame(height: chartHeight)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.black.opacity(0.08))
+                    .fill(Color.secondary.opacity(0.10))
             )
             .animation(nil, value: rowsDb)
             .animation(nil, value: settings)

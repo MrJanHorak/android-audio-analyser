@@ -38,9 +38,9 @@ From the repository root:
    - press **Run**
 
 5. On first launch:
-    - tap **Start live capture** once so iOS can present the microphone prompt
+    - tap the **play** button in the SoundRunner header once so iOS can present the microphone prompt
     - grant microphone permission
-    - start live capture from the analyzer screen
+    - start live capture from the header control
 
 For a physical device, finish signing setup first. The generated project uses the example bundle identifier `com.example.audioanalyser.ios`.
 
@@ -52,7 +52,7 @@ For a physical device, finish signing setup first. The generated project uses th
 6. If iOS reports the developer app is not trusted, open **Settings > General > VPN & Device Management**, select your developer certificate, and trust it.
 7. If the app installs but still fails to launch, delete it from the device, clean the build folder in Xcode, and run again.
 
-If **SoundRunner** is not listed under **Settings > Privacy & Security > Microphone**, the current install has not completed a microphone permission prompt yet. Launch the app and tap **Start live capture** once. If access was denied earlier, re-enable it from **Settings > Privacy & Security > Microphone** and turn on **SoundRunner** there. If the app is still not listed, delete it from the device, reinstall it from Xcode, and request access again.
+If **SoundRunner** is not listed under **Settings > Privacy & Security > Microphone**, the current install has not completed a microphone permission prompt yet. Launch the app and tap the **play** button in the header once. If access was denied earlier, re-enable it from **Settings > Privacy & Security > Microphone** and turn on **SoundRunner** there. If the app is still not listed, delete it from the device, reinstall it from Xcode, and request access again.
 
 If you run in the **iOS Simulator**, also set **Simulator > I/O > Audio Input** to a Mac microphone or other host input device. If Simulator has no usable audio input route, the app can launch normally but live capture will fail.
 
@@ -95,7 +95,7 @@ This performs the same prep flow automatically:
 1. Launch the app in Xcode.
 2. Confirm the main analyzer screen opens.
 3. Grant microphone permission.
-4. Start live capture and verify:
+4. Start live capture from the header play button and verify:
     - live Z/A/C readings change
     - dominant frequency changes with a test tone or voice
     - the spectrum and history views update
@@ -163,6 +163,6 @@ Then reopen `SoundRunner.xcodeproj`.
 
 1. In Simulator, choose **I/O > Audio Input** and select your Mac microphone.
 2. In macOS **System Settings > Privacy & Security > Microphone**, allow access for **Simulator** if prompted.
-3. Relaunch the app and try **Start live capture** again.
+3. Relaunch the app and try the header **play** button again.
 
 For reliable microphone testing, prefer a physical iPhone.

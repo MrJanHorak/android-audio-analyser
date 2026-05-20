@@ -93,6 +93,12 @@ struct LiveFeedbackMarker: Identifiable, Equatable {
 
 @MainActor
 final class AnalyzerSetupViewModel: ObservableObject {
+    private static let captureIntentPreferenceKey = "ios-capture-intent-active"
+    private static let calibrationOffsetPreferenceKey = "db_offset"
+    private static let noiseThresholdPreferenceKey = "noise_threshold"
+    private static let defaultCalibrationOffsetDb = 30.0
+    private static let defaultNoiseThresholdDb = 25.0
+
     @Published private(set) var microphonePermissionState: MicrophonePermissionState
     @Published private(set) var audioSessionSummary: String
     @Published private(set) var audioSessionDetail: String
@@ -112,11 +118,12 @@ final class AnalyzerSetupViewModel: ObservableObject {
     @Published private(set) var analyzerReportStatusMessage: String?
     @Published private(set) var isCapturing = false
     @Published private(set) var isWorking = false
+    @Published private(set) var calibrationOffsetDb: Double
+    @Published private(set) var noiseThresholdDb: Double
 
     private let audioSessionController: AudioSessionController
     private let liveAudioCaptureController: LiveAudioCaptureController
-    private let dbOffset: Float = 30
-    private let noiseThreshold: Float = 25
+    private let userDefaults: UserDefaults
     private let spectrumBarCount = 48
     private let zLevelHistoryLimit = 90
     private let spectrumHistoryLimit = 72
@@ -139,7 +146,15 @@ final class AnalyzerSetupViewModel: ObservableObject {
     private var loggedRowCount = 0
     private var savedWaterfallSession: SavedWaterfallSession?
     private var lastUiPublishTimeNanoseconds: UInt64 = 0
-    private var captureIntentIsActive = false
+    private var captureIntentIsActive = false {
+        didSet {
+            guard oldValue != captureIntentIsActive else {
+                return
+            }
+
+            userDefaults.set(captureIntentIsActive, forKey: Self.captureIntentPreferenceKey)
+        }
+    }
     private var isCaptureTransitionInFlight = false
     private var shouldResumeWhenAppBecomesActive = false
     private var pendingAutomaticResumeWorkItem: DispatchWorkItem?
@@ -149,18 +164,30 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     init(
         audioSessionController: AudioSessionController = .shared,
-        liveAudioCaptureController: LiveAudioCaptureController? = nil
+        liveAudioCaptureController: LiveAudioCaptureController? = nil,
+        userDefaults: UserDefaults = .standard
     ) {
+        self.userDefaults = userDefaults
         self.audioSessionController = audioSessionController
         self.liveAudioCaptureController = liveAudioCaptureController ?? LiveAudioCaptureController(
             audioSessionController: audioSessionController
         )
+        if userDefaults.object(forKey: Self.calibrationOffsetPreferenceKey) == nil {
+            calibrationOffsetDb = Self.defaultCalibrationOffsetDb
+        } else {
+            calibrationOffsetDb = userDefaults.double(forKey: Self.calibrationOffsetPreferenceKey)
+        }
+        if userDefaults.object(forKey: Self.noiseThresholdPreferenceKey) == nil {
+            noiseThresholdDb = Self.defaultNoiseThresholdDb
+        } else {
+            noiseThresholdDb = userDefaults.double(forKey: Self.noiseThresholdPreferenceKey)
+        }
         let permissionState = audioSessionController.permissionState()
         microphonePermissionState = permissionState
         audioSessionSummary = ""
         audioSessionDetail = ""
         liveCaptureSummary = "Live capture is idle"
-        liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+        liveCaptureDetail = "Use the header play button to validate the negotiated AVAudioEngine input format on iOS."
         liveAnalyzerSnapshot = nil
         savedSpectrumSnapshot = nil
         exportedAnalyzerLog = nil
@@ -173,7 +200,16 @@ final class AnalyzerSetupViewModel: ObservableObject {
         analyzerReportStatusMessage = nil
         bindCaptureCallbacks()
         observeApplicationLifecycle()
+        captureIntentIsActive = userDefaults.bool(forKey: Self.captureIntentPreferenceKey)
         refreshSetup()
+        calibrationOffsetDb = Self.clampedCalibrationOffset(calibrationOffsetDb)
+        noiseThresholdDb = Self.clampedNoiseThreshold(noiseThresholdDb)
+        persistCalibrationPreferences()
+        if captureIntentIsActive, microphonePermissionState == .granted {
+            shouldResumeWhenAppBecomesActive = true
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "SoundRunner will restore microphone capture when the app becomes active."
+        }
     }
 
     var primaryActionTitle: String {
@@ -203,6 +239,10 @@ final class AnalyzerSetupViewModel: ObservableObject {
         isCapturing || captureIntentIsActive
     }
 
+    var isCaptureToolbarDisabled: Bool {
+        isWorking
+    }
+
     func rebuildCaptureEngineAfterExternalAudioTool() {
         guard !isCaptureSessionActiveOrPending else {
             return
@@ -213,6 +253,50 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     var snapshotActionTitle: String {
         savedSpectrumSnapshot == nil ? "Capture snapshot" : "Refresh snapshot"
+    }
+
+    func setCalibrationOffset(_ value: Double) {
+        calibrationOffsetDb = Self.clampedCalibrationOffset(value)
+        persistCalibrationPreferences()
+    }
+
+    func setNoiseThreshold(_ value: Double) {
+        noiseThresholdDb = Self.clampedNoiseThreshold(value)
+        persistCalibrationPreferences()
+    }
+
+    func applyCalibrationTarget(targetDb: Double, measuredDb: Double) {
+        setCalibrationOffset(calibrationOffsetDb + (targetDb - measuredDb))
+    }
+
+    func resetCalibrationDefaults() {
+        calibrationOffsetDb = Self.defaultCalibrationOffsetDb
+        noiseThresholdDb = Self.defaultNoiseThresholdDb
+        persistCalibrationPreferences()
+    }
+
+    func restoreCaptureIfNeeded() {
+        refreshSetup()
+
+        guard captureIntentIsActive, !isCapturing else {
+            return
+        }
+
+        guard microphonePermissionState == .granted else {
+            captureIntentIsActive = false
+            return
+        }
+
+        if UIApplication.shared.applicationState == .active {
+            scheduleAutomaticCaptureResume(
+                reason: "Restoring your previous live capture session.",
+                delay: 0.05
+            )
+        } else {
+            shouldResumeWhenAppBecomesActive = true
+            liveCaptureSummary = "Live capture paused"
+            liveCaptureDetail = "SoundRunner will restore microphone capture when the app becomes active."
+        }
     }
 
     var isSnapshotCaptureDisabled: Bool {
@@ -286,7 +370,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             return logStatusMessage
         }
 
-        return "Start live capture, then log a session to prepare a CSV you can share from iOS."
+        return "Start live capture from the header, then log a session to prepare a CSV you can share from iOS."
     }
 
     var analyzerSampleStatusText: String {
@@ -314,7 +398,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             return "The most recent waterfall session from \(captureDateString(savedWaterfallSession.capturedAt)) is ready to export even though live capture is idle."
         }
 
-        return "Start live capture to collect a waterfall session you can export for external analysis."
+        return "Start live capture from the header to collect a waterfall session you can export for external analysis."
     }
 
     var isAnalyzerReportDisabled: Bool {
@@ -464,7 +548,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     func prepareWaterfallExport() {
         guard let savedWaterfallSession else {
-            waterfallExportStatusMessage = "Start live capture before exporting a waterfall session."
+            waterfallExportStatusMessage = "Start live capture from the header before exporting a waterfall session."
             return
         }
 
@@ -661,6 +745,13 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 self?.handleApplicationDidBecomeActive()
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleApplicationDidEnterBackground()
+            }
+            .store(in: &cancellables)
     }
 
     private func startLiveCapture(automaticResumeReason: String? = nil, attempt: Int = 0) {
@@ -733,7 +824,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
         isCapturing = false
         if resetStatus {
             liveCaptureSummary = "Live capture is idle"
-            liveCaptureDetail = "Start live capture to validate the negotiated AVAudioEngine input format on iOS."
+            liveCaptureDetail = "Use the header play button to validate the negotiated AVAudioEngine input format on iOS."
         }
     }
 
@@ -850,10 +941,13 @@ final class AnalyzerSetupViewModel: ObservableObject {
             rms: snapshot.pcm16EquivalentRms,
             floorDb: -120
         )
-        let calibratedDb = AnalyzerMath.shared.applyDbOffset(rawDb: rawDb, dbOffset: dbOffset)
+        let calibratedDb = AnalyzerMath.shared.applyDbOffset(
+            rawDb: rawDb,
+            dbOffset: Float(calibrationOffsetDb)
+        )
         let currentDb = AnalyzerMath.shared.applyNoiseGate(
             calibratedDb: calibratedDb,
-            noiseThreshold: noiseThreshold
+            noiseThreshold: Float(noiseThresholdDb)
         )
 
         guard let liveFrameAnalyzer else {
@@ -883,11 +977,11 @@ final class AnalyzerSetupViewModel: ObservableObject {
         )
         let weightedDbA = AnalyzerMath.shared.applyNoiseGate(
             calibratedDb: (calibratedDb + frameAnalysis.aWeightingAdjustmentDb).clampedToZero(),
-            noiseThreshold: noiseThreshold
+            noiseThreshold: Float(noiseThresholdDb)
         )
         let weightedDbC = AnalyzerMath.shared.applyNoiseGate(
             calibratedDb: (calibratedDb + frameAnalysis.cWeightingAdjustmentDb).clampedToZero(),
-            noiseThreshold: noiseThreshold
+            noiseThreshold: Float(noiseThresholdDb)
         )
         let feedbackPeaks = updateFeedbackPeaks(
             spectrum: smoothedSpectrum,
@@ -1000,7 +1094,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 captureIntentIsActive = false
                 cancelAutomaticCaptureResume()
                 liveCaptureSummary = "Live capture paused"
-                liveCaptureDetail = "The interruption ended without automatic resume permission. Tap Start live capture when you are ready to resume."
+                liveCaptureDetail = "The interruption ended without automatic resume permission. Use the header play button when you are ready to resume."
                 return
             }
 
@@ -1074,6 +1168,22 @@ final class AnalyzerSetupViewModel: ObservableObject {
             reason: "The app is active again. Restoring live capture.",
             delay: 0.1
         )
+    }
+
+    private func handleApplicationDidEnterBackground() {
+        guard captureIntentIsActive else {
+            return
+        }
+
+        cancelAutomaticCaptureResume()
+        shouldResumeWhenAppBecomesActive = true
+
+        if isCapturing {
+            stopLiveCaptureWithoutRefreshing(finalizeLogging: false, resetStatus: false)
+        }
+
+        liveCaptureSummary = "Live capture paused"
+        liveCaptureDetail = "SoundRunner will restore microphone capture when the app becomes active."
     }
 
     private func configureAudioSession() {
@@ -1377,7 +1487,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     private func startLogging() {
         guard isCapturing else {
-            logStatusMessage = "Start live capture before logging a session."
+            logStatusMessage = "Start live capture from the header before logging a session."
             return
         }
 
@@ -1470,6 +1580,19 @@ final class AnalyzerSetupViewModel: ObservableObject {
 
     private func spectrumMagnitudeDb(_ magnitude: Float) -> Float {
         Float(20.0 * log10(max(Double(magnitude), 1e-12)))
+    }
+
+    private func persistCalibrationPreferences() {
+        userDefaults.set(calibrationOffsetDb, forKey: Self.calibrationOffsetPreferenceKey)
+        userDefaults.set(noiseThresholdDb, forKey: Self.noiseThresholdPreferenceKey)
+    }
+
+    private static func clampedCalibrationOffset(_ value: Double) -> Double {
+        min(max(value, 0), 100)
+    }
+
+    private static func clampedNoiseThreshold(_ value: Double) -> Double {
+        min(max(value, 0), 60)
     }
 
     private func buildAnalyzerReportMarkdown(
