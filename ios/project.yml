@@ -1,4 +1,4 @@
-name: AudioAnalyser
+name: SoundRunner
 
 options:
   bundleIdPrefix: com.example
@@ -8,7 +8,7 @@ configs:
   Release: release
 
 targets:
-  AudioAnalyser:
+  SoundRunner:
     type: application
     platform: iOS
     deploymentTarget: "16.0"
@@ -21,10 +21,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.audioanalyser.ios
-        PRODUCT_NAME: AudioAnalyser
+        PRODUCT_NAME: SoundRunner
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: AudioAnalyser
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: AudioAnalyser uses the microphone to analyze room audio.
+        INFOPLIST_KEY_CFBundleDisplayName: SoundRunner
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: SoundRunner uses the microphone to analyze room audio.
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

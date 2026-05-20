@@ -98,18 +98,20 @@ struct ContentView: View {
                 }
                 .padding(16)
             }
-            .navigationTitle("AudioAnalyser")
+            .navigationTitle("SoundRunner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .principal) {
+                    SoundRunnerHeaderLogo()
+                }
+
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showInfoSheet = true
                     } label: {
                         Label("Info", systemImage: "info.circle")
                     }
-                }
 
-                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAnalyzerTools = true
                     } label: {
@@ -182,6 +184,16 @@ struct ContentView: View {
         }
 
         setupViewModel.toggleLiveCapture()
+    }
+}
+
+private struct SoundRunnerHeaderLogo: View {
+    var body: some View {
+        Image("AppHeader")
+            .resizable()
+            .scaledToFit()
+            .frame(maxWidth: 220, maxHeight: 22)
+            .accessibilityLabel("SoundRunner")
     }
 }
 

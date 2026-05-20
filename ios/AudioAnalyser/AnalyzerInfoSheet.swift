@@ -20,7 +20,7 @@ struct AnalyzerInfoSheet: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("2. If access was denied")
                             .font(.headline)
-                        Text("Open Settings > Privacy & Security > Microphone and enable AudioAnalyser.")
+                        Text("Open Settings > Privacy & Security > Microphone and enable SoundRunner.")
                             .font(.callout)
                         Text("If the app is missing from that list, delete it, reinstall from Xcode, and tap Start live capture again.")
                             .font(.footnote)
@@ -111,7 +111,7 @@ struct AnalyzerInfoSheet: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Analyzer info")
+        .navigationTitle("SoundRunner info")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

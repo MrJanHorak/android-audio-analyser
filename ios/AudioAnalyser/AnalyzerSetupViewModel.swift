@@ -550,7 +550,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
             audioSessionDetail = "The iOS analyzer session will stay inactive until permission is granted."
         case .denied:
             audioSessionSummary = "Microphone access is blocked"
-            audioSessionDetail = "iOS will not prompt again after a denial. Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If it is missing there, delete the app, reinstall it from Xcode, and request access again."
+            audioSessionDetail = "iOS will not prompt again after a denial. Open Settings > Privacy & Security > Microphone and enable SoundRunner. If it is missing there, delete the app, reinstall it from Xcode, and request access again."
         case .granted:
             if !isCapturing {
                 configureAudioSession()
@@ -585,7 +585,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 requestMicrophoneAccess(startCaptureOnGrant: true)
             case .denied:
                 audioSessionSummary = "Microphone access is blocked"
-                audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
+                audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable SoundRunner. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
                 audioSessionController.openAppSettings()
             }
         }
@@ -620,7 +620,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
                 case .denied:
                     self.captureIntentIsActive = false
                     self.audioSessionSummary = "Microphone access is blocked"
-                    self.audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable AudioAnalyser. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
+                    self.audioSessionDetail = "Open Settings > Privacy & Security > Microphone and enable SoundRunner. If the app is not listed there, delete it, reinstall from Xcode, and request microphone access again."
                 }
             }
         }
@@ -1435,7 +1435,7 @@ final class AnalyzerSetupViewModel: ObservableObject {
         feedbackDisplayCount: Int
     ) -> String {
         var lines = [
-            "# AudioAnalyser session report",
+            "# SoundRunner session report",
             "",
             "- Generated: \(captureDateString(exportDate))",
             "- Feedback markers: \(feedbackMarkersEnabled ? "Enabled" : "Hidden")",
