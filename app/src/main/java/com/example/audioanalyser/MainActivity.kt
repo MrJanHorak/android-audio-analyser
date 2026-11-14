@@ -1438,6 +1438,12 @@ fun TabletSummaryItem(
     }
 }
 
+internal fun formatMeterReading(value: Float, weighting: String, locale: Locale, compact: Boolean = false): String {
+    if (value <= 0f) return if (compact) "dB($weighting): —" else "Below range ($weighting)"
+    return if (compact) String.format(locale, "dB(%s): %.1f", weighting, value)
+    else String.format(locale, "%.1f dB(%s)", value, weighting)
+}
+
 @Composable
 fun DbMeterCard(
     dbLevel: Float,
@@ -1459,7 +1465,13 @@ fun DbMeterCard(
 
     val dbColor = MaterialTheme.colorScheme.primary
 
-    val semanticsDesc = stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
+    val locale = Locale.getDefault()
+    val reading = formatMeterReading(displayDb, selectedWeighting, locale)
+    val semanticsDesc = if (displayDb <= 0f) {
+        "Sound level below gate or display range, $selectedWeighting weighting. Statistics are Z-weighted."
+    } else {
+        stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
+    }
 
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
@@ -1475,7 +1487,7 @@ fun DbMeterCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             AutoSizeText(
-                text = String.format(Locale.getDefault(), "%.1f dB(%s)", displayDb, selectedWeighting),
+                text = reading,
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = dbColor
@@ -1485,17 +1497,17 @@ fun DbMeterCard(
                 FilterChip(
                     selected = selectedWeighting == "A",
                     onClick = { selectedWeighting = "A" },
-                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(A): %.1f", dbLevelA), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = formatMeterReading(dbLevelA, "A", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = selectedWeighting == "C",
                     onClick = { selectedWeighting = "C" },
-                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(C): %.1f", dbLevelC), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = formatMeterReading(dbLevelC, "C", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = selectedWeighting == "Z",
                     onClick = { selectedWeighting = "Z" },
-                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(Z): %.1f", dbLevelZ), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = formatMeterReading(dbLevelZ, "Z", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
             }
             Surface(
@@ -1504,7 +1516,7 @@ fun DbMeterCard(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    text = "Indicative reading • Not a hearing-safety assessment",
+                    text = if (displayDb <= 0f) "Below noise gate or display range" else "Indicative reading • Not a hearing-safety assessment",
                     style = MaterialTheme.typography.labelMedium,
                     color = dbColor,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
