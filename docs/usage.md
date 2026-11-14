@@ -78,3 +78,9 @@ Before using a new phone or microphone for an event:
 3. Check the clipping warning using a controlled input where available. Do not create unsafe sound levels just to trigger it. Check for distortion by ear as well.
 4. Test microphone permission denial and recovery, and confirm the retry button works after an input error.
 5. Verify the generator output route and start with the mixer channel down before raising the level.
+
+### Microphone processing and quiet rooms (Android)
+
+Some phones apply automatic gain or other microphone processing, which can raise the apparent level of quiet background noise. In **Settings → Microphone input**, Standard requests the normal Android microphone source. Measurement requests the unprocessed source when the phone reports support; otherwise it requests the voice-recognition source, which may apply less processing. These are requests: Android devices and routes vary, and neither setting guarantees that automatic gain is absent. The active status displays the requested mode. If Measurement cannot start capture, switch back to Standard.
+
+Android does not expose a universal hardware microphone sensitivity or gain slider. The **Noise Gate** setting instead hides entire frames below the chosen displayed level; it does not reduce microphone gain or remove noise from a louder signal. Set it low enough that quiet speech and feedback are not hidden. The waterfall also auto-adjusts its colour scale, so background noise can look bright even when it is quiet. Changing input modes or microphones may change the level and frequency response: compare against a reference meter again.

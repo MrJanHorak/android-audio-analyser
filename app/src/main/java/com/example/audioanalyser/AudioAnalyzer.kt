@@ -155,7 +155,7 @@ class AudioAnalyzer {
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun startAnalyzing() = withContext(Dispatchers.IO) {
+    suspend fun startAnalyzing(audioSource: Int = MediaRecorder.AudioSource.MIC) = withContext(Dispatchers.IO) {
         synchronized(recordingLock) {
             if (isRecording) return@withContext
             isRecording = true
@@ -164,7 +164,7 @@ class AudioAnalyzer {
 
         val audioRecord = try {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                audioSource,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,

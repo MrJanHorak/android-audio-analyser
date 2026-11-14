@@ -8,6 +8,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.media.AudioManager
+import android.media.MediaRecorder
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -572,6 +574,18 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
     // Load persisted calibration values (if any)
     val ctx = LocalContext.current
+    val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
+    var measurementInput by remember { mutableStateOf(prefs.getBoolean("measurement_input", false)) }
+    val unprocessedSupported = remember(ctx) {
+        val manager = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        manager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
+            ?.equals("true", ignoreCase = true) == true
+    }
+    val inputModeLabel = when {
+        !measurementInput -> "Standard mic"
+        unprocessedSupported -> "Unprocessed requested"
+        else -> "Voice-recognition input requested"
+    }
 
     fun selectTargetCurve(profile: AnalyzerTargetCurveProfile) {
         selectedTargetCurveId = profile.id
@@ -711,7 +725,12 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         captureJob = scope.launch {
             previousJob?.join()
             if (!isPaused && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                analyzer.startAnalyzing()
+                val source = when {
+                    !measurementInput -> MediaRecorder.AudioSource.MIC
+                    unprocessedSupported -> MediaRecorder.AudioSource.UNPROCESSED
+                    else -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+                }
+                analyzer.startAnalyzing(source)
             }
         }
     }
@@ -844,7 +863,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             Text(
                 text = when {
                     !error.isNullOrEmpty() -> "Microphone unavailable"
-                    isListening -> "Listening • ${inputName ?: "Input unknown"} • Calibration not verified"
+                    isListening -> "Listening • ${inputName ?: "Input unknown"} • $inputModeLabel • Calibration not verified"
                     isPaused -> "Paused • Readings are frozen"
                     else -> "Not listening • Readings may be frozen"
                 },
@@ -994,6 +1013,17 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         SettingsDialog(
             currentOffset = dbOffset,
             currentThreshold = noiseThreshold,
+            measurementInput = measurementInput,
+            unprocessedSupported = unprocessedSupported,
+            onMeasurementInputChange = { selected ->
+                if (measurementInput != selected) {
+                    measurementInput = selected
+                    prefs.edit().putBoolean("measurement_input", selected).apply()
+                    analyzer.stop()
+                    analyzer.resetStats()
+                    if (!isPaused) startCapture()
+                }
+            },
             importExportMessage = settingsBackupMessage,
             onOffsetChange = { analyzer.setDbOffset(it) },
             onThresholdChange = { analyzer.setNoiseThreshold(it) },
@@ -3033,6 +3063,9 @@ fun formatSignedDbDelta(deltaDb: Float): String =
 fun SettingsDialog(
     currentOffset: Float,
     currentThreshold: Float,
+    measurementInput: Boolean,
+    unprocessedSupported: Boolean,
+    onMeasurementInputChange: (Boolean) -> Unit,
     importExportMessage: String?,
     onOffsetChange: (Float) -> Unit,
     onThresholdChange: (Float) -> Unit,
@@ -3047,6 +3080,18 @@ fun SettingsDialog(
         title = { Text(stringResource(id = R.string.mic_calibration)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text("Microphone input", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = !measurementInput, onClick = { onMeasurementInputChange(false) }, label = { Text("Standard") })
+                    FilterChip(selected = measurementInput, onClick = { onMeasurementInputChange(true) }, label = { Text("Measurement") })
+                }
+                Text(
+                    text = if (unprocessedSupported) "Measurement requests Android's unprocessed input. The phone may still apply processing." else "Unprocessed input is not reported as supported. Measurement requests voice-recognition input, which may reduce processing but is not guaranteed to disable it.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Changing input can change readings. Recalibrate against a reference meter. Android does not provide a universal microphone sensitivity control.", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = String.format(Locale.getDefault(), stringResource(id = R.string.db_offset_label), currentOffset),
                     style = MaterialTheme.typography.bodyMedium
@@ -3071,7 +3116,7 @@ fun SettingsDialog(
                 Slider(
                     value = currentThreshold,
                     onValueChange = onThresholdChange,
-                    valueRange = 0f..60f
+                    valueRange = 0f..120f
                 )
                 Text(
                     text = stringResource(id = R.string.noise_gate_help),
