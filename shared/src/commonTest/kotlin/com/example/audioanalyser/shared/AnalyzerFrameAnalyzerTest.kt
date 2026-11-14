@@ -30,6 +30,25 @@ class AnalyzerFrameAnalyzerTest {
     }
 
     @Test
+    fun findsOffBinThousandHertzToneWithinOneBin() {
+        val targetHz = 1000.0
+        val analyzer = AnalyzerFrameAnalyzer(sampleRate = sampleRate, fftSize = fftSize)
+        val buffer = ShortArray(fftSize) { index ->
+            (12_000.0 * sin(2.0 * PI * targetHz * index / sampleRate)).roundToInt().toShort()
+        }
+        val result = analyzer.analyzePcm16(buffer, buffer.size)
+        assertClose(targetHz, result.dominantFrequencyHz.toDouble(), result.binSize.toDouble())
+    }
+
+    @Test
+    fun silentFrameDoesNotInventDominantFrequencyOrNonFiniteWeighting() {
+        val result = AnalyzerFrameAnalyzer(sampleRate, fftSize).analyzePcm16(ShortArray(fftSize), fftSize)
+        assertEquals(0f, result.dominantFrequencyHz)
+        assertTrue(result.aWeightingAdjustmentDb.isFinite())
+        assertTrue(result.cWeightingAdjustmentDb.isFinite())
+    }
+
+    @Test
     fun analyzeFloatMatchesPcm16SummaryForEquivalentSamples() {
         val targetBin = 17
         val analyzer = AnalyzerFrameAnalyzer(sampleRate = sampleRate, fftSize = fftSize)

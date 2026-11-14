@@ -719,7 +719,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> if (!isPaused) startCapture()
-                Lifecycle.Event.ON_PAUSE -> analyzer.stop()
+                Lifecycle.Event.ON_PAUSE -> {
+                    analyzer.stop()
+                    generator.stop()
+                }
                 else -> {}
             }
         }
@@ -3416,10 +3419,13 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
     val dbLevel by analyzer.dbLevel.collectAsState()
     val dominant by analyzer.dominantFrequency.collectAsState()
     val isListening by analyzer.isListening.collectAsState()
+    val inputName by analyzer.inputName.collectAsState()
+    val inputClipping by analyzer.inputClipping.collectAsState()
     var targetDb by remember { mutableStateOf(85f) }
     var measuring by remember { mutableStateOf(false) }
     var measuredAvg by remember { mutableStateOf<Float?>(null) }
-    LaunchedEffect(isListening) { if (!isListening) measuredAvg = null }
+    // Changing routes, stopping capture, or clipping invalidates the last sample.
+    LaunchedEffect(isListening, inputName, inputClipping) { measuredAvg = null }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -3438,6 +3444,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             .padding(innerPadding)
             .padding(16.dp)) {
             Text("Compare against a reference meter at the same location using a steady sound. This adjusts level only; it does not correct microphone frequency response or processing. Recheck after changing microphones or routes.", style = MaterialTheme.typography.bodyMedium)
+            if (inputClipping) Text("Input may be clipping. Reduce the sound level before calibrating.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             Text(text = String.format(Locale.getDefault(), "%.1f dB", dbLevel), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
             Text(text = stringResource(id = R.string.freq_visualizer_semantics, dominant), style = MaterialTheme.typography.bodyMedium)
 
@@ -3449,7 +3456,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row {
-                Button(enabled = isListening && !measuring, onClick = {
+                Button(enabled = isListening && !inputClipping && !measuring, onClick = {
                     if (!measuring) {
                         measuring = true
                         measuredAvg = null
@@ -3457,13 +3464,17 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                             val samples = mutableListOf<Float>()
                             val start = android.os.SystemClock.elapsedRealtime()
                             var interrupted = false
+                            val measuredInputName = analyzer.inputName.value
                             while (android.os.SystemClock.elapsedRealtime() - start < 3000L) {
-                                if (!analyzer.isListening.value) { interrupted = true; break }
+                                if (!analyzer.isListening.value || analyzer.inputClipping.value || analyzer.inputName.value != measuredInputName) {
+                                    interrupted = true
+                                    break
+                                }
                                 samples.add(analyzer.dbLevel.value)
                                 kotlinx.coroutines.delay(100L)
                             }
                             val avg = if (samples.isNotEmpty()) samples.average().toFloat() else 0f
-                            measuredAvg = avg.takeIf { !interrupted && analyzer.isListening.value && it > 0f }
+                            measuredAvg = avg.takeIf { !interrupted && analyzer.isListening.value && !analyzer.inputClipping.value && analyzer.inputName.value == measuredInputName && it > 0f }
                             measuring = false
                         }
                     }
@@ -3473,7 +3484,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(enabled = isListening && measuredAvg != null && !measuring, onClick = {
+                Button(enabled = isListening && !inputClipping && measuredAvg != null && !measuring, onClick = {
                     val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
                     val base = measuredAvg ?: return@Button
                     val newOffset = currentOffset + (targetDb - base)

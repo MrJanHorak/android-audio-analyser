@@ -63,8 +63,9 @@ Android still has the broader app surface, including Android-specific tool flows
 - Min, max, and arithmetic average are Z-weighted frame readings. The average is not LAeq and does not represent an exposure dose. Paused readings remain frozen.
 - Feedback candidates can also be musical notes or room resonances. Lower the level, confirm by ear, and use small EQ adjustments.
 - The delay calculator uses the difference in distances to the listening position; apply its estimate to the nearer speaker. Automatic ping and polarity results have been removed from the Android interface pending a validated measurement method.
-- Before using the generator, lower the mixer channel, check the output route, and increase the level gradually.
+- Before using the generator, lower the mixer channel, check the output route, and increase the level gradually. Generator playback stops when the app leaves the foreground.
 - Android capture stops when the app loses foreground focus; bring it back to resume. The status shows the routed input name when Android provides one, or “Input unknown” otherwise. A connected microphone is not necessarily the selected input; check the status after connecting or disconnecting it. Calibration is not associated with a route, so recheck it after every input change.
+- Calibration samples are discarded if capture stops, the reported input name changes, or PCM clipping is detected during measurement. Android may not report every route change, so verify the input and repeat calibration after reconnecting a microphone.
 - A clipping warning appears for two seconds after PCM samples approach full scale. Reduce the level at the microphone and recheck. Some microphones or Android processing can distort before reaching full scale, so the absence of a warning does not prove the signal is clean.
 - If capture fails, use the play button to retry. The app keeps the last readings while paused or unavailable; those values are not live.
 
