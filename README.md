@@ -51,7 +51,7 @@ Android remains the broader product surface today, while iOS now covers the live
 2. Let Gradle sync.
 3. Select the `app` run configuration.
 4. Run on an emulator or device.
-5. Grant microphone permission when prompted.
+5. Grant microphone permission when prompted. Check the listening status and the routed input name before measuring. The meter is indicative and should be checked against a reference meter; see [Android measurement guidance](docs/usage.md#android-measurement-guidance).
 
 Command line:
 

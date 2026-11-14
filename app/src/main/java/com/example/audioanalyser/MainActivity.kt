@@ -70,6 +70,7 @@ import com.example.audioanalyser.shared.markUsed
 import com.example.audioanalyser.shared.SavedTargetCurvePreset
 import com.example.audioanalyser.shared.customTargetCurveFrequencies
 import com.example.audioanalyser.shared.venueCategoryOptions
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import com.example.audioanalyser.ui.theme.AudioAnalyserTheme
 import org.json.JSONArray
@@ -540,6 +541,8 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val error by analyzer.error.collectAsState()
     val isLogging by analyzer.isLogging.collectAsState()
     val isListening by analyzer.isListening.collectAsState()
+    val inputName by analyzer.inputName.collectAsState()
+    val inputClipping by analyzer.inputClipping.collectAsState()
 
     var isPaused by rememberSaveable { mutableStateOf(false) }
 
@@ -702,11 +705,20 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     // Lifecycle-aware start/stop
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val currentPaused by rememberUpdatedState(isPaused)
+    var captureJob by remember { mutableStateOf<Job?>(null) }
+    fun startCapture() {
+        val previousJob = captureJob
+        captureJob = scope.launch {
+            previousJob?.join()
+            if (!isPaused && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                analyzer.startAnalyzing()
+            }
+        }
+    }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> if (!currentPaused) scope.launch { analyzer.startAnalyzing() }
+                Lifecycle.Event.ON_RESUME -> if (!isPaused) startCapture()
                 Lifecycle.Event.ON_PAUSE -> analyzer.stop()
                 else -> {}
             }
@@ -799,16 +811,17 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = { 
-                    isPaused = !isPaused
-                    if (isPaused) {
-                        analyzer.stop()
+                    if (!isListening && !error.isNullOrEmpty()) {
+                        isPaused = false
+                        startCapture()
                     } else {
-                        scope.launch { analyzer.startAnalyzing() }
+                        isPaused = !isPaused
+                        if (isPaused) analyzer.stop() else startCapture()
                     }
                 }) {
                     Icon(
-                        imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        contentDescription = if (isPaused) "Resume" else "Pause"
+                        imageVector = if (isPaused || !error.isNullOrEmpty()) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        contentDescription = if (!error.isNullOrEmpty()) "Retry microphone" else if (isPaused) "Resume" else "Pause"
                     )
                 }
                 IconButton(onClick = { showInfoDialog = true }) {
@@ -828,13 +841,16 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             Text(
                 text = when {
                     !error.isNullOrEmpty() -> "Microphone unavailable"
-                    isListening -> "Listening • Calibration not verified for this input"
+                    isListening -> "Listening • ${inputName ?: "Input unknown"} • Calibration not verified"
                     isPaused -> "Paused • Readings are frozen"
                     else -> "Not listening • Readings may be frozen"
                 },
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
             )
+            if (isListening && inputClipping) {
+                Text("Input may be clipping. Reduce the sound level at the microphone.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+            }
             if (!error.isNullOrEmpty()) {
                 ElevatedCard(modifier = Modifier
                     .fillMaxWidth()
@@ -3439,13 +3455,15 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                         measuredAvg = null
                         scope.launch {
                             val samples = mutableListOf<Float>()
-                            val start = System.currentTimeMillis()
-                            while (System.currentTimeMillis() - start < 3000L) {
+                            val start = android.os.SystemClock.elapsedRealtime()
+                            var interrupted = false
+                            while (android.os.SystemClock.elapsedRealtime() - start < 3000L) {
+                                if (!analyzer.isListening.value) { interrupted = true; break }
                                 samples.add(analyzer.dbLevel.value)
                                 kotlinx.coroutines.delay(100L)
                             }
                             val avg = if (samples.isNotEmpty()) samples.average().toFloat() else 0f
-                            measuredAvg = avg.takeIf { analyzer.isListening.value && it > 0f }
+                            measuredAvg = avg.takeIf { !interrupted && analyzer.isListening.value && it > 0f }
                             measuring = false
                         }
                     }

@@ -18,6 +18,15 @@ object AnalyzerMath {
         return sqrt(sum / read).toFloat()
     }
 
+    /** Detect samples at the PCM rails. Upstream analog or DSP clipping may not reach these rails. */
+    fun hasPcmRailSamples(buffer: ShortArray, read: Int): Boolean {
+        require(read in 1..buffer.size) { "read must be within the buffer" }
+        for (index in 0 until read) {
+            if (buffer[index] >= 32700 || buffer[index] <= -32700) return true
+        }
+        return false
+    }
+
     fun rawDbFromRms(rms: Float, floorDb: Float = -120f): Float {
         require(rms >= 0f) { "rms must not be negative" }
 

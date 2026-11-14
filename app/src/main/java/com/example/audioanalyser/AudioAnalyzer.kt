@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.SystemClock
 import com.example.audioanalyser.shared.AnalyzerFftProcessor
 import com.example.audioanalyser.shared.AnalyzerFrameAnalyzer
 import com.example.audioanalyser.shared.AnalyzerMath
@@ -100,9 +101,14 @@ class AudioAnalyzer {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private val recordingLock = Any()
     @Volatile private var isRecording = false
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening
+    private val _inputName = MutableStateFlow<String?>(null)
+    val inputName: StateFlow<String?> = _inputName
+    private val _inputClipping = MutableStateFlow(false)
+    val inputClipping: StateFlow<Boolean> = _inputClipping
     private val feedbackPeakTracker = FeedbackPeakTracker()
 
     private val _isLogging = MutableStateFlow(false)
@@ -150,9 +156,11 @@ class AudioAnalyzer {
 
     @SuppressLint("MissingPermission")
     suspend fun startAnalyzing() = withContext(Dispatchers.IO) {
-        if (isRecording) return@withContext
-
-        _error.value = null
+        synchronized(recordingLock) {
+            if (isRecording) return@withContext
+            isRecording = true
+            _error.value = null
+        }
 
         val audioRecord = try {
             AudioRecord(
@@ -163,20 +171,30 @@ class AudioAnalyzer {
                 bufferSize
             )
         } catch (e: Exception) {
-            _error.value = e.message ?: "Could not open microphone"
+            synchronized(recordingLock) {
+                if (isRecording) _error.value = e.message ?: "Could not open microphone"
+                isRecording = false
+            }
             return@withContext
         }
 
         if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-            _error.value = "AudioRecord initialization failed"
+            synchronized(recordingLock) {
+                if (isRecording) _error.value = "AudioRecord initialization failed"
+                isRecording = false
+            }
             audioRecord.release()
             return@withContext
         }
 
         try {
             audioRecord.startRecording()
-            isRecording = true
-            _isListening.value = true
+            synchronized(recordingLock) {
+                if (!isRecording) return@withContext
+                _isListening.value = true
+            }
+            var lastRailTimeMs = Long.MIN_VALUE
+            var lastRouteCheckMs = 0L
 
             while (isRecording) {
                 val read = audioRecord.read(audioBuffer, 0, fftSize)
@@ -185,6 +203,14 @@ class AudioAnalyzer {
                     break
                 }
                 if (read == 0) continue
+
+                val nowMs = SystemClock.elapsedRealtime()
+                if (nowMs - lastRouteCheckMs >= 1000L) {
+                    _inputName.value = audioRecord.routedDevice?.productName?.toString()?.takeIf { it.isNotBlank() }
+                    lastRouteCheckMs = nowMs
+                }
+                if (AnalyzerMath.hasPcmRailSamples(audioBuffer, read)) lastRailTimeMs = nowMs
+                _inputClipping.value = lastRailTimeMs != Long.MIN_VALUE && nowMs - lastRailTimeMs < 2000L
 
                 // dB calculation (RMS)
                 val rms = AnalyzerMath.calculateRms(audioBuffer, read)
@@ -267,22 +293,30 @@ class AudioAnalyzer {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _error.value = e.message ?: "Audio processing error"
+            if (isRecording) _error.value = e.message ?: "Audio processing error"
         } finally {
             try {
                 if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) audioRecord.stop()
             } catch (ignored: Exception) {
             }
             audioRecord.release()
-            isRecording = false
-            _isListening.value = false
+            synchronized(recordingLock) {
+                isRecording = false
+                _isListening.value = false
+                _inputName.value = null
+                _inputClipping.value = false
+            }
             clearFeedbackPeaks()
         }
     }
 
     fun stop() {
-        isRecording = false
-        _isListening.value = false
+        synchronized(recordingLock) {
+            isRecording = false
+            _isListening.value = false
+            _inputName.value = null
+            _inputClipping.value = false
+        }
         clearFeedbackPeaks()
     }
 

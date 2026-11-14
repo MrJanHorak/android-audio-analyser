@@ -64,4 +64,16 @@ Android still has the broader app surface, including Android-specific tool flows
 - Feedback candidates can also be musical notes or room resonances. Lower the level, confirm by ear, and use small EQ adjustments.
 - The delay calculator uses the difference in distances to the listening position; apply its estimate to the nearer speaker. Automatic ping and polarity results have been removed from the Android interface pending a validated measurement method.
 - Before using the generator, lower the mixer channel, check the output route, and increase the level gradually.
-- Android capture stops when the app loses foreground focus; bring it back to resume. Verify input routing and readings on the actual device.
+- Android capture stops when the app loses foreground focus; bring it back to resume. The status shows the routed input name when Android provides one, or “Input unknown” otherwise. A connected microphone is not necessarily the selected input; check the status after connecting or disconnecting it. Calibration is not associated with a route, so recheck it after every input change.
+- A clipping warning appears for two seconds after PCM samples approach full scale. Reduce the level at the microphone and recheck. Some microphones or Android processing can distort before reaching full scale, so the absence of a warning does not prove the signal is clean.
+- If capture fails, use the play button to retry. The app keeps the last readings while paused or unavailable; those values are not live.
+
+### Android device checks
+
+Before using a new phone or microphone for an event:
+
+1. Start capture, make a sound, and confirm the status says **Listening** and the readings change. Pause and resume, then background and reopen the app; check that capture restarts only when expected.
+2. Connect and disconnect an external microphone, checking the input name and recalibrating against a reference meter after changes. A device may report a generic name or no name.
+3. Check the clipping warning using a controlled input where available. Do not create unsafe sound levels just to trigger it. Check for distortion by ear as well.
+4. Test microphone permission denial and recovery, and confirm the retry button works after an input error.
+5. Verify the generator output route and start with the mixer channel down before raising the level.
