@@ -359,10 +359,6 @@ private fun loadAnalyzerPreferenceState(context: Context): AnalyzerPreferenceSta
     )
 }
 
-private fun persistNoiseThreshold(context: Context, noiseThreshold: Float) {
-    context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
-        .edit().putFloat("noise_threshold", noiseThreshold).apply()
-}
 
 private fun buildAnalyzerBackupJson(
     preferenceState: AnalyzerPreferenceState,
@@ -636,9 +632,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 val importedCurves = sortSavedTargetCurvePresets(importedBackup.savedTargetCurves)
                 val importedProfiles = buildAnalyzerTargetCurveProfiles(importedCurves)
 
-                analyzer.setNoiseThreshold(importedPreferences.noiseThreshold)
-                prefs.edit().putFloat("db_offset", importedPreferences.dbOffset).apply()
-                persistNoiseThreshold(ctx, importedPreferences.noiseThreshold)
+                prefs.edit().putFloat("db_offset", importedPreferences.dbOffset)
+                    .putFloat("noise_threshold", importedPreferences.noiseThreshold).apply()
+                if (analyzer.inputIdentity.value != null && analyzer.isListening.value) {
+                    analyzer.setAndSaveNoiseThreshold(importedPreferences.noiseThreshold)
+                }
 
                 savedTargetCurves = importedCurves
                 saveSavedTargetCurvePresets(ctx, importedCurves)
@@ -652,7 +650,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     ?: importedProfiles.first().id
                 spectrumSnapshot = null
                 snapshotCompareEnabled = false
-                settingsBackupMessage = "Backup imported. Legacy offset retained but not applied to the current input; check calibration."
+                settingsBackupMessage = "Backup imported. The gate was applied to the active input if available; the legacy offset remains unassigned."
             }
         }
     }
@@ -662,7 +660,6 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         val loadedSavedTargetCurves = loadSavedTargetCurvePresets(ctx)
         val loadedTargetCurveProfiles = buildAnalyzerTargetCurveProfiles(loadedSavedTargetCurves)
 
-        analyzer.setNoiseThreshold(savedPreferences.noiseThreshold)
         feedbackHuntEnabled = savedPreferences.feedbackHuntEnabled
         bigGraphModeEnabled = savedPreferences.bigGraphModeEnabled
         savedTargetCurves = loadedSavedTargetCurves
@@ -1024,7 +1021,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             },
             importExportMessage = settingsBackupMessage,
             onOffsetChange = { analyzer.setAndSaveDbOffset(it) },
-            onThresholdChange = { analyzer.setNoiseThreshold(it) },
+            onThresholdChange = { analyzer.setAndSaveNoiseThreshold(it) },
             onExportBackup = { exportBackupLauncher.launch(ANALYZER_BACKUP_FILE_NAME) },
             onImportBackup = { importBackupLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
             onDismiss = { showSettingsDialog = false },
@@ -3085,7 +3082,6 @@ fun SettingsDialog(
     onDismiss: () -> Unit,
     onOpenCalibration: (() -> Unit)? = null
 ) {
-    val ctx = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(id = R.string.mic_calibration)) },
@@ -3119,7 +3115,7 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (!offsetEditable) Text("Start capture and wait for Android to identify the input before adjusting the offset.", style = MaterialTheme.typography.labelSmall)
+                if (!offsetEditable) Text("Start capture and wait for Android to identify the input before adjusting the offset or gate.", style = MaterialTheme.typography.labelSmall)
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
@@ -3129,6 +3125,7 @@ fun SettingsDialog(
                 Slider(
                     value = currentThreshold,
                     onValueChange = onThresholdChange,
+                    enabled = offsetEditable,
                     valueRange = 0f..120f
                 )
                 Text(
@@ -3145,7 +3142,7 @@ fun SettingsDialog(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Save venue curves plus app preferences to a file, or import them on another device. Import replaces the current saved curves and app preferences.",
+                    text = "Save venue curves plus app preferences to a file, or import them on another device. Device-specific offset and gate profiles are not transferred.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -3176,7 +3173,6 @@ fun SettingsDialog(
         dismissButton = {
             if (onOpenCalibration != null) {
                 TextButton(onClick = {
-                    persistNoiseThreshold(ctx, currentThreshold)
                     onDismiss()
                     onOpenCalibration()
                 }) {
@@ -3186,7 +3182,6 @@ fun SettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                persistNoiseThreshold(ctx, currentThreshold)
                 onDismiss()
             }) {
                 Text(stringResource(id = R.string.done))

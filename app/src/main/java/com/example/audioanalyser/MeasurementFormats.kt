@@ -6,6 +6,9 @@ internal fun calibrationProfileKey(source: Int, builtIn: Boolean, name: String?)
     return "input_offset:$source:${name.length}:$name"
 }
 
+internal fun noiseGateProfileKey(calibrationKey: String?): String? =
+    calibrationKey?.let { "input_gate:" + it.removePrefix("input_offset:") }
+
 internal const val ANALYZER_CSV_HEADER =
     "Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz),dB(Z) status,dB(A) status,dB(C) status"
 

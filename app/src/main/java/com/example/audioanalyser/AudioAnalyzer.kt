@@ -147,8 +147,13 @@ class AudioAnalyzer(context: Context) {
         }
     }
 
-    fun setNoiseThreshold(value: Float) {
-        _noiseThreshold.value = value
+    fun setAndSaveNoiseThreshold(value: Float) {
+        synchronized(recordingLock) {
+            _noiseThreshold.value = value
+            noiseGateProfileKey(activeProfileKey)?.let { key ->
+                preferences.edit().putFloat(key, value).apply()
+            }
+        }
     }
 
     fun resetStats() {
@@ -182,6 +187,7 @@ class AudioAnalyzer(context: Context) {
             _error.value = null
             activeProfileKey = null
             _dbOffset.value = 30f
+            _noiseThreshold.value = preferences.getFloat("noise_threshold", 25f)
             _calibrationStatus.value = "Waiting for input"
         }
 
@@ -239,6 +245,9 @@ class AudioAnalyzer(context: Context) {
                         val profileKey = calibrationProfileKey(audioSource, route?.type == AudioDeviceInfo.TYPE_BUILTIN_MIC, routeName)
                         activeProfileKey = profileKey
                         _dbOffset.value = if (profileKey != null) preferences.getFloat(profileKey, 30f) else 30f
+                        val defaultGate = preferences.getFloat("noise_threshold", 25f)
+                        val gateKey = noiseGateProfileKey(profileKey)
+                        _noiseThreshold.value = if (gateKey != null) preferences.getFloat(gateKey, defaultGate) else defaultGate
                         _calibrationStatus.value = when {
                             route == null -> "Input not identified • calibration unverified"
                             profileKey == null -> "External or unidentified input • temporary offset only"
