@@ -2,20 +2,23 @@ package com.example.audioanalyser
 
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
-import android.graphics.RectF
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.withContext
 import kotlin.math.log10
-import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -28,115 +31,79 @@ fun WaterfallVisualizer(
     gamma: Float = 0.6f,
     colormapName: String = "inferno"
 ) {
-    Box(modifier = modifier) {
-        // Keep a mutable bitmap and integer pixel buffer across recompositions
-        val bitmapState = remember { mutableStateOf<Bitmap?>(null) }
-        val pixelBufferState = remember { mutableStateOf(IntArray(0)) }
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            if (spectrogram.isEmpty()) return@Canvas
-
-            val rows = spectrogram.size
-            val cols = spectrogram.first().size
-            val drawCols = minOf(cols, 256)
-            val colStep = cols.toFloat() / drawCols
-
-            val widthPx = size.width.roundToInt().coerceAtLeast(1)
-            val heightPx = size.height.roundToInt().coerceAtLeast(1)
-
-            // Ensure bitmap and buffer are sized appropriately
-            var bitmap = bitmapState.value
-            if (bitmap == null || bitmap.width != widthPx || bitmap.height != heightPx) {
-                bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
-                bitmapState.value = bitmap
-                pixelBufferState.value = IntArray(widthPx * heightPx)
-            }
-            val pixels = pixelBufferState.value
-            if (pixels.size < widthPx * heightPx) pixelBufferState.value = IntArray(widthPx * heightPx).also { _ -> }
-
-            // Convert magnitudes to dB and collect a flattened array for percentile stats
-            val eps = 1e-12f
-            val dbList = FloatArray(rows * drawCols)
-            var flatIdx = 0
-            for (r in 0 until rows) {
-                val frame = spectrogram[r]
-                for (c in 0 until drawCols) {
-                    val src = (c * colStep).toInt().coerceIn(0, cols - 1)
-                    val mag = frame[src]
-                    val db = (20.0 * log10((mag + eps).toDouble())).toFloat()
-                    dbList[flatIdx++] = db
-                }
-            }
-            if (flatIdx == 0) return@Canvas
-
-            val validCount = flatIdx
-            val tmp = dbList.copyOf(validCount)
-            tmp.sort()
-            val lowIdx = ((validCount - 1) * minPercentile).toInt().coerceIn(0, validCount - 1)
-            val highIdx = ((validCount - 1) * maxPercentile).toInt().coerceIn(0, validCount - 1)
-            var lowVal = tmp[lowIdx]
-            var highVal = tmp[highIdx]
-            if (highVal <= lowVal) highVal = lowVal + 1f
-
-            // Fill pixels buffer: map each spectrogram row into image rows
-            // We'll map row 0 (oldest) to top pixel row 0 and newest to bottom
-            val rowHeight = heightPx.toFloat() / rows
-            val w = widthPx
-            val h = heightPx
-            // ensure pixel array size
-            if (pixels.size < w * h) {
-                pixelBufferState.value = IntArray(w * h)
-            }
-            val outPixels = pixelBufferState.value
-
-            // Clear to black initially
-            var p = 0
-            val total = w * h
-            while (p < total) {
-                outPixels[p++] = AndroidColor.BLACK
-            }
-
-            for (r in 0 until rows) {
-                val frame = spectrogram[r]
-                val yStart = (r * rowHeight).toInt().coerceIn(0, h - 1)
-                val yEnd = (((r + 1) * rowHeight).toInt()).coerceIn(0, h)
-                for (c in 0 until drawCols) {
-                    val src = (c * colStep).toInt().coerceIn(0, cols - 1)
-                    val mag = frame[src]
-                    val db = (20.0 * log10((mag + eps).toDouble())).toFloat()
-                    var norm = (db - lowVal) / (highVal - lowVal)
-                    norm = norm.coerceIn(0f, 1f)
-                    norm = norm.pow(gamma)
-                    val colorInt = when (colormapName.lowercase()) {
-                        "viridis" -> viridisColor(norm)
-                        "plasma" -> plasmaColor(norm)
-                        "magma" -> magmaColor(norm)
-                        else -> infernoColor(norm)
-                    }
-                    // map column to pixel x range
-                    val xStart = (c * (w.toFloat() / drawCols)).toInt().coerceIn(0, w - 1)
-                    val xEnd = (((c + 1) * (w.toFloat() / drawCols)).toInt()).coerceIn(0, w)
-                    for (yy in yStart until yEnd) {
-                        val rowOffset = yy * w
-                        var xx = xStart
-                        while (xx < xEnd) {
-                            outPixels[rowOffset + xx] = colorInt
-                            xx++
-                        }
-                    }
-                }
-            }
-
-            // push pixels into bitmap and draw using Compose drawImage
-            try {
-                bitmap.setPixels(outPixels, 0, w, 0, 0, w, h)
-                val img = bitmap.asImageBitmap()
-                drawImage(img, srcSize = IntSize(w, h), dstSize = IntSize(w, h))
-            } catch (t: Throwable) {
-                // fallback: draw nothing
+    // Build the palette only when a setting changes, instead of parsing colors per cell.
+    val palette = remember(colormapName, gamma) {
+        IntArray(256) { index ->
+            val level = (index / 255f).pow(gamma)
+            when (colormapName.lowercase()) {
+                "viridis" -> viridisColor(level)
+                "plasma" -> plasmaColor(level)
+                "magma" -> magmaColor(level)
+                else -> infernoColor(level)
             }
         }
     }
+    val latestSpectrogram by rememberUpdatedState(spectrogram)
+    val image by produceState<ImageBitmap?>(
+        initialValue = null, minPercentile, maxPercentile, palette
+    ) {
+        // Finish rendering the current frame and skip stale updates if the phone is busy.
+        snapshotFlow { latestSpectrogram }.conflate().collect { history ->
+            value = withContext(Dispatchers.Default) {
+                renderWaterfall(history, minPercentile, maxPercentile, palette)
+            }
+        }
+    }
+
+    Canvas(modifier = modifier) {
+        image?.let { bitmap ->
+            drawImage(
+                image = bitmap,
+                srcSize = IntSize(bitmap.width, bitmap.height),
+                dstSize = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1))
+            )
+        }
+    }
+}
+
+/** Render one pixel per displayed frequency bin and history frame, then scale at draw time. */
+private suspend fun renderWaterfall(
+    spectrogram: List<FloatArray>,
+    minPercentile: Float,
+    maxPercentile: Float,
+    palette: IntArray
+): ImageBitmap? {
+    if (spectrogram.isEmpty() || spectrogram.first().isEmpty()) return null
+    val rows = spectrogram.size
+    val sourceCols = spectrogram.first().size
+    val cols = minOf(sourceCols, 256)
+    val cellCount = rows * cols
+    val values = FloatArray(cellCount)
+    val context = currentCoroutineContext()
+    for (row in 0 until rows) {
+        context.ensureActive()
+        val frame = spectrogram[row]
+        for (col in 0 until cols) {
+            val source = (col.toLong() * sourceCols / cols).toInt()
+            val magnitude = frame.getOrElse(source) { 0f }
+            values[row * cols + col] = (20.0 * log10((magnitude + 1e-12f).toDouble())).toFloat()
+        }
+    }
+    val sorted = values.copyOf()
+    sorted.sort()
+    context.ensureActive()
+    val lowIndex = ((cellCount - 1) * minPercentile).toInt().coerceIn(0, cellCount - 1)
+    val highIndex = ((cellCount - 1) * maxPercentile).toInt().coerceIn(0, cellCount - 1)
+    val low = sorted[lowIndex]
+    val high = maxOf(sorted[highIndex], low + 1f)
+    val pixels = IntArray(cellCount) { index ->
+        val normalized = ((values[index] - low) / (high - low)).coerceIn(0f, 1f)
+        palette[(normalized * 255).roundToInt().coerceIn(0, 255)]
+    }
+    context.ensureActive()
+    return Bitmap.createBitmap(cols, rows, Bitmap.Config.ARGB_8888).apply {
+        setPixels(pixels, 0, cols, 0, 0, cols, rows)
+    }.asImageBitmap()
 }
 
 // Inferno-like colormap: interpolate between color stops

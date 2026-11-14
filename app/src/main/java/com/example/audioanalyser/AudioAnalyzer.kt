@@ -264,7 +264,7 @@ class AudioAnalyzer {
                 _frequencies.value = smoothedFrequencies.copyOf()
                 // push the current smoothed spectrum into the spectrogram buffer
                 try {
-                    spectrogramBuffer.addFrame(smoothedFrequencies)
+                    spectrogramBuffer.addFrame(smoothedFrequencies, nowMs)
                 } catch (_: Exception) {
                 }
 

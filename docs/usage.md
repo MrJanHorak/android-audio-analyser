@@ -55,7 +55,7 @@ Android still has the broader app surface, including Android-specific tool flows
 - **Dominant frequency** helps identify the strongest detected tone or resonant peak.
 - **Feedback suggestions** are more meaningful after a stable tone persists for a moment.
 - **Min / Avg / Max** accumulate after non-zero readings so idle silence does not pollute the stats.
-- **Waterfall history** makes changing resonance or sustained tones easier to see over time.
+- **Waterfall history** makes changing resonance or sustained tones easier to see over time. On Android, the display refreshes up to 10 times per second to reduce rendering load; the analyzer continues processing audio frames and storing history between display updates.
 
 ## Android measurement guidance
 
