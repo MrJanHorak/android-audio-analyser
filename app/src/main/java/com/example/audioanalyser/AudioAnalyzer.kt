@@ -1,6 +1,8 @@
 package com.example.audioanalyser
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -15,7 +17,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
-class AudioAnalyzer {
+class AudioAnalyzer(context: Context) {
+    private val preferences = context.applicationContext.getSharedPreferences("audio_prefs", Context.MODE_PRIVATE)
+    private var activeProfileKey: String? = null
     private val sampleRate = 44100
     private val fftSize = 1024
     private val bufferSize = AudioRecord.getMinBufferSize(
@@ -107,10 +111,17 @@ class AudioAnalyzer {
     val isListening: StateFlow<Boolean> = _isListening
     private val _inputName = MutableStateFlow<String?>(null)
     val inputName: StateFlow<String?> = _inputName
+    private val _inputIdentity = MutableStateFlow<Int?>(null)
+    val inputIdentity: StateFlow<Int?> = _inputIdentity
+    private val _inputRevision = MutableStateFlow(0L)
+    val inputRevision: StateFlow<Long> = _inputRevision
+    private val _calibrationStatus = MutableStateFlow("Input not identified")
+    val calibrationStatus: StateFlow<String> = _calibrationStatus
     private val _inputClipping = MutableStateFlow(false)
     val inputClipping: StateFlow<Boolean> = _inputClipping
     private val feedbackPeakTracker = FeedbackPeakTracker()
 
+    private val loggingLock = Any()
     private val _isLogging = MutableStateFlow(false)
     val isLogging: StateFlow<Boolean> = _isLogging
     private val loggedData = mutableListOf<String>()
@@ -123,8 +134,17 @@ class AudioAnalyzer {
 
     private val binSize = sampleRate.toFloat() / fftSize
 
-    fun setDbOffset(value: Float) {
-        _dbOffset.value = value
+    fun setAndSaveDbOffset(value: Float) {
+        synchronized(recordingLock) {
+            _dbOffset.value = value
+            val key = activeProfileKey
+            if (key != null) {
+                preferences.edit().putFloat(key, value).apply()
+                _calibrationStatus.value = "Saved input offset • verify with reference meter"
+            } else {
+                _calibrationStatus.value = "Temporary offset • verify with reference meter"
+            }
+        }
     }
 
     fun setNoiseThreshold(value: Float) {
@@ -141,17 +161,17 @@ class AudioAnalyzer {
         clearFeedbackPeaks()
     }
 
-    fun startLogging() {
+    fun startLogging() = synchronized(loggingLock) {
         loggedData.clear()
-        loggedData.add("Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz)")
+        loggedData.add(ANALYZER_CSV_HEADER)
         _isLogging.value = true
     }
 
-    fun stopLogging(): String {
+    fun stopLogging(): String = synchronized(loggingLock) {
         _isLogging.value = false
         val csvContent = loggedData.joinToString("\n")
         loggedData.clear()
-        return csvContent
+        csvContent
     }
 
     @SuppressLint("MissingPermission")
@@ -160,6 +180,9 @@ class AudioAnalyzer {
             if (isRecording) return@withContext
             isRecording = true
             _error.value = null
+            activeProfileKey = null
+            _dbOffset.value = 30f
+            _calibrationStatus.value = "Waiting for input"
         }
 
         val audioRecord = try {
@@ -194,7 +217,8 @@ class AudioAnalyzer {
                 _isListening.value = true
             }
             var lastRailTimeMs = Long.MIN_VALUE
-            var lastRouteCheckMs = 0L
+            var lastRoute: Triple<Int, Int, String>? = null
+            var routeObserved = false
 
             while (isRecording) {
                 val read = audioRecord.read(audioBuffer, 0, fftSize)
@@ -203,11 +227,30 @@ class AudioAnalyzer {
                     break
                 }
                 if (read == 0) continue
+                if (!isRecording) break
 
                 val nowMs = SystemClock.elapsedRealtime()
-                if (nowMs - lastRouteCheckMs >= 1000L) {
-                    _inputName.value = audioRecord.routedDevice?.productName?.toString()?.takeIf { it.isNotBlank() }
-                    lastRouteCheckMs = nowMs
+                val route = audioRecord.routedDevice
+                val routeName = route?.productName?.toString()?.takeIf { it.isNotBlank() }
+                val routeKey = route?.let { Triple(it.id, it.type, routeName.orEmpty()) }
+                if (!routeObserved || routeKey != lastRoute) {
+                    synchronized(recordingLock) {
+                        if (!isRecording) return@withContext
+                        val profileKey = calibrationProfileKey(audioSource, route?.type == AudioDeviceInfo.TYPE_BUILTIN_MIC, routeName)
+                        activeProfileKey = profileKey
+                        _dbOffset.value = if (profileKey != null) preferences.getFloat(profileKey, 30f) else 30f
+                        _calibrationStatus.value = when {
+                            route == null -> "Input not identified • calibration unverified"
+                            profileKey == null -> "External or unidentified input • temporary offset only"
+                            preferences.contains(profileKey) -> "Saved input offset • verify with reference meter"
+                            else -> "Uncalibrated input"
+                        }
+                        _inputIdentity.value = route?.id
+                        _inputRevision.value += 1L
+                        _inputName.value = routeName
+                    }
+                    routeObserved = true
+                    lastRoute = routeKey
                 }
                 if (AnalyzerMath.hasPcmRailSamples(audioBuffer, read)) lastRailTimeMs = nowMs
                 _inputClipping.value = lastRailTimeMs != Long.MIN_VALUE && nowMs - lastRailTimeMs < 2000L
@@ -286,9 +329,11 @@ class AudioAnalyzer {
                 _dbLevelZ.value = dbZvalue
                 updateFeedbackPeaks(currentDb)
 
-                if (_isLogging.value) {
-                    val timestamp = System.currentTimeMillis()
-                    loggedData.add("$timestamp,$dbZvalue,$dbAvalue,$dbCvalue,${_dominantFrequency.value}")
+                synchronized(loggingLock) {
+                    if (_isLogging.value) {
+                        val timestamp = System.currentTimeMillis()
+                        loggedData.add(analyzerCsvRow(timestamp, dbZvalue, dbAvalue, dbCvalue, _dominantFrequency.value))
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -304,6 +349,9 @@ class AudioAnalyzer {
                 isRecording = false
                 _isListening.value = false
                 _inputName.value = null
+                _inputIdentity.value = null
+                activeProfileKey = null
+                _calibrationStatus.value = "Input not identified"
                 _inputClipping.value = false
             }
             clearFeedbackPeaks()
@@ -315,6 +363,9 @@ class AudioAnalyzer {
             isRecording = false
             _isListening.value = false
             _inputName.value = null
+            _inputIdentity.value = null
+            activeProfileKey = null
+            _calibrationStatus.value = "Input not identified"
             _inputClipping.value = false
         }
         clearFeedbackPeaks()

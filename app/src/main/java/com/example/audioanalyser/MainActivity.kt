@@ -83,7 +83,7 @@ import kotlin.math.roundToInt
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
-    private val audioAnalyzer = AudioAnalyzer()
+    private val audioAnalyzer by lazy { AudioAnalyzer(applicationContext) }
     private val signalGenerator = SignalGenerator()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -359,12 +359,9 @@ private fun loadAnalyzerPreferenceState(context: Context): AnalyzerPreferenceSta
     )
 }
 
-private fun persistCalibrationPreferences(context: Context, dbOffset: Float, noiseThreshold: Float) {
+private fun persistNoiseThreshold(context: Context, noiseThreshold: Float) {
     context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
-        .edit()
-        .putFloat("db_offset", dbOffset)
-        .putFloat("noise_threshold", noiseThreshold)
-        .apply()
+        .edit().putFloat("noise_threshold", noiseThreshold).apply()
 }
 
 private fun buildAnalyzerBackupJson(
@@ -545,6 +542,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val isListening by analyzer.isListening.collectAsState()
     val inputName by analyzer.inputName.collectAsState()
     val inputClipping by analyzer.inputClipping.collectAsState()
+    val calibrationStatus by analyzer.calibrationStatus.collectAsState()
 
     var isPaused by rememberSaveable { mutableStateOf(false) }
 
@@ -638,9 +636,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 val importedCurves = sortSavedTargetCurvePresets(importedBackup.savedTargetCurves)
                 val importedProfiles = buildAnalyzerTargetCurveProfiles(importedCurves)
 
-                analyzer.setDbOffset(importedPreferences.dbOffset)
                 analyzer.setNoiseThreshold(importedPreferences.noiseThreshold)
-                persistCalibrationPreferences(ctx, importedPreferences.dbOffset, importedPreferences.noiseThreshold)
+                prefs.edit().putFloat("db_offset", importedPreferences.dbOffset).apply()
+                persistNoiseThreshold(ctx, importedPreferences.noiseThreshold)
 
                 savedTargetCurves = importedCurves
                 saveSavedTargetCurvePresets(ctx, importedCurves)
@@ -654,7 +652,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     ?: importedProfiles.first().id
                 spectrumSnapshot = null
                 snapshotCompareEnabled = false
-                settingsBackupMessage = "Backup imported. Saved curves and preferences updated."
+                settingsBackupMessage = "Backup imported. Legacy offset retained but not applied to the current input; check calibration."
             }
         }
     }
@@ -664,7 +662,6 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         val loadedSavedTargetCurves = loadSavedTargetCurvePresets(ctx)
         val loadedTargetCurveProfiles = buildAnalyzerTargetCurveProfiles(loadedSavedTargetCurves)
 
-        analyzer.setDbOffset(savedPreferences.dbOffset)
         analyzer.setNoiseThreshold(savedPreferences.noiseThreshold)
         feedbackHuntEnabled = savedPreferences.feedbackHuntEnabled
         bigGraphModeEnabled = savedPreferences.bigGraphModeEnabled
@@ -863,7 +860,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             Text(
                 text = when {
                     !error.isNullOrEmpty() -> "Microphone unavailable"
-                    isListening -> "Listening • ${inputName ?: "Input unknown"} • $inputModeLabel • Calibration not verified"
+                    isListening -> "Listening • ${inputName ?: "Input unknown"} • $inputModeLabel • $calibrationStatus"
                     isPaused -> "Paused • Readings are frozen"
                     else -> "Not listening • Readings may be frozen"
                 },
@@ -1013,6 +1010,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         SettingsDialog(
             currentOffset = dbOffset,
             currentThreshold = noiseThreshold,
+            offsetEditable = isListening && analyzer.inputIdentity.collectAsState().value != null,
             measurementInput = measurementInput,
             unprocessedSupported = unprocessedSupported,
             onMeasurementInputChange = { selected ->
@@ -1025,7 +1023,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 }
             },
             importExportMessage = settingsBackupMessage,
-            onOffsetChange = { analyzer.setDbOffset(it) },
+            onOffsetChange = { analyzer.setAndSaveDbOffset(it) },
             onThresholdChange = { analyzer.setNoiseThreshold(it) },
             onExportBackup = { exportBackupLauncher.launch(ANALYZER_BACKUP_FILE_NAME) },
             onImportBackup = { importBackupLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
@@ -3075,6 +3073,7 @@ fun formatSignedDbDelta(deltaDb: Float): String =
 fun SettingsDialog(
     currentOffset: Float,
     currentThreshold: Float,
+    offsetEditable: Boolean,
     measurementInput: Boolean,
     unprocessedSupported: Boolean,
     onMeasurementInputChange: (Boolean) -> Unit,
@@ -3111,6 +3110,7 @@ fun SettingsDialog(
                 Slider(
                     value = currentOffset,
                     onValueChange = onOffsetChange,
+                    enabled = offsetEditable,
                     valueRange = 0f..100f
                 )
                 Text(
@@ -3119,6 +3119,7 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                if (!offsetEditable) Text("Start capture and wait for Android to identify the input before adjusting the offset.", style = MaterialTheme.typography.labelSmall)
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
@@ -3175,7 +3176,7 @@ fun SettingsDialog(
         dismissButton = {
             if (onOpenCalibration != null) {
                 TextButton(onClick = {
-                    persistCalibrationPreferences(ctx, currentOffset, currentThreshold)
+                    persistNoiseThreshold(ctx, currentThreshold)
                     onDismiss()
                     onOpenCalibration()
                 }) {
@@ -3185,7 +3186,7 @@ fun SettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                persistCalibrationPreferences(ctx, currentOffset, currentThreshold)
+                persistNoiseThreshold(ctx, currentThreshold)
                 onDismiss()
             }) {
                 Text(stringResource(id = R.string.done))
@@ -3471,18 +3472,18 @@ fun EqReferenceCard(entry: EqReferenceEntry) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
-    val ctx = LocalContext.current
     val currentOffset by analyzer.dbOffset.collectAsState()
     val dbLevel by analyzer.dbLevel.collectAsState()
     val dominant by analyzer.dominantFrequency.collectAsState()
     val isListening by analyzer.isListening.collectAsState()
-    val inputName by analyzer.inputName.collectAsState()
+    val inputIdentity by analyzer.inputIdentity.collectAsState()
+    val inputRevision by analyzer.inputRevision.collectAsState()
     val inputClipping by analyzer.inputClipping.collectAsState()
     var targetDb by remember { mutableStateOf(85f) }
     var measuring by remember { mutableStateOf(false) }
     var measuredAvg by remember { mutableStateOf<Float?>(null) }
     // Changing routes, stopping capture, or clipping invalidates the last sample.
-    LaunchedEffect(isListening, inputName, inputClipping) { measuredAvg = null }
+    LaunchedEffect(isListening, inputRevision, inputClipping) { measuredAvg = null }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -3501,6 +3502,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             .padding(innerPadding)
             .padding(16.dp)) {
             Text("Compare against a reference meter at the same location using a steady sound. This adjusts level only; it does not correct microphone frequency response or processing. Recheck after changing microphones or routes.", style = MaterialTheme.typography.bodyMedium)
+            if (inputIdentity == null) Text("Waiting for Android to identify the microphone before calibrating.", style = MaterialTheme.typography.bodyMedium)
             if (inputClipping) Text("Input may be clipping. Reduce the sound level before calibrating.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             Text(text = String.format(Locale.getDefault(), "%.1f dB", dbLevel), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
             Text(text = stringResource(id = R.string.freq_visualizer_semantics, dominant), style = MaterialTheme.typography.bodyMedium)
@@ -3513,7 +3515,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row {
-                Button(enabled = isListening && !inputClipping && !measuring, onClick = {
+                Button(enabled = isListening && inputIdentity != null && !inputClipping && !measuring, onClick = {
                     if (!measuring) {
                         measuring = true
                         measuredAvg = null
@@ -3521,9 +3523,9 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                             val samples = mutableListOf<Float>()
                             val start = android.os.SystemClock.elapsedRealtime()
                             var interrupted = false
-                            val measuredInputName = analyzer.inputName.value
+                            val measuredInputRevision = analyzer.inputRevision.value
                             while (android.os.SystemClock.elapsedRealtime() - start < 3000L) {
-                                if (!analyzer.isListening.value || analyzer.inputClipping.value || analyzer.inputName.value != measuredInputName) {
+                                if (!analyzer.isListening.value || analyzer.inputClipping.value || analyzer.inputRevision.value != measuredInputRevision) {
                                     interrupted = true
                                     break
                                 }
@@ -3531,7 +3533,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                                 kotlinx.coroutines.delay(100L)
                             }
                             val avg = if (samples.isNotEmpty()) samples.average().toFloat() else 0f
-                            measuredAvg = avg.takeIf { !interrupted && analyzer.isListening.value && !analyzer.inputClipping.value && analyzer.inputName.value == measuredInputName && it > 0f }
+                            measuredAvg = avg.takeIf { !interrupted && analyzer.isListening.value && !analyzer.inputClipping.value && analyzer.inputRevision.value == measuredInputRevision && it > 0f }
                             measuring = false
                         }
                     }
@@ -3541,13 +3543,11 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(enabled = isListening && !inputClipping && measuredAvg != null && !measuring, onClick = {
-                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
+                Button(enabled = isListening && inputIdentity != null && !inputClipping && measuredAvg != null && !measuring, onClick = {
                     val base = measuredAvg ?: return@Button
                     val newOffset = currentOffset + (targetDb - base)
-                    analyzer.setDbOffset(newOffset)
+                    analyzer.setAndSaveDbOffset(newOffset)
                     measuredAvg = null
-                    prefs.edit().putFloat("db_offset", newOffset).apply()
                 }) {
                     Text(stringResource(id = R.string.set_offset_button))
                 }
@@ -3559,8 +3559,6 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Row {
                 Button(onClick = {
-                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
-                    prefs.edit().putFloat("db_offset", analyzer.dbOffset.value).apply()
                     onClose()
                 }) {
                     Text(stringResource(id = R.string.done))
