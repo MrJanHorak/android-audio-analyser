@@ -153,7 +153,7 @@ fun DelayCalculatorPanel(modifier: Modifier = Modifier) {
                 )
             }
         }
-        
+
         ToolHelperText(
             text = "Enter the difference between the two speakers' distances to the listening position. Apply the calculated delay to the closer speaker. This is a distance-based starting point; verify the result by listening or with suitable measurement equipment.",
             modifier = Modifier.padding(top = 12.dp)
@@ -495,7 +495,7 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     ) {
                         Text("Grant Access")
                     }
-                    
+
                     if (permissionRequested && !shouldShowRationale) {
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(
@@ -826,7 +826,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { 
+                IconButton(onClick = {
                     if (!isListening && !error.isNullOrEmpty()) {
                         isPaused = false
                         startCapture()
@@ -1095,10 +1095,11 @@ fun PortraitLayout(
             maxDb = maxDb,
             avgDb = avgDb,
             dbHistory = dbHistory,
+            allowCompact = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         VisualizerCard(
             analyzer = analyzer,
@@ -1449,9 +1450,17 @@ fun DbMeterCard(
     maxDb: Float,
     avgDb: Float,
     dbHistory: List<Float>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allowCompact: Boolean = false
 ) {
     var selectedWeighting by rememberSaveable { mutableStateOf("Z") }
+    val ctx = LocalContext.current
+    val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
+    var compact by rememberSaveable { mutableStateOf(allowCompact && prefs.getBoolean("compact_portrait_meter", false)) }
+    LaunchedEffect(compact, allowCompact) {
+        if (allowCompact) prefs.edit().putBoolean("compact_portrait_meter", compact).apply()
+    }
+    val compactMeter = allowCompact && compact
     val displayDb = when(selectedWeighting) {
         "A" -> dbLevelA
         "C" -> dbLevelC
@@ -1471,19 +1480,24 @@ fun DbMeterCard(
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
-                .padding(24.dp)
+                .padding(if (compactMeter) 12.dp else 24.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = stringResource(id = R.string.sound_level),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (allowCompact) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(id = R.string.sound_level), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { compact = !compact }) {
+                        Text(if (compactMeter) "Show details" else "Compact")
+                    }
+                }
+            } else {
+                Text(stringResource(id = R.string.sound_level), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             AutoSizeText(
                 text = reading,
-                style = MaterialTheme.typography.displayMedium,
+                style = if (compactMeter) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = dbColor
             )
@@ -1518,27 +1532,30 @@ fun DbMeterCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            if (!compactMeter) {
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
-                StatItem(stringResource(id = R.string.avg_label), avgDb)
-                StatItem(stringResource(id = R.string.max_label), maxDb)
+                Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
+                    StatItem(stringResource(id = R.string.avg_label), avgDb)
+                    StatItem(stringResource(id = R.string.max_label), maxDb)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // History Sparkline
+                HistorySparkline(
+                    history = dbHistory,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // History Sparkline
-            HistorySparkline(
-                history = dbHistory,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
-            )
         }
     }
 }
@@ -1688,6 +1705,7 @@ fun VisualizerCard(
     }
     var showAnalyzerTools by remember { mutableStateOf(false) }
     var showSavedCurvesDialog by remember { mutableStateOf(false) }
+    var showFeedbackGuide by remember { mutableStateOf(false) }
     var showWaterfall by rememberSaveable { mutableStateOf(false) }
     val matchedBand = selectedOverlay.bandFor(dominantFrequency)
     val primaryFeedbackPeak = feedbackPeaks.firstOrNull()
@@ -1756,8 +1774,11 @@ fun VisualizerCard(
                         }
                     }
 
-                    TextButton(onClick = { showAnalyzerTools = true }) {
-                        Text("Tools")
+                    Row {
+                        if (feedbackHuntEnabled) {
+                            TextButton(onClick = { showFeedbackGuide = true }) { Text("Guide") }
+                        }
+                        TextButton(onClick = { showAnalyzerTools = true }) { Text("Tools") }
                     }
                 }
 
@@ -1824,8 +1845,11 @@ fun VisualizerCard(
                         )
                     }
 
-                    TextButton(onClick = { showAnalyzerTools = true }) {
-                        Text("Tools")
+                    Row {
+                        if (feedbackHuntEnabled) {
+                            TextButton(onClick = { showFeedbackGuide = true }) { Text("Guide") }
+                        }
+                        TextButton(onClick = { showAnalyzerTools = true }) { Text("Tools") }
                     }
                 }
 
@@ -1957,6 +1981,10 @@ fun VisualizerCard(
                 }
             }
         }
+    }
+
+    if (showFeedbackGuide) {
+        FeedbackGuideDialog(primaryFeedbackPeak, onDismiss = { showFeedbackGuide = false })
     }
 
     if (showAnalyzerTools) {
@@ -2440,7 +2468,7 @@ fun AnalyzerToolsSheet(
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2762,7 +2790,7 @@ fun FrequencyVisualizer(
     )
 
     val minFreq = 20f
-    val maxFreq = 22050f 
+    val maxFreq = 22050f
     val bassColor = MaterialTheme.colorScheme.primary
     val midsColor = MaterialTheme.colorScheme.secondary
     val highsColor = MaterialTheme.colorScheme.tertiary
@@ -3004,11 +3032,7 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "Feedback watch",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Text("Feedback watch", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
 
             ToolHelperText(text = "A peak may be music or room resonance. Reduce the level first, confirm by ear, and make small EQ changes.", modifier = Modifier.padding(top = 4.dp))
             if (feedbackPeaks.isEmpty()) {
@@ -3052,6 +3076,32 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
             }
         }
     }
+}
+
+@Composable
+fun FeedbackGuideDialog(peak: FeedbackPeak?, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Find a ringing frequency") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    if (peak == null) "No candidate is currently shown. Listen for a persistent tone and watch the graph."
+                    else "Possible candidate: ${formatFrequencyLabel(peak.suggestedCutHz)} (${feedbackPeakLabel(peak)}). Stability describes the peak, not certainty that it is feedback.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("1. Lower the ringing channel or monitor. If you cannot identify it, lower the main level first.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("2. Confirm the tone by ear. A peak can also be a musical note or room noise.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("3. On the affected channel or monitor EQ, try a small, narrow cut near the candidate. Do not assume the main EQ is the right place.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("4. Raise the level cautiously and listen again. Undo the cut if it does not help; check microphone and speaker placement.")
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
 }
 
 fun feedbackPeakLabel(peak: FeedbackPeak): String = when (FeedbackPeakPresentation.stabilityKey(peak)) {
@@ -3576,7 +3626,7 @@ fun AutoSizeText(
     maxLines: Int = 1
 ) {
     var multiplier by remember { mutableFloatStateOf(1f) }
-    
+
     val mergedStyle = style.merge(
         TextStyle(
             color = color,
