@@ -22,7 +22,7 @@ Important modules:
 
 | Tool | Why it is needed |
 | --- | --- |
-| JDK 17+ | Gradle, Android builds, and XCFramework preparation |
+| JDK 21 | Gradle daemon toolchain selected by `gradle/gradle-daemon-jvm.properties` |
 | Android Studio + Android SDK | Android app development and emulator/device testing |
 | Xcode | iOS build, simulator/device launch, signing |
 | XcodeGen | Generates `ios/SoundRunner.xcodeproj` from `ios/project.yml` |
@@ -31,10 +31,12 @@ Important modules:
 
 ### Android
 
-- `compileSdk = 36`
-- `targetSdk = 36`
+- Compile SDK: Android 36, minor API level 1
+- Target SDK: Android 36
 - `minSdk = 24`
 - Java target = 11
+
+The Android app also uses CMake and the Android NDK to build its native FFT library. With Android Studio, install the SDK platform, build tools, NDK (Side by side), and CMake through SDK Manager. Android Gradle Plugin 9.2.1 selects NDK `28.2.13676358` by default unless the project configures another version. The SDK directory can be supplied with `ANDROID_HOME` or a local `sdk.dir` in `local.properties` (keep this machine-specific file out of version control). Gradle or SDK Manager may need to download missing components and ask you to accept Android SDK licenses.
 
 ### Shared module
 

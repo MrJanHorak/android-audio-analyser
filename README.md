@@ -27,12 +27,12 @@ Android remains the broader product surface today, while iOS now covers the live
 ### Common
 
 - Git
-- JDK 17 or newer for Gradle
+- JDK 21 for the configured Gradle daemon toolchain
 
 ### Android
 
 - Android Studio
-- Android SDK matching `compileSdk = 36`
+- Android SDK for API 36 (minor API 1), Android build tools, NDK, and CMake; see [toolchain requirements](docs/dependencies.md)
 - Android emulator or physical device (min SDK 24)
 
 ### iOS
