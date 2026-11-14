@@ -56,3 +56,12 @@ Android still has the broader app surface, including Android-specific tool flows
 - **Feedback suggestions** are more meaningful after a stable tone persists for a moment.
 - **Min / Avg / Max** accumulate after non-zero readings so idle silence does not pollute the stats.
 - **Waterfall history** makes changing resonance or sustained tones easier to see over time.
+
+## Android measurement guidance
+
+- The meter provides indicative readings, not a hearing-safety assessment. Its default offset is not a device calibration; recheck against a reference meter whenever the microphone or audio route changes. A single offset does not correct frequency response, processing, or clipping.
+- Min, max, and arithmetic average are Z-weighted frame readings. The average is not LAeq and does not represent an exposure dose. Paused readings remain frozen.
+- Feedback candidates can also be musical notes or room resonances. Lower the level, confirm by ear, and use small EQ adjustments.
+- The delay calculator uses the difference in distances to the listening position; apply its estimate to the nearer speaker. Automatic ping and polarity results have been removed from the Android interface pending a validated measurement method.
+- Before using the generator, lower the mixer channel, check the output route, and increase the level gradually.
+- Android capture stops when the app loses foreground focus; bring it back to resume. Verify input routing and readings on the actual device.

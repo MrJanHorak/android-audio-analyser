@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, modifier: Modifier = Modifier) {
+fun DelayCalculatorPanel(modifier: Modifier = Modifier) {
     var distanceValue by rememberSaveable { mutableStateOf(10f) }
     var temperatureC by rememberSaveable { mutableStateOf(20f) }
     var isMeters by rememberSaveable { mutableStateOf(true) }
@@ -113,22 +113,22 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
         AutoSizeText(text = "Delay Calculator", style = MaterialTheme.typography.labelLarge)
-        ToolHelperText(text = "Calculate speaker alignment times based on distance.", modifier = Modifier.padding(top = 4.dp))
+        ToolHelperText(text = "Estimate speaker delay from the difference in travel distance.", modifier = Modifier.padding(top = 4.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             AutoSizeText("Unit: ", modifier = Modifier.weight(0.3f))
             Row(modifier = Modifier.weight(0.7f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = isMeters, onClick = { isMeters = true }, label = { AutoSizeText("Meters") })
-                FilterChip(selected = !isMeters, onClick = { isMeters = false }, label = { AutoSizeText("Feet") })
+                FilterChip(selected = isMeters, onClick = { if (!isMeters) { distanceValue *= 0.3048f; isMeters = true } }, label = { AutoSizeText("Meters") })
+                FilterChip(selected = !isMeters, onClick = { if (isMeters) { distanceValue *= 3.28084f; isMeters = false } }, label = { AutoSizeText("Feet") })
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         AutoSizeText(text = "Distance: ${"%.1f".format(Locale.getDefault(), distanceValue)} ${if (isMeters) "m" else "ft"}")
-        Slider(value = distanceValue, onValueChange = { distanceValue = it }, valueRange = 0.5f..100f)
+        Slider(value = distanceValue, onValueChange = { distanceValue = it }, valueRange = 0f..(if (isMeters) 100f else 328.084f))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -151,56 +151,11 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        var isMeasuring by remember { mutableStateOf(false) }
-        var detectedPolarity by rememberSaveable { mutableStateOf<Boolean?>(null) }
-        
-        Button(
-            onClick = {
-                isMeasuring = true
-                detectedPolarity = null
-                val txTime = generator.emitSinglePing()
-                analyzer.awaitNextTransient { rxTime, isPositive ->
-                    val diffNanos = rxTime - txTime
-                    // Subtract roughly 40ms for OS audio routing latency (buffer inherent limits)
-                    val rawMs = diffNanos / 1_000_000.0
-                    val adjustedMs = (rawMs - 40.0).coerceAtLeast(0.0)
-                    
-                    // Update distance based on delay!
-                    val speedOfSoundMetres = 331.3 + (0.606 * temperatureC)
-                    val newDistanceMeters = (adjustedMs / 1000.0) * speedOfSoundMetres
-                    
-                    distanceValue = if (isMeters) {
-                        newDistanceMeters.toFloat()
-                    } else {
-                        (newDistanceMeters * 3.28084).toFloat()
-                    }
-                    detectedPolarity = isPositive
-                    isMeasuring = false
-                }
-            },
-            enabled = !isMeasuring,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            AutoSizeText(if (isMeasuring) "Listening for ping..." else "Auto-Measure with Ping")
-        }
-        
-        if (detectedPolarity != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Surface(
-                color = if (detectedPolarity == true) Color(0xFF006400) else Color(0xFF8B0000),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (detectedPolarity == true) "Polarity: IN PHASE (+)" else "Polarity: INVERTED (-)",
-                    modifier = Modifier.padding(12.dp),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
+        ToolHelperText(
+            text = "Enter the difference between the two speakers' distances to the listening position. Apply the calculated delay to the closer speaker. This is a distance-based starting point; verify the result by listening or with suitable measurement equipment.",
+            modifier = Modifier.padding(top = 12.dp)
+        )
+
     }
 }
 
@@ -209,11 +164,12 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
     val modes = SignalGenerator.Mode.values()
     var selectedModeIndex by rememberSaveable { mutableStateOf(0) }
     var freq by rememberSaveable { mutableStateOf(1000f) }
-    var level by rememberSaveable { mutableStateOf(0.25f) }
+    var level by rememberSaveable { mutableStateOf(0.05f) }
     val isRunning by generator.isRunning.collectAsState()
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
         AutoSizeText(text = "Signal generator", style = MaterialTheme.typography.labelLarge)
+        ToolHelperText(text = "Before starting, lower the mixer channel and check the phone's output route. Raise the level slowly. Test signals can be loud.", modifier = Modifier.padding(top = 8.dp))
 
         Row(
             modifier = Modifier
@@ -225,6 +181,7 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
             modes.forEachIndexed { idx, m ->
                 FilterChip(
                     selected = selectedModeIndex == idx,
+                    enabled = !isRunning,
                     onClick = { selectedModeIndex = idx },
                     label = { Text(m.name) }
                 )
@@ -233,11 +190,11 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
 
         if (modes[selectedModeIndex] == SignalGenerator.Mode.SINE) {
             AutoSizeText(text = "Frequency: ${freq.toInt()} Hz", modifier = Modifier.padding(top = 8.dp))
-            Slider(value = freq, onValueChange = { freq = it }, valueRange = 20f..20000f)
+            Slider(value = freq, onValueChange = { freq = it }, valueRange = 20f..20000f, enabled = !isRunning)
         }
 
         AutoSizeText(text = "Level", modifier = Modifier.padding(top = 8.dp))
-        Slider(value = level, onValueChange = { level = it }, valueRange = 0f..1f)
+        Slider(value = level, onValueChange = { level = it }, valueRange = 0f..1f, enabled = !isRunning)
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { generator.start(modes[selectedModeIndex], freq, level) }, enabled = !isRunning) {
@@ -582,6 +539,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val feedbackPeaks by analyzer.feedbackPeaks.collectAsState()
     val error by analyzer.error.collectAsState()
     val isLogging by analyzer.isLogging.collectAsState()
+    val isListening by analyzer.isListening.collectAsState()
 
     var isPaused by rememberSaveable { mutableStateOf(false) }
 
@@ -744,10 +702,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     // Lifecycle-aware start/stop
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+    val currentPaused by rememberUpdatedState(isPaused)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> if (!isPaused) scope.launch { analyzer.startAnalyzing() }
+                Lifecycle.Event.ON_RESUME -> if (!currentPaused) scope.launch { analyzer.startAnalyzing() }
                 Lifecycle.Event.ON_PAUSE -> analyzer.stop()
                 else -> {}
             }
@@ -866,6 +825,16 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
+            Text(
+                text = when {
+                    !error.isNullOrEmpty() -> "Microphone unavailable"
+                    isListening -> "Listening • Calibration not verified for this input"
+                    isPaused -> "Paused • Readings are frozen"
+                    else -> "Not listening • Readings may be frozen"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
             if (!error.isNullOrEmpty()) {
                 ElevatedCard(modifier = Modifier
                     .fillMaxWidth()
@@ -1439,11 +1408,7 @@ fun DbMeterCard(
         else -> dbLevelZ
     }
 
-    val dbColor = when {
-        displayDb > 90 -> Color.Red
-        displayDb > 80 -> Color(0xFFFFC107) // Amber
-        else -> MaterialTheme.colorScheme.primary
-    }
+    val dbColor = MaterialTheme.colorScheme.primary
 
     val semanticsDesc = stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
 
@@ -1490,7 +1455,7 @@ fun DbMeterCard(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    text = if (displayDb > 85) stringResource(id = R.string.too_loud) else stringResource(id = R.string.safe_level),
+                    text = "Indicative reading • Not a hearing-safety assessment",
                     style = MaterialTheme.typography.labelMedium,
                     color = dbColor,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -1499,7 +1464,7 @@ fun DbMeterCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Stats Row
+            Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -2404,7 +2369,7 @@ fun AnalyzerToolsSheet(
                     }
 
                     3 -> {
-                        DelayCalculatorPanel(analyzer = analyzer, generator = generator)
+                        DelayCalculatorPanel()
                     }
                     else -> {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -2989,6 +2954,7 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
                 color = MaterialTheme.colorScheme.onSurface
             )
 
+            ToolHelperText(text = "A peak may be music or room resonance. Reduce the level first, confirm by ear, and make small EQ changes.", modifier = Modifier.padding(top = 4.dp))
             if (feedbackPeaks.isEmpty()) {
                 Text(
                     text = "No stable peaks yet. When a source starts to ring, the strongest repeated hotspots will show up here.",
@@ -3019,7 +2985,7 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Cut ${formatFrequencyLabel(peak.suggestedCutHz)} ${feedbackPeakLabel(peak)}",
+                                    text = "Possible ringing near ${formatFrequencyLabel(peak.suggestedCutHz)} ${feedbackPeakLabel(peak)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -3328,7 +3294,7 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Phase correlation meter and Delay calculator are planned; they require stereo input or special routing and will appear in a future update.",
+                                        text = "The delay calculator estimates delay from distance differences. Accurate alignment and polarity measurements require suitable reference measurements.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(top = 8.dp)
@@ -3433,9 +3399,11 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
     val currentOffset by analyzer.dbOffset.collectAsState()
     val dbLevel by analyzer.dbLevel.collectAsState()
     val dominant by analyzer.dominantFrequency.collectAsState()
+    val isListening by analyzer.isListening.collectAsState()
     var targetDb by remember { mutableStateOf(85f) }
     var measuring by remember { mutableStateOf(false) }
     var measuredAvg by remember { mutableStateOf<Float?>(null) }
+    LaunchedEffect(isListening) { if (!isListening) measuredAvg = null }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -3453,6 +3421,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
         Column(modifier = Modifier
             .padding(innerPadding)
             .padding(16.dp)) {
+            Text("Compare against a reference meter at the same location using a steady sound. This adjusts level only; it does not correct microphone frequency response or processing. Recheck after changing microphones or routes.", style = MaterialTheme.typography.bodyMedium)
             Text(text = String.format(Locale.getDefault(), "%.1f dB", dbLevel), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
             Text(text = stringResource(id = R.string.freq_visualizer_semantics, dominant), style = MaterialTheme.typography.bodyMedium)
 
@@ -3464,7 +3433,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row {
-                Button(onClick = {
+                Button(enabled = isListening && !measuring, onClick = {
                     if (!measuring) {
                         measuring = true
                         measuredAvg = null
@@ -3476,7 +3445,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
                                 kotlinx.coroutines.delay(100L)
                             }
                             val avg = if (samples.isNotEmpty()) samples.average().toFloat() else 0f
-                            measuredAvg = avg
+                            measuredAvg = avg.takeIf { analyzer.isListening.value && it > 0f }
                             measuring = false
                         }
                     }
@@ -3486,11 +3455,12 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = {
+                Button(enabled = isListening && measuredAvg != null && !measuring, onClick = {
                     val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
-                    val base = measuredAvg ?: dbLevel
+                    val base = measuredAvg ?: return@Button
                     val newOffset = currentOffset + (targetDb - base)
                     analyzer.setDbOffset(newOffset)
+                    measuredAvg = null
                     prefs.edit().putFloat("db_offset", newOffset).apply()
                 }) {
                     Text(stringResource(id = R.string.set_offset_button))

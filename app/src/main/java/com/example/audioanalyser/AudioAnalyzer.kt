@@ -100,7 +100,9 @@ class AudioAnalyzer {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    private var isRecording = false
+    @Volatile private var isRecording = false
+    private val _isListening = MutableStateFlow(false)
+    val isListening: StateFlow<Boolean> = _isListening
     private val feedbackPeakTracker = FeedbackPeakTracker()
 
     private val _isLogging = MutableStateFlow(false)
@@ -152,26 +154,37 @@ class AudioAnalyzer {
 
         _error.value = null
 
-        val audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            bufferSize
-        )
+        val audioRecord = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+        } catch (e: Exception) {
+            _error.value = e.message ?: "Could not open microphone"
+            return@withContext
+        }
 
         if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
             _error.value = "AudioRecord initialization failed"
+            audioRecord.release()
             return@withContext
         }
 
         try {
             audioRecord.startRecording()
             isRecording = true
+            _isListening.value = true
 
             while (isRecording) {
                 val read = audioRecord.read(audioBuffer, 0, fftSize)
-                if (read <= 0) continue
+                if (read < 0) {
+                    _error.value = "Microphone read failed ($read). Try resuming capture."
+                    break
+                }
+                if (read == 0) continue
 
                 // dB calculation (RMS)
                 val rms = AnalyzerMath.calculateRms(audioBuffer, read)
@@ -262,12 +275,14 @@ class AudioAnalyzer {
             }
             audioRecord.release()
             isRecording = false
+            _isListening.value = false
             clearFeedbackPeaks()
         }
     }
 
     fun stop() {
         isRecording = false
+        _isListening.value = false
         clearFeedbackPeaks()
     }
 
