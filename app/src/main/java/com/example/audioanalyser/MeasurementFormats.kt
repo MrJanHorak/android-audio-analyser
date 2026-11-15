@@ -9,13 +9,23 @@ internal fun calibrationProfileKey(source: Int, builtIn: Boolean, name: String?)
 internal fun noiseGateProfileKey(calibrationKey: String?): String? =
     calibrationKey?.let { "input_gate:" + it.removePrefix("input_offset:") }
 
+internal fun availableDominantFrequency(level: Float, frequency: Float): Float =
+    if (level > 0f && frequency > 0f && frequency.isFinite()) frequency else 0f
+
+internal fun formatDominantFrequency(frequency: Float): String =
+    if (frequency > 0f && frequency.isFinite())
+        com.example.audioanalyser.shared.AnalyzerTextFormatter.formatFrequencyLabel(frequency)
+    else "No peak"
+
 internal const val ANALYZER_CSV_HEADER =
-    "Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz),dB(Z) status,dB(A) status,dB(C) status"
+    "Timestamp,dB(Z),dB(A),dB(C),DominantFreq(Hz),dB(Z) status,dB(A) status,dB(C) status,Frequency status"
 
 internal fun analyzerCsvRow(timestamp: Long, z: Float, a: Float, c: Float, frequency: Float): String {
     fun level(value: Float) = if (value > 0f && value.isFinite()) value.toString() else ""
     fun status(value: Float) = if (value > 0f && value.isFinite()) "available" else "below_gate_or_floor"
-    return "$timestamp,${level(z)},${level(a)},${level(c)},$frequency,${status(z)},${status(a)},${status(c)}"
+    val validFrequency = availableDominantFrequency(z, frequency)
+    val frequencyStatus = if (validFrequency > 0f) "available" else "unavailable"
+    return "$timestamp,${level(z)},${level(a)},${level(c)},${level(validFrequency)},${status(z)},${status(a)},${status(c)},$frequencyStatus"
 }
 
 /** Preserve the loudest bin in each fixed-width frequency group for the waterfall. */

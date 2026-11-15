@@ -33,11 +33,22 @@ class MeasurementFormatsTest {
     @Test
     fun csvDistinguishesSuppressedReadingsFromMeasurements() {
         val cells = analyzerCsvRow(123L, 70.5f, 0f, 61.2f, 125f).split(',')
-        assertEquals(8, cells.size)
+        assertEquals(9, cells.size)
         assertEquals("70.5", cells[1])
         assertEquals("", cells[2])
         assertEquals("available", cells[5])
         assertEquals("below_gate_or_floor", cells[6])
         assertEquals("available", cells[7])
+        assertEquals("available", cells[8])
+    }
+
+    @Test
+    fun suppressedFramesDoNotProduceAnAvailableFrequency() {
+        assertEquals(0f, availableDominantFrequency(0f, 440f), 0f)
+        assertEquals(440f, availableDominantFrequency(50f, 440f), 0f)
+        assertEquals("No peak", formatDominantFrequency(0f))
+        val cells = analyzerCsvRow(123L, 0f, 0f, 0f, 440f).split(',')
+        assertEquals("", cells[4])
+        assertEquals("unavailable", cells[8])
     }
 }

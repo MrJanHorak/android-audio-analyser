@@ -321,9 +321,13 @@ class AudioAnalyzer(context: Context) {
 
                 val frameAnalysis = frameAnalyzer.analyzePcm16(audioBuffer, read)
 
-                for (i in frameAnalysis.magnitudes.indices) {
-                    val mag = if (currentDb > 0) frameAnalysis.magnitudes[i] else 0f
-                    smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + mag * smoothingFactor
+                if (currentDb > 0f) {
+                    for (i in frameAnalysis.magnitudes.indices) {
+                        val mag = frameAnalysis.magnitudes[i]
+                        smoothedFrequencies[i] = smoothedFrequencies[i] * (1 - smoothingFactor) + mag * smoothingFactor
+                    }
+                } else {
+                    smoothedFrequencies.fill(0f)
                 }
                 _frequencies.value = smoothedFrequencies.copyOf()
                 // push the current smoothed spectrum into the spectrogram buffer
@@ -333,7 +337,7 @@ class AudioAnalyzer(context: Context) {
                 }
 
                 // Dominant frequency in Hz
-                _dominantFrequency.value = frameAnalysis.dominantFrequencyHz
+                _dominantFrequency.value = availableDominantFrequency(currentDb, frameAnalysis.dominantFrequencyHz)
                 // Publish weighted SPLs (apply dbOffset and noise threshold similar to unweighted meter)
                 val dbAvalue = AnalyzerMath.applyNoiseGate(
                     calibratedDb = (calibratedDb + frameAnalysis.aWeightingAdjustmentDb).coerceAtLeast(0f),
@@ -348,7 +352,7 @@ class AudioAnalyzer(context: Context) {
                 _dbLevelA.value = dbAvalue
                 _dbLevelC.value = dbCvalue
                 _dbLevelZ.value = dbZvalue
-                updateFeedbackPeaks(currentDb)
+                if (currentDb > 0f) updateFeedbackPeaks(currentDb) else clearFeedbackPeaks()
 
                 synchronized(loggingLock) {
                     if (_isLogging.value) {

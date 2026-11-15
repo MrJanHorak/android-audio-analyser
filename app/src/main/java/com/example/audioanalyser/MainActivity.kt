@@ -1413,7 +1413,7 @@ fun AnalyzerTabletSummaryCard(
                     else -> "Saved"
                 },
                 detail = spectrumSnapshot?.let { snapshot ->
-                    "Reference captured at ${formatFrequencyLabel(snapshot.dominantFrequency)}."
+                    "Reference captured: ${formatDominantFrequency(snapshot.dominantFrequency)}."
                 } ?: "Capture a reference when you want an A/B view.",
                 modifier = Modifier.padding(top = 14.dp)
             )
@@ -1744,23 +1744,28 @@ fun VisualizerCard(
     var showSavedCurvesDialog by remember { mutableStateOf(false) }
     var showFeedbackGuide by remember { mutableStateOf(false) }
     var showWaterfall by rememberSaveable { mutableStateOf(false) }
-    val matchedBand = selectedOverlay.bandFor(dominantFrequency)
+    val matchedBand = if (dominantFrequency > 0f) selectedOverlay.bandFor(dominantFrequency) else null
     val primaryFeedbackPeak = feedbackPeaks.firstOrNull()
-    val snapshotDeltaHz = spectrumSnapshot?.let { dominantFrequency - it.dominantFrequency }
+    val snapshotDeltaHz = spectrumSnapshot?.takeIf { dominantFrequency > 0f && it.dominantFrequency > 0f }
+        ?.let { dominantFrequency - it.dominantFrequency }
     val peakFocusSummary = when {
+        dominantFrequency <= 0f -> "No frequency peak available."
         matchedBand != null -> "Peak focus: ${matchedBand.label} (${formatFrequencyRange(matchedBand.startHz, matchedBand.endHz)})"
         selectedOverlay.bands.isNotEmpty() -> "Peak focus: outside ${selectedOverlay.label} guide bands"
         else -> "No source guide selected."
     }
     val snapshotSummary = spectrumSnapshot?.let { snapshot ->
         if (snapshotCompareEnabled) {
-            "Snapshot delta ${formatSignedFrequencyDelta(snapshotDeltaHz ?: 0f)} and ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}."
+            val frequencyComparison = snapshotDeltaHz?.let { "Frequency delta ${formatSignedFrequencyDelta(it)}" }
+                ?: "Frequency comparison unavailable"
+            val levelComparison = if (dbLevel > 0f && snapshot.dbLevel > 0f) "level delta ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}" else "level comparison unavailable"
+            "$frequencyComparison; $levelComparison."
         } else {
-            "Snapshot saved at ${formatFrequencyLabel(snapshot.dominantFrequency)} and ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}."
+            "Snapshot saved: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
         }
     }
     val semanticsDesc = buildString {
-        append(String.format(Locale.getDefault(), "Frequency visualizer. Dominant frequency %.0f Hz. ", dominantFrequency))
+        append("Frequency visualizer. Dominant frequency ${formatDominantFrequency(dominantFrequency)}. ")
         append(peakFocusSummary)
         if (bigGraphModeEnabled) {
             append(" Big graph mode enabled.")
@@ -1795,7 +1800,7 @@ fun VisualizerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = formatFrequencyLabel(dominantFrequency),
+                            text = formatDominantFrequency(dominantFrequency),
                             style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -1868,7 +1873,7 @@ fun VisualizerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = formatFrequencyLabel(dominantFrequency),
+                            text = formatDominantFrequency(dominantFrequency),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -2482,7 +2487,7 @@ fun AnalyzerToolsSheet(
                                 if (snapshotCompareEnabled) {
                                     "Snapshot compare is active. Cyan line shows the saved reference over the live bars."
                                 } else {
-                                    "Saved snapshot at ${formatFrequencyLabel(snapshot.dominantFrequency)} and ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}."
+                                    "Saved snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
                                 }
                             } ?: "No snapshot saved yet.",
                             modifier = Modifier.padding(top = 12.dp)
@@ -3603,7 +3608,7 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             if (inputIdentity == null) Text("Waiting for Android to identify the microphone before calibrating.", style = MaterialTheme.typography.bodyMedium)
             if (inputClipping) Text("Input may be clipping. Reduce the sound level before calibrating.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             Text(text = String.format(Locale.getDefault(), "%.1f dB", dbLevel), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
-            Text(text = stringResource(id = R.string.freq_visualizer_semantics, dominant), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Frequency: ${formatDominantFrequency(dominant)}", style = MaterialTheme.typography.bodyMedium)
 
             Spacer(modifier = Modifier.height(16.dp))
 
