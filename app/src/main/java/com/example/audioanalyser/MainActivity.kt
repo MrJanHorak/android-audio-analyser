@@ -1471,6 +1471,9 @@ fun DbMeterCard(
     }
     val compactMeter = allowCompact && compact
     val meterScrollState = rememberScrollState()
+    LaunchedEffect(compactMeter, scrollMeter) {
+        if (scrollMeter) meterScrollState.scrollTo(0)
+    }
     val displayDb = when(selectedWeighting) {
         "A" -> dbLevelA
         "C" -> dbLevelC
@@ -1491,10 +1494,10 @@ fun DbMeterCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(if (scrollMeter) Modifier.verticalScroll(meterScrollState) else Modifier)
-                .padding(if (compactMeter) 12.dp else 24.dp),
+                .then(if (scrollMeter) Modifier.fillMaxHeight() else Modifier)
+                .padding(if (compactMeter || scrollMeter) 12.dp else 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = if (scrollMeter) Arrangement.Top else Arrangement.Center
         ) {
             if (allowCompact) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -1506,12 +1509,9 @@ fun DbMeterCard(
             } else {
                 Text(stringResource(id = R.string.sound_level), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (scrollMeter && !compactMeter) {
-                Text("Scroll for statistics and history", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
             AutoSizeText(
                 text = reading,
-                style = if (compactMeter) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displayMedium,
+                style = if (compactMeter || scrollMeter) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = dbColor
             )
@@ -1533,43 +1533,52 @@ fun DbMeterCard(
                     label = { AutoSizeText(text = if (shortWeightingLabels) "Z" else formatMeterReading(dbLevelZ, "Z", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
             }
-            Surface(
-                color = dbColor.copy(alpha = 0.1f),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text(
-                    text = if (displayDb <= 0f) "Below noise gate or display range" else "Indicative reading • Not a hearing-safety assessment",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = dbColor,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                )
-            }
-
-            if (!compactMeter) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
-                    StatItem(stringResource(id = R.string.avg_label), avgDb)
-                    StatItem(stringResource(id = R.string.max_label), maxDb)
+            if (scrollMeter) {
+                Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(meterScrollState)) {
+                    MeterDetails(displayDb, dbColor, compactMeter, minDb, avgDb, maxDb, dbHistory, showScrollHint = !compactMeter)
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // History Sparkline
-                HistorySparkline(
-                    history = dbHistory,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                )
+            } else {
+                MeterDetails(displayDb, dbColor, compactMeter, minDb, avgDb, maxDb, dbHistory)
             }
 
+        }
+    }
+}
+
+
+@Composable
+private fun MeterDetails(
+    displayDb: Float,
+    dbColor: Color,
+    compactMeter: Boolean,
+    minDb: Float,
+    avgDb: Float,
+    maxDb: Float,
+    dbHistory: List<Float>,
+    showScrollHint: Boolean = false
+) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (showScrollHint) {
+            Text("Scroll here for statistics and history ↓", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Surface(color = dbColor.copy(alpha = 0.1f), shape = MaterialTheme.shapes.small, modifier = Modifier.padding(top = 8.dp)) {
+            Text(
+                text = if (displayDb <= 0f) "Below noise gate or display range" else "Indicative reading • Not a hearing-safety assessment",
+                style = MaterialTheme.typography.labelMedium,
+                color = dbColor,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+        if (!compactMeter) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
+                StatItem(stringResource(id = R.string.avg_label), avgDb)
+                StatItem(stringResource(id = R.string.max_label), maxDb)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            HistorySparkline(history = dbHistory, modifier = Modifier.fillMaxWidth().height(40.dp))
         }
     }
 }

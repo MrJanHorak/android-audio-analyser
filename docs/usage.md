@@ -38,7 +38,7 @@ The iOS shell currently adds these analyzer-session tools:
 
 ## Android-focused tools
 
-On phones in portrait, tap **Compact** on the sound-level card to show a smaller meter and leave more space for the graph. Tap **Show details** to restore the statistics and history. The meter preference is remembered separately from the existing big-graph setting. On landscape phones, the meter starts compact and the A/C/Z buttons select which value appears in the main reading; **Show details** expands the meter, and its contents can be scrolled on short screens. Portrait and landscape compact preferences are stored separately; tablet layout remains unchanged.
+On phones in portrait, tap **Compact** on the sound-level card to show a smaller meter and leave more space for the graph. Tap **Show details** to restore the statistics and history. The meter preference is remembered separately from the existing big-graph setting. On landscape phones, the meter starts compact and the A/C/Z buttons select which value appears in the main reading; **Show details** expands the meter. Scroll its details area to see the statistics and history while the current reading and A/C/Z buttons remain visible. Portrait and landscape compact preferences are stored separately; tablet layout remains unchanged.
 
 Android still has the broader app surface, including Android-specific tool flows such as:
 
