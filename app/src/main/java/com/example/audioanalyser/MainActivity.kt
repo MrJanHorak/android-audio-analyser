@@ -520,9 +520,12 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 @Composable
 fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val dbLevel by analyzer.dbLevel.collectAsState()
-    val dbLevelA by analyzer.dbLevelA.collectAsState()
-    val dbLevelC by analyzer.dbLevelC.collectAsState()
-    val dbLevelZ by analyzer.dbLevelZ.collectAsState()
+    val liveDbA by analyzer.dbLevelA.collectAsState()
+    val liveDbC by analyzer.dbLevelC.collectAsState()
+    val liveDbZ by analyzer.dbLevelZ.collectAsState()
+    val steadyDbA by analyzer.steadyDbA.collectAsState()
+    val steadyDbC by analyzer.steadyDbC.collectAsState()
+    val steadyDbZ by analyzer.steadyDbZ.collectAsState()
     val minDb by analyzer.minDb.collectAsState()
     val maxDb by analyzer.maxDb.collectAsState()
     val avgDb by analyzer.avgDb.collectAsState()
@@ -571,6 +574,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
     var measurementInput by remember { mutableStateOf(prefs.getBoolean("measurement_input", false)) }
     var detailedSpectrum by remember { mutableStateOf(prefs.getBoolean("detailed_spectrum", false)) }
+    var steadyMeter by remember { mutableStateOf(prefs.getBoolean("steady_meter", true)) }
+    val dbLevelA = if (steadyMeter) steadyDbA else liveDbA
+    val dbLevelC = if (steadyMeter) steadyDbC else liveDbC
+    val dbLevelZ = if (steadyMeter) steadyDbZ else liveDbZ
     val unprocessedSupported = remember(ctx) {
         val manager = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         manager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
@@ -883,6 +890,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     dbLevelA = dbLevelA,
                     dbLevelC = dbLevelC,
                     dbLevelZ = dbLevelZ,
+                    steadyMeter = steadyMeter,
                     spectrogram = spectrogram,
                     minDb = minDb,
                     maxDb = maxDb,
@@ -925,6 +933,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     dbLevelA = dbLevelA,
                     dbLevelC = dbLevelC,
                     dbLevelZ = dbLevelZ,
+                    steadyMeter = steadyMeter,
                     spectrogram = spectrogram,
                     minDb = minDb,
                     maxDb = maxDb,
@@ -966,6 +975,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     dbLevelA = dbLevelA,
                     dbLevelC = dbLevelC,
                     dbLevelZ = dbLevelZ,
+                    steadyMeter = steadyMeter,
                     spectrogram = spectrogram,
                     minDb = minDb,
                     maxDb = maxDb,
@@ -1008,6 +1018,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         SettingsDialog(
             currentOffset = dbOffset,
             currentThreshold = noiseThreshold,
+            steadyMeter = steadyMeter,
+            onSteadyMeterChange = { enabled ->
+                steadyMeter = enabled
+                prefs.edit().putBoolean("steady_meter", enabled).apply()
+            },
             offsetEditable = isListening && analyzer.inputIdentity.collectAsState().value != null,
             measurementInput = measurementInput,
             detailedSpectrum = detailedSpectrum,
@@ -1064,6 +1079,7 @@ fun PortraitLayout(
     dbLevelA: Float,
     dbLevelC: Float,
     dbLevelZ: Float,
+    steadyMeter: Boolean,
     spectrogram: List<FloatArray>,
     minDb: Float,
     maxDb: Float,
@@ -1105,6 +1121,7 @@ fun PortraitLayout(
             dbLevelA = dbLevelA,
             dbLevelC = dbLevelC,
             dbLevelZ = dbLevelZ,
+            steadyMeter = steadyMeter,
             minDb = minDb,
             maxDb = maxDb,
             avgDb = avgDb,
@@ -1158,6 +1175,7 @@ fun LandscapeLayout(
     dbLevelA: Float,
     dbLevelC: Float,
     dbLevelZ: Float,
+    steadyMeter: Boolean,
     spectrogram: List<FloatArray>,
     minDb: Float,
     maxDb: Float,
@@ -1199,6 +1217,7 @@ fun LandscapeLayout(
             dbLevelA = dbLevelA,
             dbLevelC = dbLevelC,
             dbLevelZ = dbLevelZ,
+            steadyMeter = steadyMeter,
             minDb = minDb,
             maxDb = maxDb,
             avgDb = avgDb,
@@ -1258,6 +1277,7 @@ fun TabletLayout(
     dbLevelA: Float,
     dbLevelC: Float,
     dbLevelZ: Float,
+    steadyMeter: Boolean,
     spectrogram: List<FloatArray>,
     minDb: Float,
     maxDb: Float,
@@ -1310,6 +1330,7 @@ fun TabletLayout(
                 dbLevelA = dbLevelA,
                 dbLevelC = dbLevelC,
                 dbLevelZ = dbLevelZ,
+                steadyMeter = steadyMeter,
                 minDb = minDb,
                 maxDb = maxDb,
                 avgDb = avgDb,
@@ -1465,6 +1486,7 @@ fun DbMeterCard(
     dbLevelA: Float = 0f,
     dbLevelC: Float = 0f,
     dbLevelZ: Float = 0f,
+    steadyMeter: Boolean = true,
     minDb: Float,
     maxDb: Float,
     avgDb: Float,
@@ -1504,7 +1526,7 @@ fun DbMeterCard(
         stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
     }
 
-    ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
+    ElevatedCard(modifier = modifier.semantics { contentDescription = "$semanticsDesc ${if (steadyMeter) "Steady meter response, approximately one second." else "Live meter response."}" }) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1529,6 +1551,7 @@ fun DbMeterCard(
                 fontWeight = FontWeight.Bold,
                 color = dbColor
             )
+            Text(if (steadyMeter) "Steady · 1 s response" else "Live response", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 FilterChip(
@@ -1585,7 +1608,7 @@ private fun MeterDetails(
         }
         if (!compactMeter) {
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
+            Text("Statistics: Z-weighted frame readings, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
                 StatItem(stringResource(id = R.string.avg_label), avgDb)
@@ -3167,6 +3190,8 @@ fun formatSignedDbDelta(deltaDb: Float): String =
 fun SettingsDialog(
     currentOffset: Float,
     currentThreshold: Float,
+    steadyMeter: Boolean,
+    onSteadyMeterChange: (Boolean) -> Unit,
     offsetEditable: Boolean,
     measurementInput: Boolean,
     detailedSpectrum: Boolean,
@@ -3198,6 +3223,13 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text("Changing input can change readings. Recalibrate against a reference meter. Android does not provide a universal microphone sensitivity control.", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                Text("Meter response", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = steadyMeter, onClick = { onSteadyMeterChange(true) }, label = { Text("Steady") })
+                    FilterChip(selected = !steadyMeter, onClick = { onSteadyMeterChange(false) }, label = { Text("Live") })
+                }
+                Text("Steady smooths the displayed level using a 1-second energy response. Live updates each audio frame. Statistics and CSV use frame readings. Neither is an exposure or certified meter.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(20.dp))
                 Text("Frequency detail", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {

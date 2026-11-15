@@ -52,6 +52,14 @@ class AudioAnalyzer(context: Context) {
     private val _dbLevelZ = MutableStateFlow(0f)
     val dbLevelZ: StateFlow<Float> = _dbLevelZ
 
+    // Display-only one-second energy smoothing; raw readings remain available for logging and analysis.
+    private val _steadyDbA = MutableStateFlow(0f)
+    val steadyDbA: StateFlow<Float> = _steadyDbA
+    private val _steadyDbC = MutableStateFlow(0f)
+    val steadyDbC: StateFlow<Float> = _steadyDbC
+    private val _steadyDbZ = MutableStateFlow(0f)
+    val steadyDbZ: StateFlow<Float> = _steadyDbZ
+
     private val _dbOffset = MutableStateFlow(30f)
     val dbOffset: StateFlow<Float> = _dbOffset
 
@@ -189,6 +197,9 @@ class AudioAnalyzer(context: Context) {
             _error.value = null
             activeProfileKey = null
             _dbOffset.value = 30f
+            _steadyDbA.value = 0f
+            _steadyDbC.value = 0f
+            _steadyDbZ.value = 0f
             _noiseThreshold.value = preferences.getFloat("noise_threshold", 25f)
             _calibrationStatus.value = "Waiting for input"
         }
@@ -231,6 +242,11 @@ class AudioAnalyzer(context: Context) {
             var lastRailTimeMs = Long.MIN_VALUE
             var lastRoute: Triple<Int, Int, String>? = null
             var routeObserved = false
+            val steadyA = LevelSmoother()
+            val steadyC = LevelSmoother()
+            val steadyZ = LevelSmoother()
+            var smoothingRevision = -1L
+            var smoothingOffset: Float? = null
 
             while (isRecording) {
                 var read = 0
@@ -279,8 +295,10 @@ class AudioAnalyzer(context: Context) {
                 // dB calculation (RMS)
                 val rms = AnalyzerMath.calculateRms(audioBuffer, read)
                 val rawDb = AnalyzerMath.rawDbFromRms(rms)
-                val calibratedDb = AnalyzerMath.applyDbOffset(rawDb, _dbOffset.value)
-                val currentDb = AnalyzerMath.applyNoiseGate(calibratedDb, _noiseThreshold.value)
+                val offset = _dbOffset.value
+                val gate = _noiseThreshold.value
+                val calibratedDb = AnalyzerMath.applyDbOffset(rawDb, offset)
+                val currentDb = AnalyzerMath.applyNoiseGate(calibratedDb, gate)
                 _dbLevel.value = currentDb
                 
                 // Transient detection
@@ -341,13 +359,28 @@ class AudioAnalyzer(context: Context) {
                 // Publish weighted SPLs (apply dbOffset and noise threshold similar to unweighted meter)
                 val dbAvalue = AnalyzerMath.applyNoiseGate(
                     calibratedDb = (calibratedDb + frameAnalysis.aWeightingAdjustmentDb).coerceAtLeast(0f),
-                    noiseThreshold = _noiseThreshold.value
+                    noiseThreshold = gate
                 )
                 val dbCvalue = AnalyzerMath.applyNoiseGate(
                     calibratedDb = (calibratedDb + frameAnalysis.cWeightingAdjustmentDb).coerceAtLeast(0f),
-                    noiseThreshold = _noiseThreshold.value
+                    noiseThreshold = gate
                 )
                 val dbZvalue = currentDb
+
+                val inputRevision = _inputRevision.value
+                if (inputRevision != smoothingRevision || offset != smoothingOffset) {
+                    steadyA.reset()
+                    steadyC.reset()
+                    steadyZ.reset()
+                    smoothingRevision = inputRevision
+                    smoothingOffset = offset
+                }
+                val frameSeconds = read.toDouble() / sampleRate
+                // Smooth ungated levels in linear power; apply the display gate afterwards.
+                val ungatedZ = rawDb + offset
+                _steadyDbZ.value = AnalyzerMath.applyNoiseGate(steadyZ.update(ungatedZ, frameSeconds), gate)
+                _steadyDbA.value = AnalyzerMath.applyNoiseGate(steadyA.update(ungatedZ + frameAnalysis.aWeightingAdjustmentDb, frameSeconds), gate)
+                _steadyDbC.value = AnalyzerMath.applyNoiseGate(steadyC.update(ungatedZ + frameAnalysis.cWeightingAdjustmentDb, frameSeconds), gate)
 
                 _dbLevelA.value = dbAvalue
                 _dbLevelC.value = dbCvalue

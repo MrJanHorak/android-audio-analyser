@@ -6,6 +6,7 @@
 - Capture uses 44,100 Hz mono PCM. Fast mode uses 1,024-sample frames; Detailed mode uses 4,096-sample frames. Frames are collected before analysis, so Detailed updates less often.
 - The default uncalibrated offset is 30 dB and the default noise-gate threshold is 25 dB. Built-in input offsets and gates can override those defaults; external and unidentified inputs use temporary values. See [usage](usage.md#android-measurement-guidance) for the limitations.
 - `shared/src/commonMain/.../AnalyzerFrameAnalyzer.kt` applies a Hann window and calculates spectrum magnitudes, frequency, and weighting adjustments. Android requests the iterative native FFT in `app/src/main/cpp/fftnative.cpp`, with the shared managed implementation as a fallback.
+- The Android meter offers Live and Steady display responses. `LevelSmoother.kt` implements a time-based, one-second exponential average in linear power for each A/C/Z display value; raw frame values remain in the logger, statistics, calibration, and feedback logic.
 - Spectrum magnitudes use a smoothing factor of 0.2. Feedback candidates are tracked by `shared/.../FeedbackPeakTracker.kt`; they are suggestions, not confirmed feedback.
 
 ## Waterfall and display
