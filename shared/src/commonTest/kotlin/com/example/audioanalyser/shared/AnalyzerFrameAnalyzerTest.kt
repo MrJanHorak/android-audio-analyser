@@ -41,6 +41,19 @@ class AnalyzerFrameAnalyzerTest {
     }
 
     @Test
+    fun detailedFrameResolvesLowToneMorePreciselyThanFastBinSpacing() {
+        val detailSize = 4096
+        val targetHz = 130.0
+        val analyzer = AnalyzerFrameAnalyzer(sampleRate, detailSize)
+        val buffer = ShortArray(detailSize) { index ->
+            (12_000.0 * sin(2.0 * PI * targetHz * index / sampleRate)).roundToInt().toShort()
+        }
+        val result = analyzer.analyzePcm16(buffer, buffer.size)
+        assertTrue(result.binSize < 11f)
+        assertClose(targetHz, result.dominantFrequencyHz.toDouble(), result.binSize.toDouble())
+    }
+
+    @Test
     fun silentFrameDoesNotInventDominantFrequencyOrNonFiniteWeighting() {
         val result = AnalyzerFrameAnalyzer(sampleRate, fftSize).analyzePcm16(ShortArray(fftSize), fftSize)
         assertEquals(0f, result.dominantFrequencyHz)

@@ -25,6 +25,12 @@ class MeasurementFormatsTest {
     }
 
     @Test
+    fun waterfallDownsamplingRetainsTheStrongestBinInEachGroup() {
+        val reduced = downsampleSpectrumPeaks(floatArrayOf(1f, 9f, 2f, 3f, 4f, 5f, 8f, 6f), 2)
+        assertEquals(listOf(9f, 8f), reduced.toList())
+    }
+
+    @Test
     fun csvDistinguishesSuppressedReadingsFromMeasurements() {
         val cells = analyzerCsvRow(123L, 70.5f, 0f, 61.2f, 125f).split(',')
         assertEquals(8, cells.size)

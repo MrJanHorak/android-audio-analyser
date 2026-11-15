@@ -17,3 +17,16 @@ internal fun analyzerCsvRow(timestamp: Long, z: Float, a: Float, c: Float, frequ
     fun status(value: Float) = if (value > 0f && value.isFinite()) "available" else "below_gate_or_floor"
     return "$timestamp,${level(z)},${level(a)},${level(c)},$frequency,${status(z)},${status(a)},${status(c)}"
 }
+
+/** Preserve the loudest bin in each fixed-width frequency group for the waterfall. */
+internal fun downsampleSpectrumPeaks(spectrum: FloatArray, targetBins: Int): FloatArray {
+    require(targetBins > 0 && spectrum.size >= targetBins)
+    if (spectrum.size == targetBins) return spectrum
+    return FloatArray(targetBins) { index ->
+        val start = (index.toLong() * spectrum.size / targetBins).toInt()
+        val end = ((index + 1L) * spectrum.size / targetBins).toInt()
+        var peak = 0f
+        for (source in start until end) peak = maxOf(peak, spectrum[source])
+        peak
+    }
+}

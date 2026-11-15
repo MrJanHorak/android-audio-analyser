@@ -570,6 +570,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val ctx = LocalContext.current
     val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
     var measurementInput by remember { mutableStateOf(prefs.getBoolean("measurement_input", false)) }
+    var detailedSpectrum by remember { mutableStateOf(prefs.getBoolean("detailed_spectrum", false)) }
     val unprocessedSupported = remember(ctx) {
         val manager = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         manager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
@@ -724,7 +725,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     unprocessedSupported -> MediaRecorder.AudioSource.UNPROCESSED
                     else -> MediaRecorder.AudioSource.VOICE_RECOGNITION
                 }
-                analyzer.startAnalyzing(source)
+                analyzer.startAnalyzing(source, detailedSpectrum)
             }
         }
     }
@@ -1009,6 +1010,19 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
             currentThreshold = noiseThreshold,
             offsetEditable = isListening && analyzer.inputIdentity.collectAsState().value != null,
             measurementInput = measurementInput,
+            detailedSpectrum = detailedSpectrum,
+            canChangeSpectrumDetail = !isLogging,
+            onSpectrumDetailChange = { selected ->
+                if (detailedSpectrum != selected) {
+                    detailedSpectrum = selected
+                    prefs.edit().putBoolean("detailed_spectrum", selected).apply()
+                    analyzer.stop()
+                    analyzer.resetStats()
+                    spectrumSnapshot = null
+                    snapshotCompareEnabled = false
+                    if (!isPaused) startCapture()
+                }
+            },
             unprocessedSupported = unprocessedSupported,
             onMeasurementInputChange = { selected ->
                 if (measurementInput != selected) {
@@ -3150,6 +3164,9 @@ fun SettingsDialog(
     currentThreshold: Float,
     offsetEditable: Boolean,
     measurementInput: Boolean,
+    detailedSpectrum: Boolean,
+    canChangeSpectrumDetail: Boolean,
+    onSpectrumDetailChange: (Boolean) -> Unit,
     unprocessedSupported: Boolean,
     onMeasurementInputChange: (Boolean) -> Unit,
     importExportMessage: String?,
@@ -3176,6 +3193,14 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text("Changing input can change readings. Recalibrate against a reference meter. Android does not provide a universal microphone sensitivity control.", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                Text("Frequency detail", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = !detailedSpectrum, enabled = canChangeSpectrumDetail, onClick = { onSpectrumDetailChange(false) }, label = { Text("Fast") })
+                    FilterChip(selected = detailedSpectrum, enabled = canChangeSpectrumDetail, onClick = { onSpectrumDetailChange(true) }, label = { Text("Detailed") })
+                }
+                Text("Fast: about 43 Hz between FFT bins. Detailed: about 11 Hz; slower updates and more processing. Switching clears the current spectrum snapshot and waterfall history.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!canChangeSpectrumDetail) Text("Stop logging before changing frequency detail.", style = MaterialTheme.typography.labelSmall)
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = String.format(Locale.getDefault(), stringResource(id = R.string.db_offset_label), currentOffset),

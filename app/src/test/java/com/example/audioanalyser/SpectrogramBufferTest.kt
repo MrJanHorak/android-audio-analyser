@@ -20,6 +20,16 @@ class SpectrogramBufferTest {
     }
 
     @Test
+    fun clearRemovesOldHistoryBeforeNextResolution() {
+        val buffer = SpectrogramBuffer(historySize = 2, binCount = 1)
+        buffer.addFrame(floatArrayOf(1f), 0)
+        buffer.clear()
+        assertEquals(0, buffer.spectrogramFlow.value.size)
+        buffer.addFrame(floatArrayOf(2f), 1)
+        assertEquals(2f, buffer.spectrogramFlow.value.last()[0], 0f)
+    }
+
+    @Test
     fun publishesAgainIfClockMovesBackwards() {
         val buffer = SpectrogramBuffer(historySize = 2, binCount = 1)
         buffer.addFrame(floatArrayOf(1f), 500)

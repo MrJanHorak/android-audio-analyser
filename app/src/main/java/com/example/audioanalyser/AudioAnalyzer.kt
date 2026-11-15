@@ -21,33 +21,23 @@ class AudioAnalyzer(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("audio_prefs", Context.MODE_PRIVATE)
     private var activeProfileKey: String? = null
     private val sampleRate = 44100
-    private val fftSize = 1024
-    private val bufferSize = AudioRecord.getMinBufferSize(
-        sampleRate,
-        AudioFormat.CHANNEL_IN_MONO,
-        AudioFormat.ENCODING_PCM_16BIT
-    ).coerceAtLeast(fftSize * 2)
-
-    // Reusable buffers to reduce GC pressure
-    private val audioBuffer = ShortArray(fftSize)
-    private val frameAnalyzer = AnalyzerFrameAnalyzer.createWithFftProcessor(
-        sampleRate = sampleRate,
-        fftSize = fftSize,
-        fftProcessor = object : AnalyzerFftProcessor {
-            override fun transform(real: DoubleArray, imag: DoubleArray, size: Int): Boolean {
-                if (!NativeFFT.available) {
-                    return false
-                }
-
-                return try {
-                    NativeFFT.nativeFft(real, imag, size)
-                    true
-                } catch (_: Throwable) {
-                    false
-                }
+    private var fftSize = 1024
+    private var audioBuffer = ShortArray(fftSize)
+    private val fftProcessor = object : AnalyzerFftProcessor {
+        override fun transform(real: DoubleArray, imag: DoubleArray, size: Int): Boolean {
+            if (!NativeFFT.available) return false
+            return try {
+                NativeFFT.nativeFft(real, imag, size)
+                true
+            } catch (_: Throwable) {
+                false
             }
         }
+    }
+    private fun newFrameAnalyzer(size: Int) = AnalyzerFrameAnalyzer.createWithFftProcessor(
+        sampleRate = sampleRate, fftSize = size, fftProcessor = fftProcessor
     )
+    private var frameAnalyzer = newFrameAnalyzer(fftSize)
 
     private val _dbLevel = MutableStateFlow(0f)
     val dbLevel: StateFlow<Float> = _dbLevel
@@ -85,13 +75,13 @@ class AudioAnalyzer(context: Context) {
     private val historyLimit = 100
 
     // Expose a smoothed frequency array for the visualizer
-    private val smoothedFrequencies = FloatArray(fftSize / 2)
+    private var smoothedFrequencies = FloatArray(fftSize / 2)
     private val smoothingFactor = 0.2f
     private val _frequencies = MutableStateFlow(FloatArray(fftSize / 2))
     val frequencies: StateFlow<FloatArray> = _frequencies
 
     // Spectrogram (waterfall) buffer
-    private val spectrogramBuffer = SpectrogramBuffer(128, fftSize / 2)
+    private val spectrogramBuffer = SpectrogramBuffer(128, 512)
     val spectrogram: StateFlow<List<FloatArray>> = spectrogramBuffer.spectrogramFlow
 
     // Dominant frequency (Hz) for accessibility and quick-read
@@ -132,7 +122,19 @@ class AudioAnalyzer(context: Context) {
         transientCallback = onDetected
     }
 
-    private val binSize = sampleRate.toFloat() / fftSize
+    private val binSize: Float get() = sampleRate.toFloat() / fftSize
+
+    private fun configureFft(size: Int) {
+        if (size == fftSize) return
+        fftSize = size
+        audioBuffer = ShortArray(size)
+        frameAnalyzer = newFrameAnalyzer(size)
+        smoothedFrequencies = FloatArray(size / 2)
+        _frequencies.value = smoothedFrequencies.copyOf()
+        _dominantFrequency.value = 0f
+        clearFeedbackPeaks()
+        spectrogramBuffer.clear()
+    }
 
     fun setAndSaveDbOffset(value: Float) {
         synchronized(recordingLock) {
@@ -180,7 +182,7 @@ class AudioAnalyzer(context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun startAnalyzing(audioSource: Int = MediaRecorder.AudioSource.MIC) = withContext(Dispatchers.IO) {
+    suspend fun startAnalyzing(audioSource: Int = MediaRecorder.AudioSource.MIC, detailedSpectrum: Boolean = false) = withContext(Dispatchers.IO) {
         synchronized(recordingLock) {
             if (isRecording) return@withContext
             isRecording = true
@@ -192,6 +194,10 @@ class AudioAnalyzer(context: Context) {
         }
 
         val audioRecord = try {
+            configureFft(if (detailedSpectrum) 4096 else 1024)
+            val bufferSize = AudioRecord.getMinBufferSize(
+                sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+            ).coerceAtLeast(fftSize * 2)
             AudioRecord(
                 audioSource,
                 sampleRate,
@@ -227,13 +233,19 @@ class AudioAnalyzer(context: Context) {
             var routeObserved = false
 
             while (isRecording) {
-                val read = audioRecord.read(audioBuffer, 0, fftSize)
-                if (read < 0) {
-                    _error.value = "Microphone read failed ($read). Try resuming capture."
+                var read = 0
+                var readError = 0
+                while (read < fftSize && isRecording) {
+                    val count = audioRecord.read(audioBuffer, read, fftSize - read)
+                    if (count < 0) { readError = count; break }
+                    if (count > 0) read += count
+                }
+                if (!isRecording) break
+                if (readError < 0) {
+                    _error.value = "Microphone read failed ($readError). Try resuming capture."
                     break
                 }
-                if (read == 0) continue
-                if (!isRecording) break
+                if (read < fftSize) continue
 
                 val nowMs = SystemClock.elapsedRealtime()
                 val route = audioRecord.routedDevice
@@ -316,7 +328,7 @@ class AudioAnalyzer(context: Context) {
                 _frequencies.value = smoothedFrequencies.copyOf()
                 // push the current smoothed spectrum into the spectrogram buffer
                 try {
-                    spectrogramBuffer.addFrame(smoothedFrequencies, nowMs)
+                    spectrogramBuffer.addFrame(downsampleSpectrumPeaks(smoothedFrequencies, 512), nowMs)
                 } catch (_: Exception) {
                 }
 
