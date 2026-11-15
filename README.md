@@ -6,7 +6,7 @@ Cross-platform audio-analyzer app in one repository:
 - **iOS app shell** in `ios/` using SwiftUI
 - **Shared Kotlin Multiplatform core** in `shared/` for analyzer math, models, feedback logic, formatting, and spectrogram-history storage
 
-Android remains the broader product surface today, while iOS now covers the live analyzer flow, overlay/curve guidance, saved venue curve recall, feedback hunt, adjustable waterfall and big-graph display controls, full generator-mode parity, delay/ping measurement, and the snapshot/export tooling from the same shared core.
+Android remains the broader product surface today. The iOS shell also includes live analysis, guidance, saved venue curves, feedback hunt, waterfall and graph controls, a signal generator, delay tools, and snapshot/export tooling. Its ping-based delay and polarity readouts have not been validated for precise alignment.
 
 ## What you can run today
 
@@ -20,19 +20,20 @@ Android remains the broader product surface today, while iOS now covers the live
 | Snapshot compare | Yes | Yes |
 | Session export tools | Android app flows | CSV, analyzer-sample JSON, waterfall-session JSON, Markdown report |
 | Signal generator | Yes | Sine / white / pink / pulse / sweep |
-| Delay calculator / ping auto-measure | Yes | Yes |
+| Distance-based delay calculator | Yes | Yes |
+| Ping auto-measure / polarity readout | Not available | Experimental; not validated for alignment |
 
 ## Prerequisites
 
 ### Common
 
 - Git
-- JDK 17 or newer for Gradle
+- JDK 21 for the configured Gradle daemon toolchain
 
 ### Android
 
 - Android Studio
-- Android SDK matching `compileSdk = 36`
+- Android SDK for API 36 (minor API 1), Android build tools, NDK, and CMake; see [toolchain requirements](docs/dependencies.md)
 - Android emulator or physical device (min SDK 24)
 
 ### iOS
@@ -51,7 +52,7 @@ Android remains the broader product surface today, while iOS now covers the live
 2. Let Gradle sync.
 3. Select the `app` run configuration.
 4. Run on an emulator or device.
-5. Grant microphone permission when prompted.
+5. Grant microphone permission when prompted. Check the listening status and the routed input name before measuring. The meter is indicative and should be checked against a reference meter; see [Android measurement guidance](docs/usage.md#android-measurement-guidance).
 
 Command line:
 
@@ -147,8 +148,11 @@ That script prepares the shared XCFramework, regenerates the Xcode project, and 
 
 ### Android-specific tools
 
-1. Open the signal generator.
-2. Check the existing Android-only workflows that are not yet mirrored in iOS.
+1. Check portrait and landscape layouts, the compact meter, graph and waterfall, and the feedback guide.
+2. In Settings, try Standard and Measurement inputs and confirm that each built-in input mode recalls its own offset and gate. Verify the input name and calibrate against a reference meter when needed.
+3. Compare Fast and Detailed frequency modes using a known signal; check responsiveness and waterfall performance on the phone. Stop logging before switching modes.
+4. Check that a gated frame displays “No peak” and that CSV exports mark suppressed readings as unavailable.
+5. Check the signal generator at a low level and verify pause/resume, backgrounding, and route changes. See [Android device checks](docs/usage.md#android-device-checks).
 
 ## Repository map
 

@@ -1,51 +1,28 @@
 # Development
 
-Where to change analysis parameters
+## Android analysis and capture
 
-- `AudioAnalyzer.kt` contains constants at the top you can tune:
-  - `sampleRate` (currently 44100)
-  - `fftSize` (currently 1024)
-  - `dbOffset` (calibration offset, currently 50f)
-  - `noiseFloor` (values below this are ignored, currently 10f)
-  - `smoothingFactor` (visual smoothing, currently 0.2f)
+- `app/src/main/java/com/example/audioanalyser/AudioAnalyzer.kt` owns Android `AudioRecord` capture, input routing, per-input settings, level publication, feedback tracking, and CSV logging.
+- Capture uses 44,100 Hz mono PCM. Fast mode uses 1,024-sample frames; Detailed mode uses 4,096-sample frames. Frames are collected before analysis, so Detailed updates less often.
+- The default uncalibrated offset is 30 dB and the default noise-gate threshold is 25 dB. Built-in input offsets and gates can override those defaults; external and unidentified inputs use temporary values. See [usage](usage.md#android-measurement-guidance) for the limitations.
+- `shared/src/commonMain/.../AnalyzerFrameAnalyzer.kt` applies a Hann window and calculates spectrum magnitudes, frequency, and weighting adjustments. Android requests the iterative native FFT in `app/src/main/cpp/fftnative.cpp`, with the shared managed implementation as a fallback.
+- Spectrum magnitudes use a smoothing factor of 0.2. Feedback candidates are tracked by `shared/.../FeedbackPeakTracker.kt`; they are suggestions, not confirmed feedback.
 
-New development notes
+## Waterfall and display
 
-- `SignalGenerator.kt` implements audio playback via `AudioTrack`. Modes and playback code live here — adjust buffer sizes or generator algorithms as needed.
-- `SpectrogramBuffer.kt` is the Android `StateFlow` wrapper around the shared `SpectrogramHistoryBuffer`, which stores the ring of recent FFT magnitude frames.
-- `WaterfallVisualizer.kt` converts magnitudes to dB, computes percentile-based autoscaling, applies gamma correction, and maps values through an inferno-like colormap. For performance it writes pixels into an Android `Bitmap` and blits that via Compose's `drawImage` to the canvas.
-- Preferences: waterfall settings are persisted in `SharedPreferences` with keys `waterfall_min_percentile`, `waterfall_max_percentile`, and `waterfall_gamma`.
+- `SpectrogramBuffer.kt` wraps the shared ring buffer in a `StateFlow`. Android stores every analysed frame and publishes history snapshots at most every 100 ms. Detailed spectra are reduced to 512 bins for waterfall history.
+- `WaterfallVisualizer.kt` converts magnitudes to dB, computes percentile-based scaling, applies gamma and a colour palette, and renders a compact bitmap on a background dispatcher. Compose scales the bitmap for display.
+- Waterfall percentile, gamma, and colour settings are stored in `SharedPreferences`. Input mode, frequency detail, and portrait/landscape compact-meter preferences are also persisted locally. Device-specific input profiles are not transferred in backups.
+- Android capture and generator playback stop when the activity pauses. Capture restarts when the activity resumes unless the user paused it. Verify lifecycle and routing behaviour on physical devices.
 
-Performance tips
+## Testing
 
-- The waterfall renderer uses a bitmap-backed approach which is faster than per-rect drawing for larger histories. If you need extra performance on low-end devices:
-  - Reduce `SpectrogramBuffer` history size (default 128).
-  - Lower `drawCols` (in `WaterfallVisualizer`) to reduce horizontal resolution.
-  - Consider using a native FFT implementation (`NativeFFT`) or JTransforms for larger `fftSize` values.
+Run the shared JVM tests, Android local unit tests, and Android debug build:
 
-Testing
+```bash
+bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug
+```
 
-- For waterfall tuning, capture sample frames and log percentile ranges to validate defaults across devices (device microphone characteristics vary widely).
-- Signal generator verification: use a second device or mic to confirm output frequency and level. The generator includes sine/pink/white options for common verification tasks.
+Shared tests cover analyser math, frequency analysis, feedback tracking, formatting, and history storage. Android local tests include meter formatting, input profile keys, CSV formatting, and waterfall publication. These do not replace testing microphone routing, capture, UI, and playback on an Android device. See [IDE testing](ide-testing.md) and the [Android device checks](usage.md#android-device-checks).
 
-Performance and optimizations
-
-- The current FFT implementation is recursive and written in Kotlin. For lower CPU/battery use or larger FFT sizes, consider:
-  - Using an iterative FFT implementation to reduce recursion overhead.
-  - Using a native FFT library (NDK) or a tested Java FFT implementation (e.g., JTransforms) for performance.
-  - Offloading heavy processing to a dedicated worker thread or native code.
-
-Testing
-
-- There are no unit tests in the repository yet. Suggested unit tests:
-  - `calculateRMS` with synthetic sample arrays.
-  - `applyHanningWindow` produces expected windowed outputs.
-  - `calculateFFT` on known waveforms (sine at 440Hz) to assert dominant bin.
-
-Code style and formatting
-
-- Use Kotlin formatting tools and linting as per your standard workflow. Run `./gradlew ktlintCheck` or your preferred formatters if configured.
-
-Lifecycle notes
-
-- Analyzer lifecycle is controlled by Compose effects in `MainActivity.kt` (`LaunchedEffect` + `DisposableEffect`) — keep that pattern when moving analyzer usage into other components.
+Use known test signals and reference equipment to evaluate frequency and level measurements. Phone microphones and audio processing vary; a single offset does not make a phone a certified sound-level meter.

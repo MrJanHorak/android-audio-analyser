@@ -12,8 +12,8 @@ This document covers the current Android Studio and Xcode workflows for the repo
 ### Prerequisites
 
 - Android Studio
-- JDK 17 or newer available to Gradle
-- Android SDK matching `compileSdk = 36`
+- JDK 21 for the configured Gradle daemon toolchain
+- Android SDK platform 36.1, build tools, NDK, and CMake; see [dependencies](dependencies.md)
 - Android emulator or device for manual testing
 
 ### Open and sync
@@ -46,7 +46,12 @@ bash ./gradlew :app:assembleDebug
 2. Grant microphone permission.
 3. Confirm the dB meter, weighted readings, dominant frequency, and spectrum update.
 4. Confirm the waterfall fills in over time.
-5. Confirm Android-only tools such as the signal generator still open and behave normally.
+5. Switch between Fast and Detailed frequency modes, and check the spectrum and waterfall responsiveness.
+6. Switch input modes and confirm the built-in microphone recalls its own offset and gate; reconnect an external microphone and check that temporary settings reset.
+7. Check a gated reading shows “No peak,” then export a CSV and inspect its availability status columns.
+8. Check portrait and landscape compact views, the feedback guide, and signal-generator playback at a low level. Test pause/resume and backgrounding.
+
+For additional real-device checks and measurement limitations, see [usage](usage.md#android-device-checks).
 
 ## Xcode
 
@@ -55,7 +60,7 @@ bash ./gradlew :app:assembleDebug
 - macOS
 - Xcode with an iOS 16 or newer simulator runtime, or a physical iPhone
 - XcodeGen
-- JDK 17+ or Android Studio so Gradle can build `Shared.xcframework`
+- JDK 21 or an Android Studio JDK matching the configured Gradle daemon toolchain
 
 ### Generate and open the project
 
@@ -110,7 +115,7 @@ For the most realistic microphone testing, prefer a physical iPhone. The simulat
 
 ### `Unable to locate a Java Runtime`
 
-Install JDK 17+ or set `JAVA_HOME` explicitly before running Gradle tasks.
+Install JDK 21 or configure the JDK selected by the Gradle daemon toolchain before running Gradle tasks.
 
 ### Android Studio sync issues
 

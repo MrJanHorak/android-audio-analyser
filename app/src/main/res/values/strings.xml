@@ -28,7 +28,7 @@
     <string name="db_offset_label">dB Offset: %.0f</string>
     <string name="db_offset_help">Adjust if the app reads too high or low compared to a real meter.</string>
     <string name="noise_gate_label">Noise Gate: %.0f dB</string>
-    <string name="noise_gate_help">Increase this to cut out background static/hiss in quiet rooms.</string>
+    <string name="noise_gate_help">Hide whole frames below this displayed level. Each built-in input mode remembers its own gate; external input gates are temporary. This does not change microphone sensitivity or remove noise from louder sound. A high threshold can hide speech and feedback; the setting depends on calibration.</string>
     <string name="done">Done</string>
     <string name="open_calibration">Open Calibration</string>
     <string name="calibration_title">Calibration</string>

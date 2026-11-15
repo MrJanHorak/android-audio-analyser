@@ -21,6 +21,13 @@ class AnalyzerMathTest {
     }
 
     @Test
+    fun detectsRailSamplesInReadPortionOfPcmBuffer() {
+        assertTrue(AnalyzerMath.hasPcmRailSamples(shortArrayOf(0, 32700), 2))
+        assertTrue(AnalyzerMath.hasPcmRailSamples(shortArrayOf(-32768), 1))
+        assertTrue(!AnalyzerMath.hasPcmRailSamples(shortArrayOf(32699, -32699, 32767), 2))
+    }
+
+    @Test
     fun dbConversionHelpersMatchCurrentAnalyzerThresholding() {
         assertClose(
             expected = 60.0,

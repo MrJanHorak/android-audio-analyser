@@ -8,6 +8,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.media.AudioManager
+import android.media.MediaRecorder
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -70,6 +72,7 @@ import com.example.audioanalyser.shared.markUsed
 import com.example.audioanalyser.shared.SavedTargetCurvePreset
 import com.example.audioanalyser.shared.customTargetCurveFrequencies
 import com.example.audioanalyser.shared.venueCategoryOptions
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import com.example.audioanalyser.ui.theme.AudioAnalyserTheme
 import org.json.JSONArray
@@ -80,7 +83,7 @@ import kotlin.math.roundToInt
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
-    private val audioAnalyzer = AudioAnalyzer()
+    private val audioAnalyzer by lazy { AudioAnalyzer(applicationContext) }
     private val signalGenerator = SignalGenerator()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,7 +103,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, modifier: Modifier = Modifier) {
+fun DelayCalculatorPanel(modifier: Modifier = Modifier) {
     var distanceValue by rememberSaveable { mutableStateOf(10f) }
     var temperatureC by rememberSaveable { mutableStateOf(20f) }
     var isMeters by rememberSaveable { mutableStateOf(true) }
@@ -113,22 +116,22 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
         AutoSizeText(text = "Delay Calculator", style = MaterialTheme.typography.labelLarge)
-        ToolHelperText(text = "Calculate speaker alignment times based on distance.", modifier = Modifier.padding(top = 4.dp))
+        ToolHelperText(text = "Estimate speaker delay from the difference in travel distance.", modifier = Modifier.padding(top = 4.dp))
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             AutoSizeText("Unit: ", modifier = Modifier.weight(0.3f))
             Row(modifier = Modifier.weight(0.7f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = isMeters, onClick = { isMeters = true }, label = { AutoSizeText("Meters") })
-                FilterChip(selected = !isMeters, onClick = { isMeters = false }, label = { AutoSizeText("Feet") })
+                FilterChip(selected = isMeters, onClick = { if (!isMeters) { distanceValue *= 0.3048f; isMeters = true } }, label = { AutoSizeText("Meters") })
+                FilterChip(selected = !isMeters, onClick = { if (isMeters) { distanceValue *= 3.28084f; isMeters = false } }, label = { AutoSizeText("Feet") })
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         AutoSizeText(text = "Distance: ${"%.1f".format(Locale.getDefault(), distanceValue)} ${if (isMeters) "m" else "ft"}")
-        Slider(value = distanceValue, onValueChange = { distanceValue = it }, valueRange = 0.5f..100f)
+        Slider(value = distanceValue, onValueChange = { distanceValue = it }, valueRange = 0f..(if (isMeters) 100f else 328.084f))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -150,57 +153,12 @@ fun DelayCalculatorPanel(analyzer: AudioAnalyzer, generator: SignalGenerator, mo
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        var isMeasuring by remember { mutableStateOf(false) }
-        var detectedPolarity by rememberSaveable { mutableStateOf<Boolean?>(null) }
-        
-        Button(
-            onClick = {
-                isMeasuring = true
-                detectedPolarity = null
-                val txTime = generator.emitSinglePing()
-                analyzer.awaitNextTransient { rxTime, isPositive ->
-                    val diffNanos = rxTime - txTime
-                    // Subtract roughly 40ms for OS audio routing latency (buffer inherent limits)
-                    val rawMs = diffNanos / 1_000_000.0
-                    val adjustedMs = (rawMs - 40.0).coerceAtLeast(0.0)
-                    
-                    // Update distance based on delay!
-                    val speedOfSoundMetres = 331.3 + (0.606 * temperatureC)
-                    val newDistanceMeters = (adjustedMs / 1000.0) * speedOfSoundMetres
-                    
-                    distanceValue = if (isMeters) {
-                        newDistanceMeters.toFloat()
-                    } else {
-                        (newDistanceMeters * 3.28084).toFloat()
-                    }
-                    detectedPolarity = isPositive
-                    isMeasuring = false
-                }
-            },
-            enabled = !isMeasuring,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            AutoSizeText(if (isMeasuring) "Listening for ping..." else "Auto-Measure with Ping")
-        }
-        
-        if (detectedPolarity != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Surface(
-                color = if (detectedPolarity == true) Color(0xFF006400) else Color(0xFF8B0000),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (detectedPolarity == true) "Polarity: IN PHASE (+)" else "Polarity: INVERTED (-)",
-                    modifier = Modifier.padding(12.dp),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
+
+        ToolHelperText(
+            text = "Enter the difference between the two speakers' distances to the listening position. Apply the calculated delay to the closer speaker. This is a distance-based starting point; verify the result by listening or with suitable measurement equipment.",
+            modifier = Modifier.padding(top = 12.dp)
+        )
+
     }
 }
 
@@ -209,11 +167,12 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
     val modes = SignalGenerator.Mode.values()
     var selectedModeIndex by rememberSaveable { mutableStateOf(0) }
     var freq by rememberSaveable { mutableStateOf(1000f) }
-    var level by rememberSaveable { mutableStateOf(0.25f) }
+    var level by rememberSaveable { mutableStateOf(0.05f) }
     val isRunning by generator.isRunning.collectAsState()
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 12.dp)) {
         AutoSizeText(text = "Signal generator", style = MaterialTheme.typography.labelLarge)
+        ToolHelperText(text = "Before starting, lower the mixer channel and check the phone's output route. Raise the level slowly. Test signals can be loud.", modifier = Modifier.padding(top = 8.dp))
 
         Row(
             modifier = Modifier
@@ -225,6 +184,7 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
             modes.forEachIndexed { idx, m ->
                 FilterChip(
                     selected = selectedModeIndex == idx,
+                    enabled = !isRunning,
                     onClick = { selectedModeIndex = idx },
                     label = { Text(m.name) }
                 )
@@ -233,11 +193,11 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
 
         if (modes[selectedModeIndex] == SignalGenerator.Mode.SINE) {
             AutoSizeText(text = "Frequency: ${freq.toInt()} Hz", modifier = Modifier.padding(top = 8.dp))
-            Slider(value = freq, onValueChange = { freq = it }, valueRange = 20f..20000f)
+            Slider(value = freq, onValueChange = { freq = it }, valueRange = 20f..20000f, enabled = !isRunning)
         }
 
         AutoSizeText(text = "Level", modifier = Modifier.padding(top = 8.dp))
-        Slider(value = level, onValueChange = { level = it }, valueRange = 0f..1f)
+        Slider(value = level, onValueChange = { level = it }, valueRange = 0f..1f, enabled = !isRunning)
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { generator.start(modes[selectedModeIndex], freq, level) }, enabled = !isRunning) {
@@ -399,13 +359,6 @@ private fun loadAnalyzerPreferenceState(context: Context): AnalyzerPreferenceSta
     )
 }
 
-private fun persistCalibrationPreferences(context: Context, dbOffset: Float, noiseThreshold: Float) {
-    context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
-        .edit()
-        .putFloat("db_offset", dbOffset)
-        .putFloat("noise_threshold", noiseThreshold)
-        .apply()
-}
 
 private fun buildAnalyzerBackupJson(
     preferenceState: AnalyzerPreferenceState,
@@ -542,7 +495,7 @@ fun MainScreen(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     ) {
                         Text("Grant Access")
                     }
-                    
+
                     if (permissionRequested && !shouldShowRationale) {
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(
@@ -582,6 +535,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val feedbackPeaks by analyzer.feedbackPeaks.collectAsState()
     val error by analyzer.error.collectAsState()
     val isLogging by analyzer.isLogging.collectAsState()
+    val isListening by analyzer.isListening.collectAsState()
+    val inputName by analyzer.inputName.collectAsState()
+    val inputClipping by analyzer.inputClipping.collectAsState()
+    val calibrationStatus by analyzer.calibrationStatus.collectAsState()
 
     var isPaused by rememberSaveable { mutableStateOf(false) }
 
@@ -611,6 +568,19 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
     // Load persisted calibration values (if any)
     val ctx = LocalContext.current
+    val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
+    var measurementInput by remember { mutableStateOf(prefs.getBoolean("measurement_input", false)) }
+    var detailedSpectrum by remember { mutableStateOf(prefs.getBoolean("detailed_spectrum", false)) }
+    val unprocessedSupported = remember(ctx) {
+        val manager = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        manager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
+            ?.equals("true", ignoreCase = true) == true
+    }
+    val inputModeLabel = when {
+        !measurementInput -> "Standard mic"
+        unprocessedSupported -> "Unprocessed requested"
+        else -> "Voice-recognition input requested"
+    }
 
     fun selectTargetCurve(profile: AnalyzerTargetCurveProfile) {
         selectedTargetCurveId = profile.id
@@ -663,9 +633,11 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 val importedCurves = sortSavedTargetCurvePresets(importedBackup.savedTargetCurves)
                 val importedProfiles = buildAnalyzerTargetCurveProfiles(importedCurves)
 
-                analyzer.setDbOffset(importedPreferences.dbOffset)
-                analyzer.setNoiseThreshold(importedPreferences.noiseThreshold)
-                persistCalibrationPreferences(ctx, importedPreferences.dbOffset, importedPreferences.noiseThreshold)
+                prefs.edit().putFloat("db_offset", importedPreferences.dbOffset)
+                    .putFloat("noise_threshold", importedPreferences.noiseThreshold).apply()
+                if (analyzer.inputIdentity.value != null && analyzer.isListening.value) {
+                    analyzer.setAndSaveNoiseThreshold(importedPreferences.noiseThreshold)
+                }
 
                 savedTargetCurves = importedCurves
                 saveSavedTargetCurvePresets(ctx, importedCurves)
@@ -679,7 +651,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     ?: importedProfiles.first().id
                 spectrumSnapshot = null
                 snapshotCompareEnabled = false
-                settingsBackupMessage = "Backup imported. Saved curves and preferences updated."
+                settingsBackupMessage = "Backup imported. The gate was applied to the active input if available; the legacy offset remains unassigned."
             }
         }
     }
@@ -689,8 +661,6 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         val loadedSavedTargetCurves = loadSavedTargetCurvePresets(ctx)
         val loadedTargetCurveProfiles = buildAnalyzerTargetCurveProfiles(loadedSavedTargetCurves)
 
-        analyzer.setDbOffset(savedPreferences.dbOffset)
-        analyzer.setNoiseThreshold(savedPreferences.noiseThreshold)
         feedbackHuntEnabled = savedPreferences.feedbackHuntEnabled
         bigGraphModeEnabled = savedPreferences.bigGraphModeEnabled
         savedTargetCurves = loadedSavedTargetCurves
@@ -744,11 +714,29 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     // Lifecycle-aware start/stop
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+    var captureJob by remember { mutableStateOf<Job?>(null) }
+    fun startCapture() {
+        val previousJob = captureJob
+        captureJob = scope.launch {
+            previousJob?.join()
+            if (!isPaused && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                val source = when {
+                    !measurementInput -> MediaRecorder.AudioSource.MIC
+                    unprocessedSupported -> MediaRecorder.AudioSource.UNPROCESSED
+                    else -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+                }
+                analyzer.startAnalyzing(source, detailedSpectrum)
+            }
+        }
+    }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> if (!isPaused) scope.launch { analyzer.startAnalyzing() }
-                Lifecycle.Event.ON_PAUSE -> analyzer.stop()
+                Lifecycle.Event.ON_RESUME -> if (!isPaused) startCapture()
+                Lifecycle.Event.ON_PAUSE -> {
+                    analyzer.stop()
+                    generator.stop()
+                }
                 else -> {}
             }
         }
@@ -839,17 +827,18 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { 
-                    isPaused = !isPaused
-                    if (isPaused) {
-                        analyzer.stop()
+                IconButton(onClick = {
+                    if (!isListening && !error.isNullOrEmpty()) {
+                        isPaused = false
+                        startCapture()
                     } else {
-                        scope.launch { analyzer.startAnalyzing() }
+                        isPaused = !isPaused
+                        if (isPaused) analyzer.stop() else startCapture()
                     }
                 }) {
                     Icon(
-                        imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        contentDescription = if (isPaused) "Resume" else "Pause"
+                        imageVector = if (isPaused || !error.isNullOrEmpty()) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        contentDescription = if (!error.isNullOrEmpty()) "Retry microphone" else if (isPaused) "Resume" else "Pause"
                     )
                 }
                 IconButton(onClick = { showInfoDialog = true }) {
@@ -866,6 +855,19 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
+            Text(
+                text = when {
+                    !error.isNullOrEmpty() -> "Microphone unavailable"
+                    isListening -> "Listening • ${inputName ?: "Input unknown"} • $inputModeLabel • $calibrationStatus"
+                    isPaused -> "Paused • Readings are frozen"
+                    else -> "Not listening • Readings may be frozen"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            if (isListening && inputClipping) {
+                Text("Input may be clipping. Reduce the sound level at the microphone.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+            }
             if (!error.isNullOrEmpty()) {
                 ElevatedCard(modifier = Modifier
                     .fillMaxWidth()
@@ -1006,9 +1008,34 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         SettingsDialog(
             currentOffset = dbOffset,
             currentThreshold = noiseThreshold,
+            offsetEditable = isListening && analyzer.inputIdentity.collectAsState().value != null,
+            measurementInput = measurementInput,
+            detailedSpectrum = detailedSpectrum,
+            canChangeSpectrumDetail = !isLogging,
+            onSpectrumDetailChange = { selected ->
+                if (detailedSpectrum != selected) {
+                    detailedSpectrum = selected
+                    prefs.edit().putBoolean("detailed_spectrum", selected).apply()
+                    analyzer.stop()
+                    analyzer.resetStats()
+                    spectrumSnapshot = null
+                    snapshotCompareEnabled = false
+                    if (!isPaused) startCapture()
+                }
+            },
+            unprocessedSupported = unprocessedSupported,
+            onMeasurementInputChange = { selected ->
+                if (measurementInput != selected) {
+                    measurementInput = selected
+                    prefs.edit().putBoolean("measurement_input", selected).apply()
+                    analyzer.stop()
+                    analyzer.resetStats()
+                    if (!isPaused) startCapture()
+                }
+            },
             importExportMessage = settingsBackupMessage,
-            onOffsetChange = { analyzer.setDbOffset(it) },
-            onThresholdChange = { analyzer.setNoiseThreshold(it) },
+            onOffsetChange = { analyzer.setAndSaveDbOffset(it) },
+            onThresholdChange = { analyzer.setAndSaveNoiseThreshold(it) },
             onExportBackup = { exportBackupLauncher.launch(ANALYZER_BACKUP_FILE_NAME) },
             onImportBackup = { importBackupLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
             onDismiss = { showSettingsDialog = false },
@@ -1082,10 +1109,11 @@ fun PortraitLayout(
             maxDb = maxDb,
             avgDb = avgDb,
             dbHistory = dbHistory,
+            allowCompact = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         VisualizerCard(
             analyzer = analyzer,
@@ -1175,6 +1203,11 @@ fun LandscapeLayout(
             maxDb = maxDb,
             avgDb = avgDb,
             dbHistory = dbHistory,
+            allowCompact = true,
+            compactPreferenceKey = "compact_landscape_meter",
+            compactInitially = true,
+            scrollMeter = true,
+            shortWeightingLabels = true,
             modifier = Modifier
                 .weight(0.4f)
                 .fillMaxHeight()
@@ -1380,7 +1413,7 @@ fun AnalyzerTabletSummaryCard(
                     else -> "Saved"
                 },
                 detail = spectrumSnapshot?.let { snapshot ->
-                    "Reference captured at ${formatFrequencyLabel(snapshot.dominantFrequency)}."
+                    "Reference captured: ${formatDominantFrequency(snapshot.dominantFrequency)}."
                 } ?: "Capture a reference when you want an A/B view.",
                 modifier = Modifier.padding(top = 14.dp)
             )
@@ -1420,6 +1453,12 @@ fun TabletSummaryItem(
     }
 }
 
+internal fun formatMeterReading(value: Float, weighting: String, locale: Locale, compact: Boolean = false): String {
+    if (value <= 0f) return if (compact) "dB($weighting): —" else "Below range ($weighting)"
+    return if (compact) String.format(locale, "dB(%s): %.1f", weighting, value)
+    else String.format(locale, "%.1f dB(%s)", value, weighting)
+}
+
 @Composable
 fun DbMeterCard(
     dbLevel: Float,
@@ -1430,39 +1469,63 @@ fun DbMeterCard(
     maxDb: Float,
     avgDb: Float,
     dbHistory: List<Float>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allowCompact: Boolean = false,
+    compactPreferenceKey: String = "compact_portrait_meter",
+    compactInitially: Boolean = false,
+    scrollMeter: Boolean = false,
+    shortWeightingLabels: Boolean = false
 ) {
     var selectedWeighting by rememberSaveable { mutableStateOf("Z") }
+    val ctx = LocalContext.current
+    val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
+    var compact by rememberSaveable(compactPreferenceKey) { mutableStateOf(allowCompact && prefs.getBoolean(compactPreferenceKey, compactInitially)) }
+    LaunchedEffect(compact, allowCompact, compactPreferenceKey) {
+        if (allowCompact) prefs.edit().putBoolean(compactPreferenceKey, compact).apply()
+    }
+    val compactMeter = allowCompact && compact
+    val meterScrollState = rememberScrollState()
+    LaunchedEffect(compactMeter, scrollMeter) {
+        if (scrollMeter) meterScrollState.scrollTo(0)
+    }
     val displayDb = when(selectedWeighting) {
         "A" -> dbLevelA
         "C" -> dbLevelC
         else -> dbLevelZ
     }
 
-    val dbColor = when {
-        displayDb > 90 -> Color.Red
-        displayDb > 80 -> Color(0xFFFFC107) // Amber
-        else -> MaterialTheme.colorScheme.primary
-    }
+    val dbColor = MaterialTheme.colorScheme.primary
 
-    val semanticsDesc = stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
+    val locale = Locale.getDefault()
+    val reading = formatMeterReading(displayDb, selectedWeighting, locale)
+    val semanticsDesc = if (displayDb <= 0f) {
+        "Sound level below gate or display range, $selectedWeighting weighting. Statistics are Z-weighted."
+    } else {
+        stringResource(id = R.string.db_meter_semantics, displayDb, if (minDb == Float.MAX_VALUE) 0f else minDb, avgDb, maxDb)
+    }
 
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
-                .padding(24.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .then(if (scrollMeter) Modifier.fillMaxHeight() else Modifier)
+                .padding(if (compactMeter || scrollMeter) 12.dp else 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = if (scrollMeter) Arrangement.Top else Arrangement.Center
         ) {
-            Text(
-                text = stringResource(id = R.string.sound_level),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (allowCompact) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(id = R.string.sound_level), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { compact = !compact }) {
+                        Text(if (compactMeter) "Show details" else "Compact")
+                    }
+                }
+            } else {
+                Text(stringResource(id = R.string.sound_level), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             AutoSizeText(
-                text = String.format(Locale.getDefault(), "%.1f dB(%s)", displayDb, selectedWeighting),
-                style = MaterialTheme.typography.displayMedium,
+                text = reading,
+                style = if (compactMeter || scrollMeter) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = dbColor
             )
@@ -1471,53 +1534,65 @@ fun DbMeterCard(
                 FilterChip(
                     selected = selectedWeighting == "A",
                     onClick = { selectedWeighting = "A" },
-                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(A): %.1f", dbLevelA), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = if (shortWeightingLabels) "A" else formatMeterReading(dbLevelA, "A", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = selectedWeighting == "C",
                     onClick = { selectedWeighting = "C" },
-                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(C): %.1f", dbLevelC), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = if (shortWeightingLabels) "C" else formatMeterReading(dbLevelC, "C", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = selectedWeighting == "Z",
                     onClick = { selectedWeighting = "Z" },
-                    label = { AutoSizeText(text = String.format(Locale.getDefault(), "dB(Z): %.1f", dbLevelZ), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = if (shortWeightingLabels) "Z" else formatMeterReading(dbLevelZ, "Z", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
             }
-            Surface(
-                color = dbColor.copy(alpha = 0.1f),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text(
-                    text = if (displayDb > 85) stringResource(id = R.string.too_loud) else stringResource(id = R.string.safe_level),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = dbColor,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                )
+            if (scrollMeter) {
+                Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(meterScrollState)) {
+                    MeterDetails(displayDb, dbColor, compactMeter, minDb, avgDb, maxDb, dbHistory, showScrollHint = !compactMeter)
+                }
+            } else {
+                MeterDetails(displayDb, dbColor, compactMeter, minDb, avgDb, maxDb, dbHistory)
             }
 
+        }
+    }
+}
+
+
+@Composable
+private fun MeterDetails(
+    displayDb: Float,
+    dbColor: Color,
+    compactMeter: Boolean,
+    minDb: Float,
+    avgDb: Float,
+    maxDb: Float,
+    dbHistory: List<Float>,
+    showScrollHint: Boolean = false
+) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (showScrollHint) {
+            Text("Scroll here for statistics and history ↓", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Surface(color = dbColor.copy(alpha = 0.1f), shape = MaterialTheme.shapes.small, modifier = Modifier.padding(top = 8.dp)) {
+            Text(
+                text = if (displayDb <= 0f) "Below noise gate or display range" else "Indicative reading • Not a hearing-safety assessment",
+                style = MaterialTheme.typography.labelMedium,
+                color = dbColor,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+        if (!compactMeter) {
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Stats Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
+            Text("Statistics: Z-weighted, arithmetic average (not Leq)", style = MaterialTheme.typography.labelSmall)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StatItem(stringResource(id = R.string.min_label), if (minDb == Float.MAX_VALUE) 0f else minDb)
                 StatItem(stringResource(id = R.string.avg_label), avgDb)
                 StatItem(stringResource(id = R.string.max_label), maxDb)
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            // History Sparkline
-            HistorySparkline(
-                history = dbHistory,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
-            )
+            HistorySparkline(history = dbHistory, modifier = Modifier.fillMaxWidth().height(40.dp))
         }
     }
 }
@@ -1667,24 +1742,30 @@ fun VisualizerCard(
     }
     var showAnalyzerTools by remember { mutableStateOf(false) }
     var showSavedCurvesDialog by remember { mutableStateOf(false) }
+    var showFeedbackGuide by remember { mutableStateOf(false) }
     var showWaterfall by rememberSaveable { mutableStateOf(false) }
-    val matchedBand = selectedOverlay.bandFor(dominantFrequency)
+    val matchedBand = if (dominantFrequency > 0f) selectedOverlay.bandFor(dominantFrequency) else null
     val primaryFeedbackPeak = feedbackPeaks.firstOrNull()
-    val snapshotDeltaHz = spectrumSnapshot?.let { dominantFrequency - it.dominantFrequency }
+    val snapshotDeltaHz = spectrumSnapshot?.takeIf { dominantFrequency > 0f && it.dominantFrequency > 0f }
+        ?.let { dominantFrequency - it.dominantFrequency }
     val peakFocusSummary = when {
+        dominantFrequency <= 0f -> "No frequency peak available."
         matchedBand != null -> "Peak focus: ${matchedBand.label} (${formatFrequencyRange(matchedBand.startHz, matchedBand.endHz)})"
         selectedOverlay.bands.isNotEmpty() -> "Peak focus: outside ${selectedOverlay.label} guide bands"
         else -> "No source guide selected."
     }
     val snapshotSummary = spectrumSnapshot?.let { snapshot ->
         if (snapshotCompareEnabled) {
-            "Snapshot delta ${formatSignedFrequencyDelta(snapshotDeltaHz ?: 0f)} and ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}."
+            val frequencyComparison = snapshotDeltaHz?.let { "Frequency delta ${formatSignedFrequencyDelta(it)}" }
+                ?: "Frequency comparison unavailable"
+            val levelComparison = if (dbLevel > 0f && snapshot.dbLevel > 0f) "level delta ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}" else "level comparison unavailable"
+            "$frequencyComparison; $levelComparison."
         } else {
-            "Snapshot saved at ${formatFrequencyLabel(snapshot.dominantFrequency)} and ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}."
+            "Snapshot saved: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
         }
     }
     val semanticsDesc = buildString {
-        append(String.format(Locale.getDefault(), "Frequency visualizer. Dominant frequency %.0f Hz. ", dominantFrequency))
+        append("Frequency visualizer. Dominant frequency ${formatDominantFrequency(dominantFrequency)}. ")
         append(peakFocusSummary)
         if (bigGraphModeEnabled) {
             append(" Big graph mode enabled.")
@@ -1719,7 +1800,7 @@ fun VisualizerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = formatFrequencyLabel(dominantFrequency),
+                            text = formatDominantFrequency(dominantFrequency),
                             style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -1735,8 +1816,11 @@ fun VisualizerCard(
                         }
                     }
 
-                    TextButton(onClick = { showAnalyzerTools = true }) {
-                        Text("Tools")
+                    Row {
+                        if (feedbackHuntEnabled) {
+                            TextButton(onClick = { showFeedbackGuide = true }) { Text("Guide") }
+                        }
+                        TextButton(onClick = { showAnalyzerTools = true }) { Text("Tools") }
                     }
                 }
 
@@ -1789,7 +1873,7 @@ fun VisualizerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = formatFrequencyLabel(dominantFrequency),
+                            text = formatDominantFrequency(dominantFrequency),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -1803,8 +1887,11 @@ fun VisualizerCard(
                         )
                     }
 
-                    TextButton(onClick = { showAnalyzerTools = true }) {
-                        Text("Tools")
+                    Row {
+                        if (feedbackHuntEnabled) {
+                            TextButton(onClick = { showFeedbackGuide = true }) { Text("Guide") }
+                        }
+                        TextButton(onClick = { showAnalyzerTools = true }) { Text("Tools") }
                     }
                 }
 
@@ -1936,6 +2023,10 @@ fun VisualizerCard(
                 }
             }
         }
+    }
+
+    if (showFeedbackGuide) {
+        FeedbackGuideDialog(primaryFeedbackPeak, onDismiss = { showFeedbackGuide = false })
     }
 
     if (showAnalyzerTools) {
@@ -2396,7 +2487,7 @@ fun AnalyzerToolsSheet(
                                 if (snapshotCompareEnabled) {
                                     "Snapshot compare is active. Cyan line shows the saved reference over the live bars."
                                 } else {
-                                    "Saved snapshot at ${formatFrequencyLabel(snapshot.dominantFrequency)} and ${String.format(Locale.getDefault(), "%.1f dB", snapshot.dbLevel)}."
+                                    "Saved snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
                                 }
                             } ?: "No snapshot saved yet.",
                             modifier = Modifier.padding(top = 12.dp)
@@ -2404,7 +2495,7 @@ fun AnalyzerToolsSheet(
                     }
 
                     3 -> {
-                        DelayCalculatorPanel(analyzer = analyzer, generator = generator)
+                        DelayCalculatorPanel()
                     }
                     else -> {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -2419,7 +2510,7 @@ fun AnalyzerToolsSheet(
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2741,7 +2832,7 @@ fun FrequencyVisualizer(
     )
 
     val minFreq = 20f
-    val maxFreq = 22050f 
+    val maxFreq = 22050f
     val bassColor = MaterialTheme.colorScheme.primary
     val midsColor = MaterialTheme.colorScheme.secondary
     val highsColor = MaterialTheme.colorScheme.tertiary
@@ -2983,12 +3074,9 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "Feedback watch",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Text("Feedback watch", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
 
+            ToolHelperText(text = "A peak may be music or room resonance. Reduce the level first, confirm by ear, and make small EQ changes.", modifier = Modifier.padding(top = 4.dp))
             if (feedbackPeaks.isEmpty()) {
                 Text(
                     text = "No stable peaks yet. When a source starts to ring, the strongest repeated hotspots will show up here.",
@@ -3019,7 +3107,7 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Cut ${formatFrequencyLabel(peak.suggestedCutHz)} ${feedbackPeakLabel(peak)}",
+                                    text = "Possible ringing near ${formatFrequencyLabel(peak.suggestedCutHz)} ${feedbackPeakLabel(peak)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -3030,6 +3118,37 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
             }
         }
     }
+}
+
+@Composable
+fun FeedbackGuideDialog(peak: FeedbackPeak?, onDismiss: () -> Unit) {
+    val openingPeak = remember { peak }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Find a ringing frequency") },
+        text = {
+            Column {
+                Text("Scroll to see all four steps ↓", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                Text(
+                    if (openingPeak == null) "No candidate is currently shown. Listen for a persistent tone and watch the graph."
+                    else "Possible candidate: ${formatFrequencyLabel(openingPeak.suggestedCutHz)} (${feedbackPeakLabel(openingPeak)}). Candidate captured when this guide opened. Stability describes the peak, not certainty that it is feedback.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("1. Lower the ringing channel or monitor. If you cannot identify it, lower the main level first.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("2. Confirm the tone by ear. A peak can also be a musical note or room noise.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("3. On the affected channel or monitor EQ, try a small, narrow cut near the candidate. Do not assume the main EQ is the right place.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("4. Raise the level cautiously and listen again. Undo the cut if it does not help; check microphone and speaker placement.")
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
 }
 
 fun feedbackPeakLabel(peak: FeedbackPeak): String = when (FeedbackPeakPresentation.stabilityKey(peak)) {
@@ -3048,6 +3167,13 @@ fun formatSignedDbDelta(deltaDb: Float): String =
 fun SettingsDialog(
     currentOffset: Float,
     currentThreshold: Float,
+    offsetEditable: Boolean,
+    measurementInput: Boolean,
+    detailedSpectrum: Boolean,
+    canChangeSpectrumDetail: Boolean,
+    onSpectrumDetailChange: (Boolean) -> Unit,
+    unprocessedSupported: Boolean,
+    onMeasurementInputChange: (Boolean) -> Unit,
     importExportMessage: String?,
     onOffsetChange: (Float) -> Unit,
     onThresholdChange: (Float) -> Unit,
@@ -3056,12 +3182,31 @@ fun SettingsDialog(
     onDismiss: () -> Unit,
     onOpenCalibration: (() -> Unit)? = null
 ) {
-    val ctx = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(id = R.string.mic_calibration)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text("Microphone input", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = !measurementInput, onClick = { onMeasurementInputChange(false) }, label = { Text("Standard") })
+                    FilterChip(selected = measurementInput, onClick = { onMeasurementInputChange(true) }, label = { Text("Measurement") })
+                }
+                Text(
+                    text = if (unprocessedSupported) "Measurement requests Android's unprocessed input. The phone may still apply processing." else "Unprocessed input is not reported as supported. Measurement requests voice-recognition input, which may reduce processing but is not guaranteed to disable it.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Changing input can change readings. Recalibrate against a reference meter. Android does not provide a universal microphone sensitivity control.", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                Text("Frequency detail", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = !detailedSpectrum, enabled = canChangeSpectrumDetail, onClick = { onSpectrumDetailChange(false) }, label = { Text("Fast") })
+                    FilterChip(selected = detailedSpectrum, enabled = canChangeSpectrumDetail, onClick = { onSpectrumDetailChange(true) }, label = { Text("Detailed") })
+                }
+                Text("Fast: about 43 Hz between FFT bins. Detailed: about 11 Hz; slower updates and more processing. Switching clears the current spectrum snapshot and waterfall history.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!canChangeSpectrumDetail) Text("Stop logging before changing frequency detail.", style = MaterialTheme.typography.labelSmall)
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = String.format(Locale.getDefault(), stringResource(id = R.string.db_offset_label), currentOffset),
                     style = MaterialTheme.typography.bodyMedium
@@ -3069,6 +3214,7 @@ fun SettingsDialog(
                 Slider(
                     value = currentOffset,
                     onValueChange = onOffsetChange,
+                    enabled = offsetEditable,
                     valueRange = 0f..100f
                 )
                 Text(
@@ -3077,6 +3223,7 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                if (!offsetEditable) Text("Start capture and wait for Android to identify the input before adjusting the offset or gate.", style = MaterialTheme.typography.labelSmall)
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
@@ -3086,7 +3233,8 @@ fun SettingsDialog(
                 Slider(
                     value = currentThreshold,
                     onValueChange = onThresholdChange,
-                    valueRange = 0f..60f
+                    enabled = offsetEditable,
+                    valueRange = 0f..120f
                 )
                 Text(
                     text = stringResource(id = R.string.noise_gate_help),
@@ -3102,7 +3250,7 @@ fun SettingsDialog(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Save venue curves plus app preferences to a file, or import them on another device. Import replaces the current saved curves and app preferences.",
+                    text = "Save venue curves plus app preferences to a file, or import them on another device. Device-specific offset and gate profiles are not transferred.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -3133,7 +3281,6 @@ fun SettingsDialog(
         dismissButton = {
             if (onOpenCalibration != null) {
                 TextButton(onClick = {
-                    persistCalibrationPreferences(ctx, currentOffset, currentThreshold)
                     onDismiss()
                     onOpenCalibration()
                 }) {
@@ -3143,7 +3290,6 @@ fun SettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                persistCalibrationPreferences(ctx, currentOffset, currentThreshold)
                 onDismiss()
             }) {
                 Text(stringResource(id = R.string.done))
@@ -3328,7 +3474,7 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Phase correlation meter and Delay calculator are planned; they require stereo input or special routing and will appear in a future update.",
+                                        text = "The delay calculator estimates delay from distance differences. Accurate alignment and polarity measurements require suitable reference measurements.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(top = 8.dp)
@@ -3429,13 +3575,18 @@ fun EqReferenceCard(entry: EqReferenceEntry) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
-    val ctx = LocalContext.current
     val currentOffset by analyzer.dbOffset.collectAsState()
     val dbLevel by analyzer.dbLevel.collectAsState()
     val dominant by analyzer.dominantFrequency.collectAsState()
+    val isListening by analyzer.isListening.collectAsState()
+    val inputIdentity by analyzer.inputIdentity.collectAsState()
+    val inputRevision by analyzer.inputRevision.collectAsState()
+    val inputClipping by analyzer.inputClipping.collectAsState()
     var targetDb by remember { mutableStateOf(85f) }
     var measuring by remember { mutableStateOf(false) }
     var measuredAvg by remember { mutableStateOf<Float?>(null) }
+    // Changing routes, stopping capture, or clipping invalidates the last sample.
+    LaunchedEffect(isListening, inputRevision, inputClipping) { measuredAvg = null }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -3453,8 +3604,11 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
         Column(modifier = Modifier
             .padding(innerPadding)
             .padding(16.dp)) {
+            Text("Compare against a reference meter at the same location using a steady sound. This adjusts level only; it does not correct microphone frequency response or processing. Recheck after changing microphones or routes.", style = MaterialTheme.typography.bodyMedium)
+            if (inputIdentity == null) Text("Waiting for Android to identify the microphone before calibrating.", style = MaterialTheme.typography.bodyMedium)
+            if (inputClipping) Text("Input may be clipping. Reduce the sound level before calibrating.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             Text(text = String.format(Locale.getDefault(), "%.1f dB", dbLevel), style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
-            Text(text = stringResource(id = R.string.freq_visualizer_semantics, dominant), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Frequency: ${formatDominantFrequency(dominant)}", style = MaterialTheme.typography.bodyMedium)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -3464,19 +3618,25 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row {
-                Button(onClick = {
+                Button(enabled = isListening && inputIdentity != null && !inputClipping && !measuring, onClick = {
                     if (!measuring) {
                         measuring = true
                         measuredAvg = null
                         scope.launch {
                             val samples = mutableListOf<Float>()
-                            val start = System.currentTimeMillis()
-                            while (System.currentTimeMillis() - start < 3000L) {
+                            val start = android.os.SystemClock.elapsedRealtime()
+                            var interrupted = false
+                            val measuredInputRevision = analyzer.inputRevision.value
+                            while (android.os.SystemClock.elapsedRealtime() - start < 3000L) {
+                                if (!analyzer.isListening.value || analyzer.inputClipping.value || analyzer.inputRevision.value != measuredInputRevision) {
+                                    interrupted = true
+                                    break
+                                }
                                 samples.add(analyzer.dbLevel.value)
                                 kotlinx.coroutines.delay(100L)
                             }
                             val avg = if (samples.isNotEmpty()) samples.average().toFloat() else 0f
-                            measuredAvg = avg
+                            measuredAvg = avg.takeIf { !interrupted && analyzer.isListening.value && !analyzer.inputClipping.value && analyzer.inputRevision.value == measuredInputRevision && it > 0f }
                             measuring = false
                         }
                     }
@@ -3486,12 +3646,11 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = {
-                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
-                    val base = measuredAvg ?: dbLevel
+                Button(enabled = isListening && inputIdentity != null && !inputClipping && measuredAvg != null && !measuring, onClick = {
+                    val base = measuredAvg ?: return@Button
                     val newOffset = currentOffset + (targetDb - base)
-                    analyzer.setDbOffset(newOffset)
-                    prefs.edit().putFloat("db_offset", newOffset).apply()
+                    analyzer.setAndSaveDbOffset(newOffset)
+                    measuredAvg = null
                 }) {
                     Text(stringResource(id = R.string.set_offset_button))
                 }
@@ -3503,8 +3662,6 @@ fun CalibrationScreen(analyzer: AudioAnalyzer, onClose: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Row {
                 Button(onClick = {
-                    val prefs = ctx.getSharedPreferences("audio_prefs", android.content.Context.MODE_PRIVATE)
-                    prefs.edit().putFloat("db_offset", analyzer.dbOffset.value).apply()
                     onClose()
                 }) {
                     Text(stringResource(id = R.string.done))
@@ -3527,7 +3684,7 @@ fun AutoSizeText(
     maxLines: Int = 1
 ) {
     var multiplier by remember { mutableFloatStateOf(1f) }
-    
+
     val mergedStyle = style.merge(
         TextStyle(
             color = color,

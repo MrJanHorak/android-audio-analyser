@@ -7,7 +7,7 @@ This directory contains the native SwiftUI iOS shell for the shared audio-analyz
 - macOS
 - Xcode with an iOS 16 or newer simulator runtime, or a physical iPhone
 - XcodeGen (`brew install xcodegen`)
-- JDK 17+ or Android Studio installed so Gradle can build the shared XCFramework
+- JDK 21 or an Android Studio JDK matching the configured Gradle daemon toolchain
 
 ## Launch in Xcode
 
@@ -145,7 +145,7 @@ brew install xcodegen
 
 ### `JAVA_HOME is not set to a usable JDK`
 
-Install JDK 17+ or Android Studio, then rerun `./scripts/prepare-ios-framework.sh`.
+Install JDK 21 or an Android Studio JDK matching the configured Gradle daemon toolchain, then rerun `./scripts/prepare-ios-framework.sh`.
 
 ### Xcode opens but `Shared` symbols are stale or missing
 

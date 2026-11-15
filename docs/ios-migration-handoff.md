@@ -1,5 +1,7 @@
 # iOS Migration Handoff
 
+This is a historical migration record. For current features, measurement limitations, and toolchain requirements, see [usage](usage.md) and [dependencies](dependencies.md).
+
 **Status:** phase 1 has started. The repository now has a first `:shared` Kotlin Multiplatform module and a native SwiftUI iOS shell in `ios/`. Android Gradle validation and the iOS simulator build both complete successfully in the local toolchains, the SwiftUI shell imports shared Kotlin code, live microphone capture runs through an `AVAudioEngine` input tap, both platforms now share the same per-frame FFT/weighting/dominant-frequency analysis, shared feedback presentation, shared target-curve helpers, shared formatting rules, shared spectrogram-history ring-buffer logic, and iOS now renders a richer live analyzer UI with denser Android-like spectrum guides, saved venue curve recall/editing, spectrum snapshot compare, adjustable waterfall palette/percentile/gamma controls, optional big-graph mode, CSV logging/export, versioned JSON analyzer sample export, dedicated waterfall-session export, full signal-generator mode parity, a native delay calculator with ping auto-measure, and a Markdown session report.
 
 ## What landed in this phase
@@ -160,4 +162,4 @@ bash ./gradlew :app:testDebugUnitTest
 bash ./gradlew :app:assembleDebug
 ```
 
-If Gradle reports `Unable to locate a Java Runtime`, install or point `JAVA_HOME` at a JDK 17+ first.
+If Gradle reports `Unable to locate a Java Runtime`, install JDK 21 or configure the JDK selected by the Gradle daemon toolchain.
