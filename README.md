@@ -148,7 +148,7 @@ That script prepares the shared XCFramework, regenerates the Xcode project, and 
 
 ### Android-specific tools
 
-1. Check portrait and landscape layouts, the compact meter, graph and waterfall, and the feedback guide.
+1. Check portrait and landscape layouts, the compact meter, graph and waterfall, and the feedback guide. In Settings → Meter response, compare Steady and Live with changing sound.
 2. In Settings, try Standard and Measurement inputs and confirm that each built-in input mode recalls its own offset and gate. Verify the input name and calibrate against a reference meter when needed.
 3. Compare Fast and Detailed frequency modes using a known signal; check responsiveness and waterfall performance on the phone. Stop logging before switching modes.
 4. Check that a gated frame displays “No peak” and that CSV exports mark suppressed readings as unavailable.

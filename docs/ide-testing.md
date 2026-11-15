@@ -46,7 +46,7 @@ bash ./gradlew :app:assembleDebug
 2. Grant microphone permission.
 3. Confirm the dB meter, weighted readings, dominant frequency, and spectrum update.
 4. Confirm the waterfall fills in over time.
-5. Switch between Fast and Detailed frequency modes, and check the spectrum and waterfall responsiveness.
+5. Compare Steady and Live meter response with changing sound, including in Fast and Detailed frequency modes. Check that the spectrum and waterfall remain responsive and that statistics and CSV still reflect frame readings.
 6. Switch input modes and confirm the built-in microphone recalls its own offset and gate; reconnect an external microphone and check that temporary settings reset.
 7. Check a gated reading shows “No peak,” then export a CSV and inspect its availability status columns.
 8. Check portrait and landscape compact views, the feedback guide, and signal-generator playback at a low level. Test pause/resume and backgrounding.
