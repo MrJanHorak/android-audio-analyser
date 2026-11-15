@@ -40,6 +40,17 @@ The iOS shell currently adds these analyzer-session tools:
 
 On phones in portrait, tap **Compact** on the sound-level card to show a smaller meter and leave more space for the graph. Tap **Show details** to restore the statistics and history. The meter preference is remembered separately from the existing big-graph setting. On landscape phones, the meter starts compact and the A/C/Z buttons select which value appears in the main reading; **Show details** expands the meter. Scroll its details area to see the statistics and history while the current reading and A/C/Z buttons remain visible. Portrait and landscape compact preferences are stored separately; tablet layout remains unchanged.
 
+### Steadier sound-level display
+
+The Android meter starts in **Steady** mode so that speech and other changing sounds are easier to read. To change it, tap **Settings** (the gear), find **Meter response**, and select **Steady** or **Live**. The meter shows the selected response beneath the main number.
+
+- **Steady** smooths each A-, C-, and Z-weighted display using an approximately one-second energy response. It is not an exact average of the last second, and it can make brief changes less visible.
+- **Live** displays each audio-frame reading and responds more quickly.
+- Min, Avg, Max, the history line, calibration, and CSV logs continue to use frame readings. Min, Avg, Max, and history use Z weighting even when the large display is set to A or C. Max is not a true-peak measurement.
+- The display remains an estimate and is not an exposure assessment or a validated standards-compliant sound-level meter. A saved offset does not confirm calibration.
+
+The gate is applied to the smoothed meter independently of the live graph, so a Steady reading may fade briefly after the graph shows “No peak.” More detail is in [measurement guidance](#android-measurement-guidance) and [meter response](#meter-response-and-comparison-with-a-mixer).
+
 Android still has the broader app surface, including Android-specific tool flows such as:
 
 - signal generator playback

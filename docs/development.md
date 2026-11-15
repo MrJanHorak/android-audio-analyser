@@ -24,6 +24,6 @@ Run the shared JVM tests, Android local unit tests, and Android debug build:
 bash ./gradlew :shared:jvmTest :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Shared tests cover analyser math, frequency analysis, feedback tracking, formatting, and history storage. Android local tests include meter formatting, input profile keys, CSV formatting, and waterfall publication. These do not replace testing microphone routing, capture, UI, and playback on an Android device. See [IDE testing](ide-testing.md) and the [Android device checks](usage.md#android-device-checks).
+Shared tests cover analyser math, frequency analysis, feedback tracking, formatting, and history storage. Android local tests include meter smoothing and formatting, input profile keys, CSV formatting, and waterfall publication. These do not replace testing microphone routing, capture, UI, and playback on an Android device. See [IDE testing](ide-testing.md) and the [Android device checks](usage.md#android-device-checks).
 
 Use known test signals and reference equipment to evaluate frequency and level measurements. Phone microphones and audio processing vary; a single offset does not make a phone a certified sound-level meter.
