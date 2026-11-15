@@ -1189,6 +1189,11 @@ fun LandscapeLayout(
             maxDb = maxDb,
             avgDb = avgDb,
             dbHistory = dbHistory,
+            allowCompact = true,
+            compactPreferenceKey = "compact_landscape_meter",
+            compactInitially = true,
+            scrollMeter = true,
+            shortWeightingLabels = true,
             modifier = Modifier
                 .weight(0.4f)
                 .fillMaxHeight()
@@ -1451,16 +1456,21 @@ fun DbMeterCard(
     avgDb: Float,
     dbHistory: List<Float>,
     modifier: Modifier = Modifier,
-    allowCompact: Boolean = false
+    allowCompact: Boolean = false,
+    compactPreferenceKey: String = "compact_portrait_meter",
+    compactInitially: Boolean = false,
+    scrollMeter: Boolean = false,
+    shortWeightingLabels: Boolean = false
 ) {
     var selectedWeighting by rememberSaveable { mutableStateOf("Z") }
     val ctx = LocalContext.current
     val prefs = remember(ctx) { ctx.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE) }
-    var compact by rememberSaveable { mutableStateOf(allowCompact && prefs.getBoolean("compact_portrait_meter", false)) }
-    LaunchedEffect(compact, allowCompact) {
-        if (allowCompact) prefs.edit().putBoolean("compact_portrait_meter", compact).apply()
+    var compact by rememberSaveable(compactPreferenceKey) { mutableStateOf(allowCompact && prefs.getBoolean(compactPreferenceKey, compactInitially)) }
+    LaunchedEffect(compact, allowCompact, compactPreferenceKey) {
+        if (allowCompact) prefs.edit().putBoolean(compactPreferenceKey, compact).apply()
     }
     val compactMeter = allowCompact && compact
+    val meterScrollState = rememberScrollState()
     val displayDb = when(selectedWeighting) {
         "A" -> dbLevelA
         "C" -> dbLevelC
@@ -1480,8 +1490,9 @@ fun DbMeterCard(
     ElevatedCard(modifier = modifier.semantics { contentDescription = semanticsDesc }) {
         Column(
             modifier = Modifier
-                .padding(if (compactMeter) 12.dp else 24.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .then(if (scrollMeter) Modifier.verticalScroll(meterScrollState) else Modifier)
+                .padding(if (compactMeter) 12.dp else 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -1495,6 +1506,9 @@ fun DbMeterCard(
             } else {
                 Text(stringResource(id = R.string.sound_level), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            if (scrollMeter && !compactMeter) {
+                Text("Scroll for statistics and history", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             AutoSizeText(
                 text = reading,
                 style = if (compactMeter) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displayMedium,
@@ -1506,17 +1520,17 @@ fun DbMeterCard(
                 FilterChip(
                     selected = selectedWeighting == "A",
                     onClick = { selectedWeighting = "A" },
-                    label = { AutoSizeText(text = formatMeterReading(dbLevelA, "A", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = if (shortWeightingLabels) "A" else formatMeterReading(dbLevelA, "A", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = selectedWeighting == "C",
                     onClick = { selectedWeighting = "C" },
-                    label = { AutoSizeText(text = formatMeterReading(dbLevelC, "C", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = if (shortWeightingLabels) "C" else formatMeterReading(dbLevelC, "C", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = selectedWeighting == "Z",
                     onClick = { selectedWeighting = "Z" },
-                    label = { AutoSizeText(text = formatMeterReading(dbLevelZ, "Z", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
+                    label = { AutoSizeText(text = if (shortWeightingLabels) "Z" else formatMeterReading(dbLevelZ, "Z", locale, compact = true), style = MaterialTheme.typography.labelSmall) }
                 )
             }
             Surface(
@@ -3080,14 +3094,18 @@ fun FeedbackHuntSection(feedbackPeaks: List<FeedbackPeak>, modifier: Modifier = 
 
 @Composable
 fun FeedbackGuideDialog(peak: FeedbackPeak?, onDismiss: () -> Unit) {
+    val openingPeak = remember { peak }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Find a ringing frequency") },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Column {
+                Text("Scroll to see all four steps ↓", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                 Text(
-                    if (peak == null) "No candidate is currently shown. Listen for a persistent tone and watch the graph."
-                    else "Possible candidate: ${formatFrequencyLabel(peak.suggestedCutHz)} (${feedbackPeakLabel(peak)}). Stability describes the peak, not certainty that it is feedback.",
+                    if (openingPeak == null) "No candidate is currently shown. Listen for a persistent tone and watch the graph."
+                    else "Possible candidate: ${formatFrequencyLabel(openingPeak.suggestedCutHz)} (${feedbackPeakLabel(openingPeak)}). Candidate captured when this guide opened. Stability describes the peak, not certainty that it is feedback.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -3098,6 +3116,7 @@ fun FeedbackGuideDialog(peak: FeedbackPeak?, onDismiss: () -> Unit) {
                 Text("3. On the affected channel or monitor EQ, try a small, narrow cut near the candidate. Do not assume the main EQ is the right place.")
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("4. Raise the level cautiously and listen again. Undo the cut if it does not help; check microphone and speaker placement.")
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }

@@ -38,7 +38,7 @@ The iOS shell currently adds these analyzer-session tools:
 
 ## Android-focused tools
 
-On phones in portrait, tap **Compact** on the sound-level card to show a smaller meter and leave more space for the graph. Tap **Show details** to restore the statistics and history. The meter preference is remembered separately from the existing big-graph setting. Landscape and tablet layouts retain their existing arrangements.
+On phones in portrait, tap **Compact** on the sound-level card to show a smaller meter and leave more space for the graph. Tap **Show details** to restore the statistics and history. The meter preference is remembered separately from the existing big-graph setting. On landscape phones, the meter starts compact and the A/C/Z buttons select which value appears in the main reading; **Show details** expands the meter, and its contents can be scrolled on short screens. Portrait and landscape compact preferences are stored separately; tablet layout remains unchanged.
 
 Android still has the broader app surface, including Android-specific tool flows such as:
 
@@ -55,7 +55,7 @@ Android still has the broader app surface, including Android-specific tool flows
 ## Interpreting the analyzer
 
 - **Dominant frequency** helps identify the strongest detected tone or resonant peak.
-- **Feedback suggestions** are more meaningful after a stable tone persists for a moment. Enable Feedback hunt from Tools, then tap **Guide** beside the graph for a step-by-step workflow. A stable peak can still be music or ambient sound; confirm by ear.
+- **Feedback suggestions** are more meaningful after a stable tone persists for a moment. Enable Feedback hunt from Tools, then tap **Guide** beside the graph for a step-by-step workflow. Scroll inside the guide for all four steps; its candidate is captured when the guide opens. A stable peak can still be music or ambient sound; confirm by ear.
 - **Min / Avg / Max** accumulate after non-zero readings so idle silence does not pollute the stats.
 - **Waterfall history** makes changing resonance or sustained tones easier to see over time. On Android, the display refreshes up to 10 times per second to reduce rendering load; the analyzer continues processing audio frames and storing history between display updates.
 
