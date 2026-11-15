@@ -48,7 +48,7 @@ Android still has the broader app surface, including Android-specific tool flows
 
 ## Measurement notes
 
-- Phone microphones vary. For precise SPL work, compare against a reference meter or use a calibrated external microphone.
+- Phone microphones vary. Compare against a reference meter; for decisions requiring precise or certified SPL measurements, use suitable validated equipment.
 - Weighted readings are still useful for relative analysis even when absolute SPL calibration varies by device.
 - For iOS microphone testing, a physical iPhone is the most reliable target.
 
