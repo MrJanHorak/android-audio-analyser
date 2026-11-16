@@ -382,6 +382,7 @@ private fun buildAnalyzerBackupJson(
 
 private fun parseAnalyzerBackup(rawJson: String): AnalyzerBackupPayload? = runCatching {
     val root = JSONObject(rawJson)
+    require(isValidAnalyzerBackup(root)) { "Unsupported or invalid backup" }
     val preferencesJson = root.optJSONObject("preferences")
     val defaultPreferences = AnalyzerPreferenceState()
     val savedCurvesJson = root.optJSONArray("savedTargetCurves")
@@ -407,12 +408,19 @@ private fun parseAnalyzerBackup(rawJson: String): AnalyzerBackupPayload? = runCa
     )
 }.getOrNull()
 
-private fun readTextFromUri(context: Context, uri: Uri): String? {
-    val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-    return runCatching {
-        inputStream.bufferedReader().use { it.readText() }
-    }.getOrNull()
-}
+private fun readTextFromUri(context: Context, uri: Uri): String? = runCatching {
+    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
+        val text = StringBuilder()
+        val buffer = CharArray(8192)
+        while (true) {
+            val count = reader.read(buffer)
+            if (count < 0) break
+            if (text.length + count > 2_000_000) return@runCatching null
+            text.append(buffer, 0, count)
+        }
+        text.toString()
+    }
+}.getOrNull()
 
 private fun writeTextToUri(context: Context, uri: Uri, contents: String): Boolean {
     val outputStream = context.contentResolver.openOutputStream(uri) ?: return false
@@ -554,6 +562,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     var snapshotCompareEnabled by rememberSaveable { mutableStateOf(false) }
     var preferencesLoaded by remember { mutableStateOf(false) }
     var settingsBackupMessage by remember { mutableStateOf<String?>(null) }
+    var pendingBackup by remember { mutableStateOf<AnalyzerBackupPayload?>(null) }
     val overlayProfiles = remember { analyzerOverlayProfiles }
     var selectedOverlayId by rememberSaveable { mutableStateOf(overlayProfiles.first().id) }
     val selectedOverlay = overlayProfiles.firstOrNull { it.id == selectedOverlayId } ?: overlayProfiles.first()
@@ -634,31 +643,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         } else {
             val importedBackup = readTextFromUri(ctx, uri)?.let(::parseAnalyzerBackup)
             if (importedBackup == null) {
-                settingsBackupMessage = "Couldn't read that backup file."
+                settingsBackupMessage = "Backup is invalid or unsupported. No saved data was changed."
             } else {
-                val importedPreferences = importedBackup.preferences
-                val importedCurves = sortSavedTargetCurvePresets(importedBackup.savedTargetCurves)
-                val importedProfiles = buildAnalyzerTargetCurveProfiles(importedCurves)
-
-                prefs.edit().putFloat("db_offset", importedPreferences.dbOffset)
-                    .putFloat("noise_threshold", importedPreferences.noiseThreshold).apply()
-                if (analyzer.inputIdentity.value != null && analyzer.isListening.value) {
-                    analyzer.setAndSaveNoiseThreshold(importedPreferences.noiseThreshold)
-                }
-
-                savedTargetCurves = importedCurves
-                saveSavedTargetCurvePresets(ctx, importedCurves)
-                feedbackHuntEnabled = importedPreferences.feedbackHuntEnabled
-                bigGraphModeEnabled = importedPreferences.bigGraphModeEnabled
-                selectedOverlayId = importedPreferences.selectedOverlayId
-                    .takeIf { savedId -> overlayProfiles.any { it.id == savedId } }
-                    ?: overlayProfiles.first().id
-                selectedTargetCurveId = importedPreferences.selectedTargetCurveId
-                    .takeIf { savedId -> importedProfiles.any { it.id == savedId } }
-                    ?: importedProfiles.first().id
-                spectrumSnapshot = null
-                snapshotCompareEnabled = false
-                settingsBackupMessage = "Backup imported. The gate was applied to the active input if available; the legacy offset remains unassigned."
+                pendingBackup = importedBackup
             }
         }
     }
@@ -723,6 +710,8 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
     val scope = rememberCoroutineScope()
     var captureJob by remember { mutableStateOf<Job?>(null) }
     fun startCapture() {
+        spectrumSnapshot = null
+        snapshotCompareEnabled = false
         val previousJob = captureJob
         captureJob = scope.launch {
             previousJob?.join()
@@ -1058,6 +1047,41 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                 showSettingsDialog = false
                 showCalibrationScreen = true
             }
+        )
+    }
+
+    pendingBackup?.let { importedBackup ->
+        AlertDialog(
+            onDismissRequest = { pendingBackup = null; settingsBackupMessage = "Backup import cancelled." },
+            title = { Text("Replace saved venue data?") },
+            text = { Text("This backup contains ${importedBackup.savedTargetCurves.size} saved venue curve(s). Import will replace the ${savedTargetCurves.size} currently saved curve(s) and update included preferences. Device-specific calibration profiles are not imported. Export a backup first if you need the current data.") },
+            dismissButton = { TextButton(onClick = { pendingBackup = null; settingsBackupMessage = "Backup import cancelled." }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = {
+                val importedPreferences = importedBackup.preferences
+                val importedCurves = sortSavedTargetCurvePresets(importedBackup.savedTargetCurves)
+                val importedProfiles = buildAnalyzerTargetCurveProfiles(importedCurves)
+
+                prefs.edit().putFloat("db_offset", importedPreferences.dbOffset)
+                    .putFloat("noise_threshold", importedPreferences.noiseThreshold).apply()
+                if (analyzer.inputIdentity.value != null && analyzer.isListening.value) {
+                    analyzer.setAndSaveNoiseThreshold(importedPreferences.noiseThreshold)
+                }
+
+                savedTargetCurves = importedCurves
+                saveSavedTargetCurvePresets(ctx, importedCurves)
+                feedbackHuntEnabled = importedPreferences.feedbackHuntEnabled
+                bigGraphModeEnabled = importedPreferences.bigGraphModeEnabled
+                selectedOverlayId = importedPreferences.selectedOverlayId
+                    .takeIf { savedId -> overlayProfiles.any { it.id == savedId } }
+                    ?: overlayProfiles.first().id
+                selectedTargetCurveId = importedPreferences.selectedTargetCurveId
+                    .takeIf { savedId -> importedProfiles.any { it.id == savedId } }
+                    ?: importedProfiles.first().id
+                spectrumSnapshot = null
+                snapshotCompareEnabled = false
+                settingsBackupMessage = "Backup imported. The gate was applied to the active input if available; the legacy offset remains unassigned."
+                pendingBackup = null
+            }) { Text("Replace and import") } }
         )
     }
 
@@ -1423,7 +1447,7 @@ fun AnalyzerTabletSummaryCard(
             TabletSummaryItem(
                 label = "Target",
                 value = if (selectedTargetCurve.isEnabled) selectedTargetCurve.label else "Off",
-                detail = if (selectedTargetCurve.isEnabled) selectedTargetCurve.useCase else "No room curve is being drawn.",
+                detail = if (selectedTargetCurve.isEnabled) selectedTargetCurve.useCase else "No reference curve selected.",
                 modifier = Modifier.padding(top = 14.dp)
             )
             TabletSummaryItem(
@@ -1794,7 +1818,7 @@ fun VisualizerCard(
             append(" Big graph mode enabled.")
         }
         if (selectedTargetCurve.isEnabled) {
-            append(" Target curve ${selectedTargetCurve.label} selected.")
+            append(" Illustrative reference ${selectedTargetCurve.label} selected; preview in Room tools.")
         }
         if (feedbackHuntEnabled && primaryFeedbackPeak != null) {
             append(" Feedback hunt suggests ${formatFrequencyLabel(primaryFeedbackPeak.suggestedCutHz)}.")
@@ -1869,7 +1893,6 @@ fun VisualizerCard(
                         showFeedbackMarkers = feedbackHuntEnabled,
                         snapshotFrequencies = spectrumSnapshot?.frequencies,
                         showSnapshotOverlay = snapshotCompareEnabled,
-                        selectedTargetCurve = selectedTargetCurve,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 12.dp)
@@ -1989,7 +2012,6 @@ fun VisualizerCard(
                         showFeedbackMarkers = feedbackHuntEnabled,
                         snapshotFrequencies = spectrumSnapshot?.frequencies,
                         showSnapshotOverlay = snapshotCompareEnabled,
-                        selectedTargetCurve = selectedTargetCurve,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 12.dp)
@@ -2014,13 +2036,6 @@ fun VisualizerCard(
                             text = "Snapshot line",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF00ACC1)
-                        )
-                    }
-                    if (selectedTargetCurve.isEnabled) {
-                        Text(
-                            text = "Target curve",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = selectedTargetCurve.color
                         )
                     }
                 }
@@ -2199,6 +2214,7 @@ fun FocusOverlayGuide(selectedOverlay: AnalyzerOverlayProfile, modifier: Modifie
                 modifier = Modifier.padding(top = 4.dp)
             )
             if (selectedOverlay.bands.isNotEmpty()) {
+                ToolHelperText("Starting ranges only. The phone hears the whole room; selecting a source does not isolate that mixer channel. Listen and identify the source before changing EQ.", modifier = Modifier.padding(top = 6.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2444,6 +2460,7 @@ fun AnalyzerToolsSheet(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
+                            TargetCurvePreview(selectedTargetCurve, modifier = Modifier.padding(top = 12.dp))
                             ToolHelperText(
                                 text = "Caution: ${selectedTargetCurve.caution}",
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -2484,6 +2501,10 @@ fun AnalyzerToolsSheet(
 
                     2 -> {
                         Text(text = "Snapshots", style = MaterialTheme.typography.labelLarge)
+                        ToolHelperText(
+                            "A snapshot is temporary and captures one smoothed spectrum frame, not a timed average. It is cleared when capture restarts or frequency detail changes. For a useful comparison, keep the same microphone, input mode and position. The graph is scaled to the strongest current or snapshot peak; it is not a calibrated response measurement.",
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2512,7 +2533,7 @@ fun AnalyzerToolsSheet(
                                 } else {
                                     "Saved snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
                                 }
-                            } ?: "No snapshot saved yet.",
+                            } ?: "No snapshot captured yet.",
                             modifier = Modifier.padding(top = 12.dp)
                         )
                     }
@@ -2560,6 +2581,34 @@ fun AnalyzerToolsSheet(
 }
 
 @Composable
+private fun TargetCurvePreview(profile: AnalyzerTargetCurveProfile, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text("Illustrative reference shape", style = MaterialTheme.typography.labelLarge)
+        ToolHelperText("This preview is separate from the live spectrum. It is not a room measurement, EQ setting, or an aligned comparison.", modifier = Modifier.padding(top = 4.dp))
+        val axisColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+        Canvas(modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(110.dp).semantics {
+            contentDescription = "Illustrative reference curve ${profile.label}; not compared with the live spectrum"
+        }) {
+            val left = 20f
+            val right = 22050f
+            fun x(hz: Float): Float = ((log10(hz.coerceIn(left, right)) - log10(left)) / (log10(right) - log10(left))) * size.width
+            fun y(db: Float): Float = size.height * (1f - ((db + 12f) / 18f).coerceIn(0f, 1f))
+            drawLine(axisColor, Offset(0f, y(0f)), Offset(size.width, y(0f)), strokeWidth = 1.dp.toPx())
+            val points = profile.points.map { Offset(x(it.frequencyHz), y(it.relativeDb)) }
+            for (index in 0 until points.lastIndex) {
+                drawLine(profile.color, points[index], points[index + 1], strokeWidth = 2.dp.toPx())
+            }
+            points.forEach { drawCircle(profile.color, radius = 3.dp.toPx(), center = it) }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("20 Hz", style = MaterialTheme.typography.labelSmall)
+            Text("22 kHz", style = MaterialTheme.typography.labelSmall)
+        }
+        Text("Vertical range: −12 to +6 dB; horizontal line: 0 dB", style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
 fun SavedTargetCurvesDialog(
     savedTargetCurves: List<SavedTargetCurvePreset>,
     initialSelectedCurveId: String?,
@@ -2571,6 +2620,7 @@ fun SavedTargetCurvesDialog(
     var editingCurveId by remember(savedTargetCurves, initialSelectedCurveId) {
         mutableStateOf(initialSelectedCurveId?.takeIf { selectedId -> savedTargetCurves.any { it.id == selectedId } })
     }
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var curveName by remember { mutableStateOf(defaults.name) }
     var venueName by remember { mutableStateOf("") }
     var venueCategory by remember { mutableStateOf("") }
@@ -2580,6 +2630,7 @@ fun SavedTargetCurvesDialog(
     var problemBands by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var pointValues by remember { mutableStateOf(defaults.points) }
+    var showCurveEditor by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingCurveId, savedTargetCurves) {
         val preset = savedTargetCurves.firstOrNull { it.id == editingCurveId }
@@ -2746,7 +2797,7 @@ fun SavedTargetCurvesDialog(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("General notes") },
-                    placeholder = { Text("Workflow reminders, patch quirks, or mix notes") },
+                    placeholder = { Text("Sources, microphone and channel notes, patching, or mix reminders") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp),
@@ -2754,14 +2805,17 @@ fun SavedTargetCurvesDialog(
                     maxLines = 5
                 )
 
+                TextButton(onClick = { showCurveEditor = !showCurveEditor }) {
+                    Text(if (showCurveEditor) "Hide optional reference shape" else "Edit optional reference shape")
+                }
                 Text(
-                    text = "Save a reusable target for a venue, organisation, or recurring event mix.",
+                    text = "The shape is optional when keeping notes. It is illustrative and does not store or change mixer settings.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
                 )
 
-                customTargetCurveFrequencies.forEachIndexed { index, frequencyHz ->
+                if (showCurveEditor) customTargetCurveFrequencies.forEachIndexed { index, frequencyHz ->
                     val value = pointValues.getOrElse(index) { defaults.points.getOrElse(index) { 0f } }
                     Text(
                         text = "${formatFrequencyLabel(frequencyHz)} ${formatRelativeCurveLevel(value)}",
@@ -2782,7 +2836,7 @@ fun SavedTargetCurvesDialog(
         dismissButton = {
             Row {
                 if (editingCurveId != null) {
-                    TextButton(onClick = { onDeletePreset(editingCurveId!!) }) {
+                    TextButton(onClick = { pendingDeleteId = editingCurveId }) {
                         Text("Delete")
                     }
                 }
@@ -2828,6 +2882,16 @@ fun SavedTargetCurvesDialog(
             }
         }
     )
+    pendingDeleteId?.let { id ->
+        val name = savedTargetCurves.firstOrNull { it.id == id }?.displayName() ?: "this venue curve"
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = null },
+            title = { Text("Delete saved venue curve?") },
+            text = { Text("Delete $name and its notes? This cannot be undone unless you have an exported backup.") },
+            dismissButton = { TextButton(onClick = { pendingDeleteId = null }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = { pendingDeleteId = null; onDeletePreset(id) }) { Text("Delete") } }
+        )
+    }
 }
 
 @Composable
@@ -2839,7 +2903,6 @@ fun FrequencyVisualizer(
     showFeedbackMarkers: Boolean = false,
     snapshotFrequencies: FloatArray? = null,
     showSnapshotOverlay: Boolean = false,
-    selectedTargetCurve: AnalyzerTargetCurveProfile = analyzerTargetCurveProfiles.first(),
     modifier: Modifier = Modifier
 ) {
     val labels = listOf(
@@ -3037,33 +3100,6 @@ fun FrequencyVisualizer(
                     start = snapshotPoints[index],
                     end = snapshotPoints[index + 1],
                     strokeWidth = 2.dp.toPx()
-                )
-            }
-        }
-
-        if (selectedTargetCurve.isEnabled) {
-            val curveMinDb = -12f
-            val curveMaxDb = 6f
-            val curvePoints = selectedTargetCurve.points.map { point ->
-                val normalizedLevel = ((point.relativeDb - curveMinDb) / (curveMaxDb - curveMinDb)).coerceIn(0f, 1f)
-                Offset(
-                    x = getXForFreq(point.frequencyHz),
-                    y = drawHeight - normalizedLevel * drawHeight
-                )
-            }
-            for (index in 0 until curvePoints.lastIndex) {
-                drawLine(
-                    color = selectedTargetCurve.color.copy(alpha = 0.92f),
-                    start = curvePoints[index],
-                    end = curvePoints[index + 1],
-                    strokeWidth = 3.dp.toPx()
-                )
-            }
-            curvePoints.forEachIndexed { index, point ->
-                drawCircle(
-                    color = selectedTargetCurve.color,
-                    radius = if (index == curvePoints.lastIndex) 4.dp.toPx() else 3.dp.toPx(),
-                    center = point
                 )
             }
         }
@@ -3385,8 +3421,8 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                             }
                             GuideTipCard(
                                 title = "Ring Out Feedback Faster",
-                                action = "Raise the source until it starts to ring, watch the tallest peak, then make a small targeted cut.",
-                                whyItHelps = "Feedback usually shows up as a narrow, stubborn hotspot. Small cuts keep more tone than broad subtraction."
+                                action = "If feedback starts, lower the level and identify the affected microphone or monitor. Check placement before making a small, confirmed EQ cut.",
+                                whyItHelps = "A persistent peak may be feedback, music, or room noise; confirm by ear. Perform any deliberate ring-out only in a controlled setup without an audience."
                             )
                             GuideTipCard(
                                 title = "Use Overlays on Purpose",
@@ -3415,6 +3451,7 @@ fun MixingInfoDialog(onDismiss: () -> Unit) {
                             )
                         }
                         1 -> {
+                            ToolHelperText("These are starting ranges, not presets. The phone hears the whole room; confirm the affected source and make changes only when they help.", modifier = Modifier.padding(bottom = 12.dp))
                             eqReferenceEntries.forEach { entry ->
                                 EqReferenceCard(entry = entry)
                             }

@@ -84,7 +84,7 @@ private val overlayProfilesCatalog = listOf(
     AnalyzerOverlayReferenceProfile(
         id = "low_vocal",
         label = "Low Vox",
-        summary = "Lower-range vocal starting overlay, often useful for male, baritone, tenor, or deeper alto voices. Match it to the actual singer.",
+        summary = "Starting ranges for a lower voice. Match the filter and EQ to the actual singer and microphone.",
         bands = listOf(
             AnalyzerGuideRangeBand("Rumble", 50f, 90f, "HPF often starts around 70-100 Hz unless the voice thins.", lowBandColor),
             AnalyzerGuideRangeBand("Body", 90f, 180f, "Fundamental and chest weight for many lower voices.", bodyBandColor),
@@ -98,7 +98,7 @@ private val overlayProfilesCatalog = listOf(
     AnalyzerOverlayReferenceProfile(
         id = "high_vocal",
         label = "High Vox",
-        summary = "Higher-range vocal starting overlay, often useful for female, soprano, mezzo, or light tenor voices. Match it to the actual singer.",
+        summary = "Starting ranges for a higher voice. Match the filter and EQ to the actual singer and microphone.",
         bands = listOf(
             AnalyzerGuideRangeBand("Rumble", 80f, 140f, "HPF often starts around 100-140 Hz, lower if the tone gets thin.", lowBandColor),
             AnalyzerGuideRangeBand("Body", 165f, 260f, "Fundamental weight for many higher voices.", bodyBandColor),
@@ -234,9 +234,9 @@ private val targetCurveProfilesCatalog = listOf(
     ),
     AnalyzerTargetCurveReferenceProfile(
         id = "harman_room",
-        label = "Harman",
+        label = "Harman-inspired",
         badge = "Room",
-        summary = "Bass-forward room target based on listener preference studies, with a gentle downward tilt into the highs.",
+        summary = "Illustrative bass-forward curve inspired by listener-preference research; not a specified Harman target.",
         useCase = "Useful as a room-mix reference when you want a modern, full-range balance instead of a flat analyzer trace.",
         caution = "Treat this as a room target, not a vocal or instrument EQ preset.",
         color = targetRoomColor,
@@ -254,9 +254,9 @@ private val targetCurveProfilesCatalog = listOf(
     ),
     AnalyzerTargetCurveReferenceProfile(
         id = "bk_room",
-        label = "B&K",
+        label = "B&K-inspired",
         badge = "Room",
-        summary = "Classic Bruel and Kjaer style house curve with a smooth downward slope from lows to highs.",
+        summary = "Illustrative B&K-inspired house-curve shape; not a verified standard or published reference.",
         useCase = "Good for natural-sounding room tuning and conservative live-system balance.",
         caution = "This is broader and gentler than an instrument target; use it on the system, not the channel strip.",
         color = rgb(0x33, 0x69, 0x1E),
@@ -276,9 +276,9 @@ private val targetCurveProfilesCatalog = listOf(
     ),
     AnalyzerTargetCurveReferenceProfile(
         id = "cinema_x",
-        label = "Cinema X",
+        label = "Cinema X-style",
         badge = "Cinema",
-        summary = "ISO 2969 style cinema X-curve with a much stronger treble roll-off above roughly 2 kHz.",
+        summary = "Illustrative cinema X-style shape; not a verified implementation of ISO 2969.",
         useCase = "Relevant for large cinema or dubbing-style playback environments.",
         caution = "Usually too dark for small rooms, worship spaces, speech reinforcement, and music mixing on a compact PA.",
         color = targetCinemaColor,
@@ -297,9 +297,9 @@ private val targetCurveProfilesCatalog = listOf(
     ),
     AnalyzerTargetCurveReferenceProfile(
         id = "atmos_music",
-        label = "Atmos Music",
+        label = "Immersive-style",
         badge = "Room",
-        summary = "A gentle immersive-music style room target: slightly supported lows, steady mids, and a smoother top than a flat trace.",
+        summary = "Illustrative immersive-music style shape, not a Dolby or other alignment specification.",
         useCase = "Useful as a modern room playback reference when you want clarity without a hyped top end.",
         caution = "This is a practical live-reference approximation, not a certification tool for Dolby alignment.",
         color = rgb(0x00, 0x69, 0x5C),
@@ -340,7 +340,7 @@ private val targetCurveProfilesCatalog = listOf(
         label = "Lead Vox",
         badge = "Guide",
         summary = "A broad source guide for lead vocal channels with filtered lows, controlled mud, and a presence lift through the intelligibility band.",
-        useCase = "Helpful when comparing a live vocal against a common modern worship or pop vocal shape. Pair it with Low Vox or High Vox source overlays for range-specific EQ starting points.",
+        useCase = "Illustrative vocal-shaping reference for different live music styles. Pair it with a voice-range overlay as a starting point, not a required target.",
         caution = "This is a vocal shaping guide only; choose the range-specific overlay by the singer's actual voice, mic, and room.",
         color = rgb(0x28, 0x35, 0x93),
         points = listOf(
@@ -360,31 +360,31 @@ private val targetCurveProfilesCatalog = listOf(
 
 private val eqReferenceEntriesCatalog = listOf(
     EqReferenceEntry(
-        title = "Male / Low Vocal",
+        title = "Lower-Range Vocal",
         role = "Lower-range lead or solo singer",
         highPass = "Start HPF around 70-100 Hz, then raise it until rumble clears without thinning the chest tone.",
         body = "Fundamental weight is often 85-180 Hz, with warmth extending through about 250 Hz.",
         presence = "Lyric clarity usually sits around 2-4.5 kHz, with air around 10-14 kHz if needed.",
         watchOut = "Watch 180-400 Hz proximity mud and 4.5-7 kHz bite or sibilance.",
-        startingMove = "Set HPF first, tame low-mid buildup, then add only a small presence lift if the lyric is still buried."
+        startingMove = "Check for rumble and low-mid buildup first; make small changes only if needed, then reassess in the mix."
     ),
     EqReferenceEntry(
-        title = "Female / High Vocal",
+        title = "Higher-Range Vocal",
         role = "Higher-range lead or featured singer",
         highPass = "Start HPF around 100-140 Hz, backing it down if the singer loses body.",
         body = "Fundamental weight is often 165-260 Hz, with low-mid warmth reaching toward 350 Hz.",
         presence = "Presence usually sits around 2.5-5 kHz, with air around 10-16 kHz after sibilance is controlled.",
         watchOut = "Watch 250-500 Hz buildup and 5.5-9 kHz sibilance or mic harshness.",
-        startingMove = "Set HPF to the actual voice, subtract low-mid cloudiness, then control sibilance before boosting air."
+        startingMove = "Set HPF to the actual voice. If it sounds cloudy or sibilant, investigate those ranges before boosting air."
     ),
     EqReferenceEntry(
-        title = "Speech / Pastor",
+        title = "Speech / Presenter",
         role = "Spoken word, sermons, conferences",
         highPass = "HPF around 100 Hz keeps rumble out of the PA.",
         body = "Keep enough 120-220 Hz so the voice does not feel thin.",
         presence = "Speech intelligibility is usually 1.5-3.5 kHz.",
         watchOut = "Watch 220-350 Hz mud and 5-8 kHz sibilance.",
-        startingMove = "Cut mud first, then add clarity only until every word reads clearly."
+        startingMove = "If speech sounds cloudy, investigate the low mids; add clarity only if needed and listen to the words in the room."
     ),
     EqReferenceEntry(
         title = "Choir / Ensemble",
@@ -420,7 +420,7 @@ private val eqReferenceEntriesCatalog = listOf(
         body = "Body is usually around 120-240 Hz.",
         presence = "Crack and stick attack often sit around 2-5 kHz.",
         watchOut = "Watch 700 Hz to 1.2 kHz ring and 5-8 kHz harshness.",
-        startingMove = "Cut the ring before boosting top end."
+        startingMove = "If an unwanted ring is audible, identify it and try a small cut before adding top end."
     ),
     EqReferenceEntry(
         title = "Acoustic Guitar",
@@ -429,7 +429,7 @@ private val eqReferenceEntriesCatalog = listOf(
         body = "Natural body often sits around 180-300 Hz.",
         presence = "Pick articulation usually lands around 2-5 kHz.",
         watchOut = "Watch 100-180 Hz boom and brittle upper mids around 3-6 kHz.",
-        startingMove = "Get rid of boom first, then add just enough attack for definition."
+        startingMove = "If the guitar sounds boomy, investigate the low end; add attack only if needed."
     ),
     EqReferenceEntry(
         title = "Electric Guitar",
@@ -447,16 +447,16 @@ private val eqReferenceEntriesCatalog = listOf(
         body = "Body often collects around 100-250 Hz.",
         presence = "Articulation and attack often sit around 2-5 kHz.",
         watchOut = "Watch 250-500 Hz boxiness when keys stack with guitars and vocals.",
-        startingMove = "Decide whether the patch is supporting or featured, then trim low mids aggressively enough to leave room."
+        startingMove = "Consider the patch's role; if the mix sounds crowded, try a small low-mid adjustment and compare."
     ),
     EqReferenceEntry(
         title = "Orchestral Strings (Violin/Cello)",
-        role = "Solo or section strings in a contemporary or church mix",
-        highPass = "Violins: HPF 150-200 Hz. Celli: HPF 60-80 Hz depending on the mix.",
+        role = "Solo or section strings in a live mix",
+        highPass = "Choose the HPF by ear and the lowest notes being played; steep or high filters can thin a violin or cello.",
         body = "Resonance and warmth sit around 200-400 Hz for violins, 100-250 Hz for celli.",
         presence = "Bow texture and rosin noise often sit around 2-5 kHz.",
         watchOut = "Watch 1-3 kHz harshness heavily on close-mic'd violins. They can sound very scratchy un-EQ'd.",
-        startingMove = "Cut harshness around 2 kHz before boosting highs to keep the natural acoustic tone."
+        startingMove = "If the sound is harsh, investigate the upper mids and try a small adjustment before boosting highs."
     ),
     EqReferenceEntry(
         title = "Brass (Trumpet/Trombone)",
@@ -465,7 +465,7 @@ private val eqReferenceEntriesCatalog = listOf(
         body = "Fundamentals often sit around: Trumpet 200-400 Hz, Trombone 100-250 Hz.",
         presence = "Bite and projection naturally push around 2-5 kHz.",
         watchOut = "Horns can easily pierce the mix around 2.5-4 kHz. Keep an eye on harsh buildups.",
-        startingMove = "Tame the piercing upper mids first, let the natural acoustic body shine through."
+        startingMove = "If the horns sound piercing, investigate the upper mids while preserving their natural body."
     ),
     EqReferenceEntry(
         title = "Woodwinds (Flute/Clarinet)",
@@ -474,7 +474,7 @@ private val eqReferenceEntriesCatalog = listOf(
         body = "Warmth sits around 300-600 Hz.",
         presence = "Breath and air sit highly around 4-6 kHz and above.",
         watchOut = "Watch 4-6 kHz whistle or sibilance, and avoid boosting too much air unless it sounds dull.",
-        startingMove = "A gentle cut in the harsh upper frequencies helps it blend smoothly with strings or vocals."
+        startingMove = "If the tone sounds harsh, try a gentle high-frequency adjustment and listen in context."
     ),
     EqReferenceEntry(
         title = "Upright Bass",
@@ -483,12 +483,12 @@ private val eqReferenceEntriesCatalog = listOf(
         body = "Fundamentals sit around 40-100 Hz. Pluck/Finger sound around 700-900 Hz.",
         presence = "Fingerboard snap and slap sit around 2-4 kHz.",
         watchOut = "Watch 150-300 Hz boominess which can easily run away into feedback on stage.",
-        startingMove = "Find the resonant feedback frequencies and notch them out, then shape the low-end weight."
+        startingMove = "If feedback occurs, reduce level and check placement first; only notch frequencies confirmed by ear."
     ),
     EqReferenceEntry(
         title = "General Gain Staging & Tuning",
         role = "Overall best practices for Live Sound",
-        highPass = "Use high-pass filters on almost everything except Kick, Bass, and Synth subs to clean up stage rumble.",
+        highPass = "Use a high-pass filter when unwanted low-frequency energy is present; set it for the source and listen for lost body.",
         body = "Mud builds up across an entire mix at 200-400 Hz. If the whole mix feels cloudy, check this range.",
         presence = "Clash and pain usually live in 2-4 kHz. If it hurts, start looking there.",
         watchOut = "When using an RTA or Analyzer, trust your ears first. A perfectly flat line often sounds harsh or unnatural.",

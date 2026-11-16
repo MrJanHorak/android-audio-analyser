@@ -62,6 +62,7 @@ dependencies {
     // lifecycle compose helpers (LocalLifecycleOwner)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.1")
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20250107")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

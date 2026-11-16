@@ -70,6 +70,18 @@ Android still has the broader app surface, including Android-specific tool flows
 - **Min / Avg / Max** accumulate after non-zero readings so idle silence does not pollute the stats.
 - **Waterfall history** makes changing resonance or sustained tones easier to see over time. On Android, the display refreshes up to 10 times per second to reduce rendering load; the analyzer continues processing audio frames and storing history between display updates.
 
+## Venue notes, reference shapes, and snapshots
+
+In Android **Tools → Room → Manage saved venue curves**, save a venue or event name and any useful details: console, speakers, room, problem frequencies, and free-form notes about sources, microphones, channels, and patching. These fields work with any mixer or sound system. All are notes for a person to recall; they do not save, import, or change settings on a mixer. You can save notes without editing the optional reference shape, although the record is still stored with a default shape. The app does not yet have separate structured channel records.
+
+Room reference shapes are illustrative, not verified manufacturer or industry specifications. Android shows the selected shape separately in the Room tool; it is not drawn on the live spectrum because the two displays use different scales. It is not a measured room response or a mixer EQ curve. The iOS live graph also no longer superimposes the reference; its Room tool retains the description and saved venue notes. Neither platform currently provides a calibrated target comparison. Use an appropriate measurement system and microphone for system tuning.
+
+Android **Settings → backup** exports saved venue curves, their notes, and selected app preferences. Import validates the backup and asks before replacing the current saved curves and included preferences; export the current data first if needed. Deleting a venue curve also asks for confirmation. Per-device microphone calibration profiles and temporary snapshots are not transferred. The importer accepts supported version-1 backups with complete, valid curve data and rejects unsupported or malformed files without replacing current data.
+
+Android **Tools → Snapshot** captures the current smoothed spectrum frame for a temporary visual comparison. It is not a timed average or a persistent, named room measurement. The graph shares a relative scale between the live frame and snapshot; keep the microphone, input mode, position, and measurement conditions consistent. Clear and recapture after a microphone or route change. The snapshot is cleared on capture restart or frequency-detail changes. The iOS snapshot is also a session tool; use exports when you need a record.
+
+Source focus bands and instrument tips are general listening starting points. The microphone hears the whole acoustic environment, so selecting a source does not isolate that instrument or mixer channel. Adjust only after identifying the source by ear; appropriate settings depend on the source, microphone, room and system. Feedback candidates can also be music or ambient sounds.
+
 ## Android measurement guidance
 
 - The meter provides indicative readings, not a hearing-safety assessment. Its default offset is not a device calibration; recheck against a reference meter whenever the microphone or audio route changes. A single offset does not correct frequency response, processing, or clipping.
