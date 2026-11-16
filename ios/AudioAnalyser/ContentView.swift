@@ -1481,6 +1481,12 @@ struct CurveSummaryView: View {
             Text(targetCurve.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            if targetCurve.isEnabled {
+                Text("Illustrative reference only. The live spectrum is not aligned with this curve and is not a calibrated room response.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -1739,48 +1745,6 @@ private struct SpectrumBarsView: View {
                     brightness: 0.78 + Double(normalizedBar) * 0.18
                 )
                 context.fill(path, with: .color(overlayTint?.opacity(0.88) ?? color))
-            }
-
-            if targetCurve.isEnabled, targetCurve.points.count > 1 {
-                var targetPath = Path()
-                var curvePoints: [CGPoint] = []
-
-                for point in targetCurve.points {
-                    curvePoints.append(
-                        CGPoint(
-                            x: xPosition(for: point.frequencyHz, axis: axis, width: size.width),
-                            y: yPosition(for: point.relativeDb, height: drawHeight)
-                        )
-                    )
-                }
-
-                if let firstPoint = curvePoints.first, let lastPoint = curvePoints.last {
-                    targetPath.move(to: CGPoint(x: 0, y: firstPoint.y))
-                    for point in curvePoints {
-                        targetPath.addLine(to: point)
-                    }
-                    targetPath.addLine(to: CGPoint(x: size.width, y: lastPoint.y))
-                }
-
-                context.stroke(
-                    targetPath,
-                    with: .color(targetCurve.color.opacity(0.92)),
-                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
-                )
-
-                for point in curvePoints {
-                    context.fill(
-                        Path(
-                            ellipseIn: CGRect(
-                                x: point.x - 3,
-                                y: point.y - 3,
-                                width: 6,
-                                height: 6
-                            )
-                        ),
-                        with: .color(targetCurve.color)
-                    )
-                }
             }
 
             if let snapshotOverlayBars, snapshotOverlayBars.count == bars.count {

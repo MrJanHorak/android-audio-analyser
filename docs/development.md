@@ -16,6 +16,12 @@
 - Waterfall percentile, gamma, and colour settings are stored in `SharedPreferences`. Input mode, frequency detail, and portrait/landscape compact-meter preferences are also persisted locally. Device-specific input profiles are not transferred in backups.
 - Android capture and generator playback stop when the activity pauses. Capture restarts when the activity resumes unless the user paused it. Verify lifecycle and routing behaviour on physical devices.
 
+## Venue and reference safeguards
+
+- Android `BackupValidation.kt` validates the supported version, preference types and saved curve data before the import confirmation can replace anything. The file reader limits input size. Unit tests cover malformed files and duplicate or incomplete records; exercise the confirmation and file picker on a device as well.
+- The Android room reference preview uses relative dB and is intentionally separate from the auto-scaled live spectrum; the iOS spectrum also does not overlay a target. Reintroducing an overlay requires a common calibrated scale and clearly documented reference alignment. Existing venue records still include a reference shape even when the user only enters notes.
+- Snapshot overlays are temporary comparisons of smoothed spectrum frames; Android clears them on capture restart. Named, persistent, time-averaged snapshots with measurement metadata and structured per-source venue records are future work and need an explicit backup migration and device testing.
+
 ## Testing
 
 Run the shared JVM tests, Android local unit tests, and Android debug build:

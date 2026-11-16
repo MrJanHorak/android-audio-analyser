@@ -141,7 +141,7 @@ class AnalyzerModelsTest {
     fun analyzerReferenceCatalogKeepsEqEntriesAvailable() {
         val entries = AnalyzerReferenceCatalog.eqReferenceEntries()
 
-        assertTrue(entries.any { it.title == "Male / Low Vocal" })
+        assertTrue(entries.any { it.title == "Lower-Range Vocal" })
         assertTrue(entries.any { it.title == "General Gain Staging & Tuning" })
     }
 }
