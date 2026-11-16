@@ -23,6 +23,7 @@ internal fun savedSpectraToJson(items: List<SavedSpectrum>): JSONArray = JSONArr
             put("id", item.id); put("name", item.name); put("position", item.position); put("notes", item.notes)
             put("capturedAt", item.capturedAt); put("input", item.input); put("inputMode", item.inputMode)
             put("dominantFrequency", item.snapshot.dominantFrequency.toDouble()); put("dbLevel", item.snapshot.dbLevel.toDouble())
+            put("captureFrames", item.snapshot.captureFrames); put("captureDurationMs", item.snapshot.captureDurationMs)
             put("frequencies", JSONArray().apply { item.snapshot.frequencies.forEach { put(it.toDouble()) } })
         })
     }
@@ -59,7 +60,10 @@ internal fun parseSavedSpectra(array: JSONArray): List<SavedSpectrum>? = runCatc
             val value = bins.get(i) as? Number ?: error("Invalid magnitude")
             value.toFloat().also { require(it.isFinite() && it >= 0f) }
         }
+        val frames = if (item.has("captureFrames")) (item.get("captureFrames") as? Number)?.toInt() ?: error("frames") else 1
+        val duration = if (item.has("captureDurationMs")) (item.get("captureDurationMs") as? Number)?.toLong() ?: error("duration") else 0L
+        require(frames in 1..10000 && duration in 0..60000)
         SavedSpectrum(id, name, position, notes, time.toLong(), input, mode,
-            SpectrumSnapshot(magnitudes, number("dominantFrequency"), number("dbLevel"), time.toLong(), input, mode))
+            SpectrumSnapshot(magnitudes, number("dominantFrequency"), number("dbLevel"), time.toLong(), input, mode, frames, duration))
     }
 }.getOrNull()

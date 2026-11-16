@@ -18,6 +18,14 @@ class SavedSpectraTest {
         assertEquals("USB microphone", decoded.single().input)
         assertEquals(123456L, decoded.single().snapshot.capturedAt)
         assertArrayEquals(original.snapshot.frequencies, decoded.single().snapshot.frequencies, 0f)
+        assertEquals(1, decoded.single().snapshot.captureFrames)
+        val averaged = original.copy(snapshot = original.snapshot.copy(captureFrames = 12, captureDurationMs = 3000))
+        val restored = parseSavedSpectra(savedSpectraToJson(listOf(averaged)))!!.single()
+        assertEquals(12, restored.snapshot.captureFrames)
+        assertEquals(3000L, restored.snapshot.captureDurationMs)
+        val legacy = savedSpectraToJson(listOf(original))
+        legacy.getJSONObject(0).remove("captureFrames"); legacy.getJSONObject(0).remove("captureDurationMs")
+        assertEquals(1, parseSavedSpectra(legacy)!!.single().snapshot.captureFrames)
     }
 
     @Test fun rejectsInvalidBinsAndDuplicateIds() {

@@ -6,8 +6,8 @@ import org.json.JSONObject
 /** Reject unknown, partial or malformed backups before any current user data is replaced. */
 internal fun isValidAnalyzerBackup(root: JSONObject): Boolean {
     val version = root.opt("formatVersion")
-    if (version !is Number || version.toDouble() !in listOf(1.0, 2.0)) return false
-    if (version.toDouble() == 2.0) {
+    if (version !is Number || version.toDouble() !in listOf(1.0, 2.0, 3.0)) return false
+    if (version.toDouble() >= 2.0) {
         val spectra = root.opt("savedSpectra") as? JSONArray ?: return false
         if (parseSavedSpectra(spectra) == null) return false
     }
@@ -44,6 +44,11 @@ internal fun isValidAnalyzerBackup(root: JSONObject): Boolean {
         for (key in listOf("name", "venueName", "venueCategory", "deskName", "paSystem", "roomSize", "problemBands", "generalNotes", "notes")) {
             if (item.has(key) && item.opt(key) !is String) return false
         }
+    }
+    if (version.toDouble() == 3.0) {
+        val sourceArray = root.opt("venueSources") as? JSONArray ?: return false
+        val sources = parseVenueSources(sourceArray) ?: return false
+        if (sources.any { it.venueId !in ids }) return false
     }
     return true
 }
