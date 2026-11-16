@@ -15,7 +15,7 @@ class BackupValidationTest {
 
     @Test fun rejectsUnrelatedAndFutureVersionJson() {
         assertFalse(isValidAnalyzerBackup(JSONObject("{}")))
-        assertFalse(isValidAnalyzerBackup(JSONObject(valid.replace("\"formatVersion\":1", "\"formatVersion\":2"))))
+        assertFalse(isValidAnalyzerBackup(JSONObject(valid.replace("\"formatVersion\":1", "\"formatVersion\":3"))))
         assertFalse(isValidAnalyzerBackup(JSONObject(valid.replace("\"preferences\":{", "\"preference_typo\":{"))))
     }
 

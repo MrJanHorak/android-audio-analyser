@@ -6,7 +6,11 @@ import org.json.JSONObject
 /** Reject unknown, partial or malformed backups before any current user data is replaced. */
 internal fun isValidAnalyzerBackup(root: JSONObject): Boolean {
     val version = root.opt("formatVersion")
-    if (version !is Number || version.toDouble() != 1.0) return false
+    if (version !is Number || version.toDouble() !in listOf(1.0, 2.0)) return false
+    if (version.toDouble() == 2.0) {
+        val spectra = root.opt("savedSpectra") as? JSONArray ?: return false
+        if (parseSavedSpectra(spectra) == null) return false
+    }
     val preferences = root.opt("preferences") as? JSONObject ?: return false
     for (key in listOf("dbOffset", "noiseThreshold")) {
         if (preferences.has(key)) {

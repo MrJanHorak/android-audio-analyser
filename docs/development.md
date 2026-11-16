@@ -20,7 +20,7 @@
 
 - Android `BackupValidation.kt` validates the supported version, preference types and saved curve data before the import confirmation can replace anything. The file reader limits input size. Unit tests cover malformed files and duplicate or incomplete records; exercise the confirmation and file picker on a device as well.
 - The Android room reference preview uses relative dB and is intentionally separate from the auto-scaled live spectrum; the iOS spectrum also does not overlay a target. Reintroducing an overlay requires a common calibrated scale and clearly documented reference alignment. Existing venue records still include a reference shape even when the user only enters notes.
-- Snapshot overlays are temporary comparisons of smoothed spectrum frames; Android clears them on capture restart. Named, persistent, time-averaged snapshots with measurement metadata and structured per-source venue records are future work and need an explicit backup migration and device testing.
+- Android stores up to 20 named single-frame spectrum snapshots with capture time, input label, requested input mode, frequency resolution, position and notes. `SavedSpectra.kt` validates serialized snapshots; version-2 backups include them, while importing version 1 leaves saved snapshots intact. The active overlay clears on capture restart; matching frequency detail is required to restore it. Input names are not stable microphone identities. Time-averaged capture and structured per-source venue records remain future work. Validate the storage, dialogs and migration on a device.
 
 ## Testing
 
