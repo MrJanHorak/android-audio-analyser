@@ -74,6 +74,10 @@ import com.example.audioanalyser.shared.customTargetCurveFrequencies
 import com.example.audioanalyser.shared.venueCategoryOptions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.collect
 import com.example.audioanalyser.ui.theme.AudioAnalyserTheme
 import org.json.JSONArray
 import org.json.JSONObject
@@ -214,7 +218,12 @@ fun GeneratorPanel(generator: SignalGenerator, modifier: Modifier = Modifier) {
 data class SpectrumSnapshot(
     val frequencies: FloatArray,
     val dominantFrequency: Float,
-    val dbLevel: Float
+    val dbLevel: Float,
+    val capturedAt: Long = 0L,
+    val input: String = "",
+    val inputMode: String = "",
+    val captureFrames: Int = 1,
+    val captureDurationMs: Long = 0L
 )
 
 private const val AUDIO_PREFS_NAME = "audio_prefs"
@@ -228,7 +237,7 @@ private const val PREF_WATERFALL_MAX_PERCENTILE = "waterfall_max_percentile"
 private const val PREF_WATERFALL_GAMMA = "waterfall_gamma"
 private const val PREF_WATERFALL_COLORMAP = "waterfall_colormap"
 private const val ANALYZER_BACKUP_FILE_NAME = "audio-analyser-backup.json"
-private const val ANALYZER_BACKUP_VERSION = 1
+private const val ANALYZER_BACKUP_VERSION = 3
 
 private data class AnalyzerPreferenceState(
     val dbOffset: Float = 30f,
@@ -241,7 +250,9 @@ private data class AnalyzerPreferenceState(
 
 private data class AnalyzerBackupPayload(
     val preferences: AnalyzerPreferenceState,
-    val savedTargetCurves: List<SavedTargetCurvePreset>
+    val savedTargetCurves: List<SavedTargetCurvePreset>,
+    val savedSpectra: List<SavedSpectrum>?,
+    val venueSources: List<VenueSource>?
 )
 
 private fun parseSavedTargetCurvePresets(jsonArray: JSONArray): List<SavedTargetCurvePreset> {
@@ -360,9 +371,21 @@ private fun loadAnalyzerPreferenceState(context: Context): AnalyzerPreferenceSta
 }
 
 
+private fun loadSavedSpectra(context: Context): List<SavedSpectrum> = runCatching {
+    val raw = context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE).getString(SAVED_SPECTRA_KEY, "[]") ?: "[]"
+    parseSavedSpectra(JSONArray(raw)) ?: emptyList()
+}.getOrDefault(emptyList())
+
+private fun saveSavedSpectra(context: Context, spectra: List<SavedSpectrum>) {
+    context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE).edit()
+        .putString(SAVED_SPECTRA_KEY, savedSpectraToJson(spectra).toString()).apply()
+}
+
 private fun buildAnalyzerBackupJson(
     preferenceState: AnalyzerPreferenceState,
-    savedTargetCurves: List<SavedTargetCurvePreset>
+    savedTargetCurves: List<SavedTargetCurvePreset>,
+    savedSpectra: List<SavedSpectrum>,
+    venueSources: List<VenueSource>
 ): String =
     JSONObject().apply {
         put("formatVersion", ANALYZER_BACKUP_VERSION)
@@ -378,6 +401,8 @@ private fun buildAnalyzerBackupJson(
             }
         )
         put("savedTargetCurves", savedTargetCurvePresetsToJsonArray(savedTargetCurves))
+        put("savedSpectra", savedSpectraToJson(savedSpectra))
+        put("venueSources", venueSourcesToJson(venueSources))
     }.toString(2)
 
 private fun parseAnalyzerBackup(rawJson: String): AnalyzerBackupPayload? = runCatching {
@@ -404,7 +429,9 @@ private fun parseAnalyzerBackup(rawJson: String): AnalyzerBackupPayload? = runCa
             selectedTargetCurveId = preferencesJson?.optString("selectedTargetCurveId").orEmpty()
                 .ifBlank { defaultPreferences.selectedTargetCurveId }
         ),
-        savedTargetCurves = sortSavedTargetCurvePresets(parseSavedTargetCurvePresets(savedCurvesJson))
+        savedTargetCurves = sortSavedTargetCurvePresets(parseSavedTargetCurvePresets(savedCurvesJson)),
+        savedSpectra = if (root.getInt("formatVersion") >= 2) root.getJSONArray("savedSpectra").let(::parseSavedSpectra) else null,
+        venueSources = if (root.getInt("formatVersion") >= 3) root.getJSONArray("venueSources").let(::parseVenueSources) else null
     )
 }.getOrNull()
 
@@ -629,7 +656,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                         selectedOverlayId = selectedOverlayId,
                         selectedTargetCurveId = selectedTargetCurveId
                     ),
-                    savedTargetCurves = savedTargetCurves
+                    savedTargetCurves = savedTargetCurves,
+                    savedSpectra = loadSavedSpectra(ctx),
+                    venueSources = loadVenueSources(ctx)
                 )
             ) -> "Backup exported to the selected file."
             else -> "Couldn't export the backup file."
@@ -755,6 +784,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         val updatedPresets = savedTargetCurves.filterNot { it.id == presetId }
         savedTargetCurves = updatedPresets
         saveSavedTargetCurvePresets(ctx, updatedPresets)
+        saveVenueSources(ctx, loadVenueSources(ctx).filterNot { it.venueId == presetId })
         if (selectedTargetCurveId == presetId) {
             selectedTargetCurveId = analyzerTargetCurveProfiles.first().id
         }
@@ -763,7 +793,10 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         spectrumSnapshot = SpectrumSnapshot(
             frequencies = frequencies.copyOf(),
             dominantFrequency = dominantFrequency,
-            dbLevel = dbLevel
+            dbLevel = dbLevel,
+            capturedAt = System.currentTimeMillis(),
+            input = inputName ?: "Input unknown",
+            inputMode = inputModeLabel
         )
         snapshotCompareEnabled = true
     }
@@ -905,6 +938,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onBigGraphModeEnabledChange = { bigGraphModeEnabled = it },
                     onCaptureSnapshot = onCaptureSpectrumSnapshot,
+                    onRestoreSnapshot = { restored -> spectrumSnapshot = restored; snapshotCompareEnabled = true },
                     onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
                     onClearSnapshot = onClearSpectrumSnapshot,
                     modifier = Modifier
@@ -947,6 +981,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onBigGraphModeEnabledChange = { bigGraphModeEnabled = it },
                     onCaptureSnapshot = onCaptureSpectrumSnapshot,
+                    onRestoreSnapshot = { restored -> spectrumSnapshot = restored; snapshotCompareEnabled = true },
                     onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
                     onClearSnapshot = onClearSpectrumSnapshot,
                     modifier = Modifier
@@ -989,6 +1024,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
                     onFeedbackHuntEnabledChange = { feedbackHuntEnabled = it },
                     onBigGraphModeEnabledChange = { bigGraphModeEnabled = it },
                     onCaptureSnapshot = onCaptureSpectrumSnapshot,
+                    onRestoreSnapshot = { restored -> spectrumSnapshot = restored; snapshotCompareEnabled = true },
                     onSnapshotCompareEnabledChange = { snapshotCompareEnabled = it },
                     onClearSnapshot = onClearSpectrumSnapshot,
                     modifier = Modifier
@@ -1054,7 +1090,7 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
         AlertDialog(
             onDismissRequest = { pendingBackup = null; settingsBackupMessage = "Backup import cancelled." },
             title = { Text("Replace saved venue data?") },
-            text = { Text("This backup contains ${importedBackup.savedTargetCurves.size} saved venue curve(s). Import will replace the ${savedTargetCurves.size} currently saved curve(s) and update included preferences. Device-specific calibration profiles are not imported. Export a backup first if you need the current data.") },
+            text = { Text("This backup contains ${importedBackup.savedTargetCurves.size} saved venue curve(s). Import will replace the ${savedTargetCurves.size} currently saved curve(s) and update included preferences. ${if (importedBackup.savedSpectra == null) "This older backup leaves saved snapshots unchanged." else "It will also replace saved snapshots with ${importedBackup.savedSpectra.size} from the backup."} ${if (importedBackup.venueSources == null) "Source records for venues absent from the backup will be deleted; matching records are kept." else "Source records will also be replaced by the backup."} Device-specific calibration profiles are not imported. Export a backup first if you need the current data.") },
             dismissButton = { TextButton(onClick = { pendingBackup = null; settingsBackupMessage = "Backup import cancelled." }) { Text("Cancel") } },
             confirmButton = { TextButton(onClick = {
                 val importedPreferences = importedBackup.preferences
@@ -1069,6 +1105,9 @@ fun AudioAnalyserContent(analyzer: AudioAnalyzer, generator: SignalGenerator) {
 
                 savedTargetCurves = importedCurves
                 saveSavedTargetCurvePresets(ctx, importedCurves)
+                importedBackup.savedSpectra?.let { saveSavedSpectra(ctx, it) }
+                if (importedBackup.venueSources != null) saveVenueSources(ctx, importedBackup.venueSources)
+                else saveVenueSources(ctx, loadVenueSources(ctx).filter { source -> importedCurves.any { it.id == source.venueId } })
                 feedbackHuntEnabled = importedPreferences.feedbackHuntEnabled
                 bigGraphModeEnabled = importedPreferences.bigGraphModeEnabled
                 selectedOverlayId = importedPreferences.selectedOverlayId
@@ -1128,6 +1167,7 @@ fun PortraitLayout(
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onBigGraphModeEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
+    onRestoreSnapshot: (SpectrumSnapshot) -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1178,6 +1218,7 @@ fun PortraitLayout(
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onBigGraphModeEnabledChange = onBigGraphModeEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
+            onRestoreSnapshot = onRestoreSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             generator = generator,
@@ -1224,6 +1265,7 @@ fun LandscapeLayout(
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onBigGraphModeEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
+    onRestoreSnapshot: (SpectrumSnapshot) -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1280,6 +1322,7 @@ fun LandscapeLayout(
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onBigGraphModeEnabledChange = onBigGraphModeEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
+            onRestoreSnapshot = onRestoreSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             generator = generator,
@@ -1327,6 +1370,7 @@ fun TabletLayout(
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onBigGraphModeEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
+    onRestoreSnapshot: (SpectrumSnapshot) -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1398,6 +1442,7 @@ fun TabletLayout(
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onBigGraphModeEnabledChange = onBigGraphModeEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
+            onRestoreSnapshot = onRestoreSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             generator = generator,
@@ -1709,6 +1754,7 @@ fun VisualizerCard(
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onBigGraphModeEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
+    onRestoreSnapshot: (SpectrumSnapshot) -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1808,7 +1854,7 @@ fun VisualizerCard(
             val levelComparison = if (dbLevel > 0f && snapshot.dbLevel > 0f) "level delta ${formatSignedDbDelta(dbLevel - snapshot.dbLevel)}" else "level comparison unavailable"
             "$frequencyComparison; $levelComparison."
         } else {
-            "Snapshot saved: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
+            if (snapshot.captureFrames > 1) "Averaged snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}; sound level not recorded." else "Snapshot captured: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
         }
     }
     val semanticsDesc = buildString {
@@ -2084,6 +2130,7 @@ fun VisualizerCard(
             onFeedbackHuntEnabledChange = onFeedbackHuntEnabledChange,
             onBigGraphModeEnabledChange = onBigGraphModeEnabledChange,
             onCaptureSnapshot = onCaptureSnapshot,
+            onRestoreSnapshot = onRestoreSnapshot,
             onSnapshotCompareEnabledChange = onSnapshotCompareEnabledChange,
             onClearSnapshot = onClearSnapshot,
             onManageSavedCurves = { showSavedCurvesDialog = true },
@@ -2270,6 +2317,7 @@ fun AnalyzerToolsSheet(
     onFeedbackHuntEnabledChange: (Boolean) -> Unit,
     onBigGraphModeEnabledChange: (Boolean) -> Unit,
     onCaptureSnapshot: () -> Unit,
+    onRestoreSnapshot: (SpectrumSnapshot) -> Unit,
     onSnapshotCompareEnabledChange: (Boolean) -> Unit,
     onClearSnapshot: () -> Unit,
     onManageSavedCurves: () -> Unit,
@@ -2294,6 +2342,29 @@ fun AnalyzerToolsSheet(
     val tabs = listOf("Source", "Room", "Snapshot", "Delay", "Log")
     val selectedSavedTargetCurve = savedTargetCurves.firstOrNull { it.id == selectedTargetCurve.id }
     val selectedSavedTargetCurveDetails = selectedSavedTargetCurve?.venueDetailRows().orEmpty()
+    val context = LocalContext.current
+    var savedSpectra by remember { mutableStateOf(loadSavedSpectra(context)) }
+    var showSaveSnapshot by remember { mutableStateOf(false) }
+    var snapshotName by remember { mutableStateOf("") }
+    var snapshotPosition by remember { mutableStateOf("") }
+    var snapshotNotes by remember { mutableStateOf("") }
+    var pendingSnapshotDelete by remember { mutableStateOf<SavedSpectrum?>(null) }
+    val currentFrequencies by analyzer.frequencies.collectAsState()
+    val currentInput by analyzer.inputName.collectAsState()
+    val listening by analyzer.isListening.collectAsState()
+    val captureScope = rememberCoroutineScope()
+    var averaging by remember { mutableStateOf(false) }
+    var averageMessage by remember { mutableStateOf<String?>(null) }
+    val currentMode = remember {
+        val preferences = context.getSharedPreferences(AUDIO_PREFS_NAME, Context.MODE_PRIVATE)
+        val supportsUnprocessed = (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager)
+            .getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)?.equals("true", ignoreCase = true) == true
+        when {
+            !preferences.getBoolean("measurement_input", false) -> "Standard mic"
+            supportsUnprocessed -> "Unprocessed requested"
+            else -> "Voice-recognition input requested"
+        }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -2502,7 +2573,7 @@ fun AnalyzerToolsSheet(
                     2 -> {
                         Text(text = "Snapshots", style = MaterialTheme.typography.labelLarge)
                         ToolHelperText(
-                            "A snapshot is temporary and captures one smoothed spectrum frame, not a timed average. It is cleared when capture restarts or frequency detail changes. For a useful comparison, keep the same microphone, input mode and position. The graph is scaled to the strongest current or snapshot peak; it is not a calibrated response measurement.",
+                            "Capture one smoothed frame or an approximately 3-second mean of smoothed spectrum updates. The active comparison clears when capture restarts or frequency detail changes. For a useful comparison, keep the same microphone, input mode and position. The graph is scaled to the strongest current or snapshot peak; it is not a calibrated response measurement.",
                             modifier = Modifier.padding(top = 8.dp)
                         )
                         Row(
@@ -2512,7 +2583,7 @@ fun AnalyzerToolsSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            FilledTonalButton(onClick = onCaptureSnapshot) {
+                            FilledTonalButton(enabled = listening && !averaging, onClick = onCaptureSnapshot) {
                                 Text(if (spectrumSnapshot == null) "Capture snapshot" else "Refresh snapshot")
                             }
                             if (spectrumSnapshot != null) {
@@ -2526,12 +2597,71 @@ fun AnalyzerToolsSheet(
                                 }
                             }
                         }
+                        OutlinedButton(enabled = listening && !averaging, onClick = {
+                            averaging = true
+                            averageMessage = "Collecting spectrum for about 3 seconds…"
+                            captureScope.launch {
+                                try {
+                                    val revision = analyzer.inputRevision.value
+                                    val offset = analyzer.dbOffset.value
+                                    val threshold = analyzer.noiseThreshold.value
+                                    val size = analyzer.frequencies.value.size
+                                    val input = analyzer.inputName.value ?: "Input unknown"
+                                    val mean = SpectrumMean(size)
+                                    var interrupted = false
+                                    val start = android.os.SystemClock.elapsedRealtime()
+                                    withTimeoutOrNull(3000L) {
+                                        analyzer.frequencies.drop(1).takeWhile { frame ->
+                                            val valid = analyzer.isListening.value && !analyzer.inputClipping.value &&
+                                                analyzer.inputRevision.value == revision && analyzer.dbOffset.value == offset &&
+                                                analyzer.noiseThreshold.value == threshold && mean.add(frame)
+                                            if (!valid) interrupted = true
+                                            valid
+                                        }.collect()
+                                    }
+                                    val duration = android.os.SystemClock.elapsedRealtime() - start
+                                    val values = mean.result()
+                                    if (!interrupted && analyzer.isListening.value && !analyzer.inputClipping.value &&
+                                        analyzer.inputRevision.value == revision && analyzer.dbOffset.value == offset &&
+                                        analyzer.noiseThreshold.value == threshold && duration >= 2800 && values != null) {
+                                        val peak = values.indices.maxByOrNull { values[it] } ?: 0
+                                        onRestoreSnapshot(SpectrumSnapshot(values, peak * (22050f / size), 0f,
+                                            System.currentTimeMillis(), input, currentMode, mean.count, duration))
+                                        averageMessage = "Captured ${mean.count} smoothed spectrum updates."
+                                    } else averageMessage = "Capture stopped or was gated, clipped, or changed input. Check the signal and try again."
+                                } finally { averaging = false }
+                            }
+                        }) { Text(if (averaging) "Capturing…" else "Capture 3-second average") }
+                        averageMessage?.let { ToolHelperText(it, modifier = Modifier.padding(top = 4.dp)) }
+                        if (spectrumSnapshot != null) {
+                            OutlinedButton(
+                                onClick = { showSaveSnapshot = true },
+                                enabled = !averaging && spectrumSnapshot.capturedAt > 0L && spectrumSnapshot.frequencies.any { it > 0f } && savedSpectra.size < MAX_SAVED_SPECTRA,
+                                modifier = Modifier.padding(top = 8.dp)
+                            ) { Text("Save named snapshot") }
+                        }
+                        ToolHelperText("Named snapshots are saved on this device and included in backups. Save no more than $MAX_SAVED_SPECTRA.", modifier = Modifier.padding(top = 8.dp))
+                        savedSpectra.forEach { saved ->
+                            val sameFft = saved.snapshot.frequencies.size == currentFrequencies.size
+                            Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                                Text(saved.name, style = MaterialTheme.typography.titleSmall)
+                                ToolHelperText("${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(saved.capturedAt))} • ${saved.input} • ${saved.inputMode} • ${if (saved.snapshot.frequencies.size == 2048) "Detailed" else "Fast"} • ${if (saved.snapshot.captureFrames > 1) "Average: ${saved.snapshot.captureFrames} updates over ${saved.snapshot.captureDurationMs / 1000f} s" else "Single frame"}")
+                                if (saved.position.isNotBlank()) ToolHelperText("Position: ${saved.position}")
+                                if (saved.notes.isNotBlank()) ToolHelperText(saved.notes)
+                                if (!sameFft) ToolHelperText("Change frequency detail to ${if (saved.snapshot.frequencies.size == 2048) "Detailed" else "Fast"} before comparing.")
+                                if (currentInput == null || currentInput != saved.input || currentMode != saved.inputMode) ToolHelperText("Microphone or input mode differs or is unknown. Check the route and calibration before comparing.")
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(enabled = sameFft && listening && !averaging, onClick = { onRestoreSnapshot(saved.snapshot) }) { Text("Compare") }
+                                    TextButton(onClick = { pendingSnapshotDelete = saved }) { Text("Delete") }
+                                }
+                            }
+                        }
                         ToolHelperText(
                             text = spectrumSnapshot?.let { snapshot ->
                                 if (snapshotCompareEnabled) {
                                     "Snapshot compare is active. Cyan line shows the saved reference over the live bars."
                                 } else {
-                                    "Saved snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
+                                    if (snapshot.captureFrames > 1) "Averaged snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}; sound level not recorded." else "Current snapshot: ${formatDominantFrequency(snapshot.dominantFrequency)}, ${formatMeterReading(snapshot.dbLevel, "Z", Locale.getDefault())}."
                                 }
                             } ?: "No snapshot captured yet.",
                             modifier = Modifier.padding(top = 12.dp)
@@ -2577,6 +2707,41 @@ fun AnalyzerToolsSheet(
                 }
             }
         }
+    }
+    if (showSaveSnapshot && spectrumSnapshot != null) {
+        AlertDialog(
+            onDismissRequest = { showSaveSnapshot = false },
+            title = { Text("Save snapshot") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Saves the capture from ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(spectrumSnapshot.capturedAt))} (${if (spectrumSnapshot.captureFrames > 1) "average of ${spectrumSnapshot.captureFrames} updates" else "single frame"}); capture again for a newer reading.")
+                    OutlinedTextField(value = snapshotName, onValueChange = { snapshotName = it.take(100) }, label = { Text("Name") }, singleLine = true)
+                    OutlinedTextField(value = snapshotPosition, onValueChange = { snapshotPosition = it.take(200) }, label = { Text("Measurement position (optional)") })
+                    OutlinedTextField(value = snapshotNotes, onValueChange = { snapshotNotes = it.take(1000) }, label = { Text("Notes (optional)") }, minLines = 2)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showSaveSnapshot = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(enabled = snapshotName.isNotBlank(), onClick = {
+                val snapshot = spectrumSnapshot
+                val saved = SavedSpectrum(java.util.UUID.randomUUID().toString(), snapshotName.trim(), snapshotPosition.trim(), snapshotNotes.trim(), snapshot.capturedAt, snapshot.input, snapshot.inputMode, snapshot)
+                savedSpectra = listOf(saved) + savedSpectra
+                saveSavedSpectra(context, savedSpectra)
+                snapshotName = ""; snapshotPosition = ""; snapshotNotes = ""; showSaveSnapshot = false
+            }) { Text("Save") } }
+        )
+    }
+    pendingSnapshotDelete?.let { saved ->
+        AlertDialog(
+            onDismissRequest = { pendingSnapshotDelete = null },
+            title = { Text("Delete snapshot?") },
+            text = { Text("Delete ${saved.name}? An exported backup is needed to restore it.") },
+            dismissButton = { TextButton(onClick = { pendingSnapshotDelete = null }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = {
+                savedSpectra = savedSpectra.filterNot { it.id == saved.id }
+                saveSavedSpectra(context, savedSpectra)
+                pendingSnapshotDelete = null
+            }) { Text("Delete") } }
+        )
     }
 }
 
@@ -2631,6 +2796,21 @@ fun SavedTargetCurvesDialog(
     var notes by remember { mutableStateOf("") }
     var pointValues by remember { mutableStateOf(defaults.points) }
     var showCurveEditor by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var venueSources by remember { mutableStateOf(loadVenueSources(context)) }
+    var editingSource by remember { mutableStateOf<VenueSource?>(null) }
+    var showSourceEditor by remember { mutableStateOf(false) }
+    var pendingSourceDelete by remember { mutableStateOf<VenueSource?>(null) }
+    var sourceName by remember { mutableStateOf("") }
+    var sourceInput by remember { mutableStateOf("") }
+    var sourceChannel by remember { mutableStateOf("") }
+    var sourceNotes by remember { mutableStateOf("") }
+    fun editSource(source: VenueSource?) {
+        editingSource = source
+        sourceName = source?.name.orEmpty(); sourceInput = source?.input.orEmpty()
+        sourceChannel = source?.channel.orEmpty(); sourceNotes = source?.notes.orEmpty()
+        showSourceEditor = true
+    }
 
     LaunchedEffect(editingCurveId, savedTargetCurves) {
         val preset = savedTargetCurves.firstOrNull { it.id == editingCurveId }
@@ -2805,6 +2985,23 @@ fun SavedTargetCurvesDialog(
                     maxLines = 5
                 )
 
+                Text("Sources", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp))
+                ToolHelperText("Separate notes for sources, microphones and channels. Save the venue first. Source changes save immediately and do not control your sound system.")
+                val venueId = editingCurveId
+                if (venueId != null) {
+                    venueSources.filter { it.venueId == venueId }.forEach { source ->
+                        Text(source.name, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+                        if (source.input.isNotBlank()) ToolHelperText("Input: ${source.input}")
+                        if (source.channel.isNotBlank()) ToolHelperText("Channel / patch: ${source.channel}")
+                        if (source.notes.isNotBlank()) ToolHelperText(source.notes)
+                        Row {
+                            TextButton(onClick = { editSource(source) }) { Text("Edit") }
+                            TextButton(onClick = { pendingSourceDelete = source }) { Text("Delete") }
+                        }
+                    }
+                    TextButton(enabled = venueSources.size < 200, onClick = { editSource(null) }) { Text("Add source") }
+                }
+
                 TextButton(onClick = { showCurveEditor = !showCurveEditor }) {
                     Text(if (showCurveEditor) "Hide optional reference shape" else "Edit optional reference shape")
                 }
@@ -2882,12 +3079,41 @@ fun SavedTargetCurvesDialog(
             }
         }
     )
+    if (showSourceEditor && editingCurveId != null) {
+        AlertDialog(
+            onDismissRequest = { showSourceEditor = false },
+            title = { Text(if (editingSource == null) "Add source" else "Edit source") },
+            text = { Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(sourceName, { sourceName = it.take(100) }, label = { Text("Source name") }, singleLine = true)
+                OutlinedTextField(sourceInput, { sourceInput = it.take(200) }, label = { Text("Microphone / input (optional)") })
+                OutlinedTextField(sourceChannel, { sourceChannel = it.take(200) }, label = { Text("Channel / patch (optional)") })
+                OutlinedTextField(sourceNotes, { sourceNotes = it.take(2000) }, label = { Text("Settings and notes (optional)") }, minLines = 2)
+            } },
+            dismissButton = { TextButton(onClick = { showSourceEditor = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(enabled = sourceName.isNotBlank(), onClick = {
+                val source = VenueSource(editingSource?.id ?: java.util.UUID.randomUUID().toString(), editingCurveId!!,
+                    sourceName.trim(), sourceInput.trim(), sourceChannel.trim(), sourceNotes.trim())
+                venueSources = venueSources.filterNot { it.id == source.id } + source
+                saveVenueSources(context, venueSources)
+                showSourceEditor = false
+            }) { Text("Save source") } }
+        )
+    }
+    pendingSourceDelete?.let { source ->
+        AlertDialog(onDismissRequest = { pendingSourceDelete = null }, title = { Text("Delete source notes?") },
+            text = { Text("Delete the notes for ${source.name}? An exported backup is needed to restore them.") },
+            dismissButton = { TextButton(onClick = { pendingSourceDelete = null }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = {
+                venueSources = venueSources.filterNot { it.id == source.id }
+                saveVenueSources(context, venueSources); pendingSourceDelete = null
+            }) { Text("Delete") } })
+    }
     pendingDeleteId?.let { id ->
         val name = savedTargetCurves.firstOrNull { it.id == id }?.displayName() ?: "this venue curve"
         AlertDialog(
             onDismissRequest = { pendingDeleteId = null },
             title = { Text("Delete saved venue curve?") },
-            text = { Text("Delete $name and its notes? This cannot be undone unless you have an exported backup.") },
+            text = { Text("Delete $name, its notes, and its source records? This cannot be undone unless you have an exported backup.") },
             dismissButton = { TextButton(onClick = { pendingDeleteId = null }) { Text("Cancel") } },
             confirmButton = { TextButton(onClick = { pendingDeleteId = null; onDeletePreset(id) }) { Text("Delete") } }
         )
@@ -3318,7 +3544,7 @@ fun SettingsDialog(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Save venue curves plus app preferences to a file, or import them on another device. Device-specific offset and gate profiles are not transferred.",
+                    text = "Save venue curves, named snapshots and app preferences to a file, or import them on another device. Device-specific offset and gate profiles are not transferred.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
